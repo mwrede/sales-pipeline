@@ -532,6 +532,12 @@
   .cal-event-card-info { flex: 1; min-width: 0; }
   .cal-event-title { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cal-event-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .panel-assign-select {
+    margin-top: 6px; font-size: 11px; width: 100%; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;
+    color: var(--muted); background: white;
+  }
+  .panel-assign-select:focus { outline: none; border-color: var(--blue); }
   .cal-event-badge {
     font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
     flex-shrink: 0; align-self: flex-start; margin-top: 2px;
@@ -1340,6 +1346,7 @@ function submitNewOpp() {
 // ─────────────────────────────────────────────
 let tokenClient = null;
 let accessToken = null;
+let _autoSyncOnReady = false; // trigger silent sync once GIS is loaded
 
 function setCalStatus(state, msg) {
   const el = document.getElementById('cal-status');
@@ -1365,6 +1372,7 @@ window.addEventListener('load', () => {
         scope: 'https://www.googleapis.com/auth/calendar.readonly email',
         callback: handleToken,
       });
+      if (_autoSyncOnReady) { _autoSyncOnReady = false; silentSync(); }
     }
   }, 200);
 });
@@ -1382,20 +1390,30 @@ function connectCalendar() {
   tokenClient.requestAccessToken();
 }
 
+// Silent re-auth — no consent prompt; falls back gracefully on failure
+function silentSync() {
+  if (!tokenClient) { _autoSyncOnReady = true; return; }
+  tokenClient.requestAccessToken({ prompt: '' });
+}
+
 async function handleToken(resp) {
   if (resp.error) {
-    setCalStatus('error', 'Auth error: ' + resp.error);
+    // Silent auth failed — just restore the connect button quietly
+    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
+    if (!calendarEmail) setCalStatus('', 'Not connected');
     return;
   }
   accessToken = resp.access_token;
   setCalStatus('syncing', 'Fetching calendar events...');
-  document.getElementById('cal-btn').textContent = '↻ Syncing...';
+  document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Syncing...`;
   await syncCalendar();
 }
 
 function resync() {
-  if (!accessToken) { connectCalendar(); return; }
-  syncCalendar();
+  if (accessToken) { syncCalendar(); return; }
+  // No live token — try silent re-auth first, then full connect
+  if (tokenClient && calendarEmail) { silentSync(); return; }
+  connectCalendar();
 }
 
 async function syncCalendar() {
@@ -1409,6 +1427,9 @@ async function syncCalendar() {
       if (infoResp.ok) {
         const info = await infoResp.json();
         calendarEmail = info.email || '';
+        if (calendarEmail && currentUser) {
+          localStorage.setItem(`pipeline_v2_${currentUser}_cal_email`, calendarEmail);
+        }
       }
     }
     if (!calendarEmail) throw new Error('Could not determine your Google account email');
@@ -1542,6 +1563,9 @@ function showCalPanel(matched, unmatched = []) {
       const atts = ev.attendees || [];
       const firstAtt = atts[0] || '';
       const tipHTML = atts.length ? atts.map(a => `<div>${a}</div>`).join('') : '';
+      const companyOpts = companies.map(c =>
+        `<option value="${escAttr(c.name)}">${c.name}</option>`
+      ).join('');
       html += `
         <div class="cal-event-card" draggable="true"
           data-id="${escAttr(ev.id)}" data-title="${escAttr(ev.title)}"
@@ -1553,6 +1577,11 @@ function showCalPanel(matched, unmatched = []) {
           <div class="cal-event-card-info">
             <div class="cal-event-title">${ev.title}</div>
             <div class="cal-event-meta">${fmtDate(ev.date)}${firstAtt ? ' · ' + firstAtt : ''}</div>
+            <select class="panel-assign-select" data-evid="${escAttr(ev.id)}"
+              onchange="assignEventFromPanel(this)" onclick="event.stopPropagation()">
+              <option value="">Assign to...</option>
+              ${companyOpts}
+            </select>
           </div>
           ${tipHTML ? `<div class="card-tip">${tipHTML}</div>` : ''}
         </div>`;
@@ -1752,6 +1781,31 @@ function dropZoneDragLeave(e) {
   }
 }
 
+function assignEventFromPanel(sel) {
+  const evId = sel.dataset.evid;
+  const companyName = sel.value;
+  if (!companyName) return;
+  sel.value = '';
+  const ev = pendingUnmatched.find(e => e.id === evId);
+  const company = companies.find(c => c.name === companyName);
+  if (!ev || !company) return;
+  const date = ev.date;
+  if (!company.meetings.includes(date)) {
+    company.meetings.push(date);
+    company.meetings.sort();
+    if (!company.calendarMeetings) company.calendarMeetings = [];
+    company.calendarMeetings.push(date);
+  }
+  if (ev.attendees && ev.attendees.length) {
+    if (!company.meetingAttendees) company.meetingAttendees = {};
+    company.meetingAttendees[date] = ev.attendees;
+  }
+  saveData();
+  renderStats();
+  renderTimeline();
+  showCalPanel([], pendingUnmatched); // re-render so event moves to Already Assigned
+}
+
 function dropToCreate(e) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
@@ -1782,14 +1836,26 @@ function selectUser(name) {
   calendarEmail = '';
   pendingMatches = [];
   pendingUnmatched = [];
-  document.getElementById('cal-btn').innerHTML = '<span class="gcal-icon"></span> Connect Google Calendar';
-  document.getElementById('sync-btn').style.display = 'none';
-  setCalStatus('', 'Not connected');
 
   // Load data and render
   loadData();
   renderStats();
   renderTimeline();
+
+  // Check for previously-connected calendar email
+  const savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
+  if (savedEmail) {
+    calendarEmail = savedEmail;
+    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> ${savedEmail}`;
+    document.getElementById('sync-btn').style.display = 'block';
+    setCalStatus('', `Previously connected · click Sync to refresh`);
+    // Attempt silent re-auth so sync is ready without user action
+    silentSync();
+  } else {
+    document.getElementById('cal-btn').innerHTML = '<span class="gcal-icon"></span> Connect Google Calendar';
+    document.getElementById('sync-btn').style.display = 'none';
+    setCalStatus('', 'Not connected');
+  }
 
   // Show app, hide selection
   document.getElementById('user-select-screen').style.display = 'none';
