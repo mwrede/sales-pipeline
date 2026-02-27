@@ -1741,8 +1741,17 @@ function loadData() {
   try {
     const savedC = localStorage.getItem(`pipeline_v2_${currentUser}_companies`);
     const savedN = localStorage.getItem(`pipeline_v2_${currentUser}_parent_names`);
-    if (savedC) companies = JSON.parse(savedC);
-    if (savedN) Object.assign(PARENT_NAMES, JSON.parse(savedN));
+    if (savedC) {
+      companies = JSON.parse(savedC);
+      if (savedN) Object.assign(PARENT_NAMES, JSON.parse(savedN));
+    } else {
+      // Migrate from v1 keys (one-time migration of original data)
+      const oldC = localStorage.getItem('pipeline_v1_companies');
+      const oldN = localStorage.getItem('pipeline_v1_parent_names');
+      if (oldC) companies = JSON.parse(oldC);
+      if (oldN) Object.assign(PARENT_NAMES, JSON.parse(oldN));
+      if (oldC) saveData(); // save under new key so migration only runs once
+    }
   } catch(e) {}
 }
 
