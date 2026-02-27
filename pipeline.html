@@ -270,6 +270,15 @@
   /* ── Reorder drop indicators ── */
   .row.reorder-above { box-shadow: inset 0 2px 0 #6366f1; }
   .row.reorder-below { box-shadow: inset 0 -2px 0 #6366f1; }
+  .row.merge-target  { box-shadow: inset 0 0 0 2px var(--blue); background: #eff6ff !important; }
+  .ungroup-btn {
+    font-size: 11px; color: #94a3b8; background: none; border: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px; flex-shrink: 0; opacity: 0; transition: opacity 0.12s;
+  }
+  .group-header:hover .ungroup-btn { opacity: 1; }
+  .ungroup-btn:hover { color: #ef4444; background: #fef2f2; }
+  .group-name-text { cursor: default; }
+  .group-name-text:hover { text-decoration: underline dotted #94a3b8; cursor: text; }
   /* ── Status cycle dot ── */
   .status-cycle-dot {
     width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
@@ -740,7 +749,7 @@
         <input type="text" id="opp-name" placeholder="e.g. Lear Body Shop" />
       </div>
       <div class="form-field">
-        <label>Company Domain <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8">(optional — used for logo & grouping)</span></label>
+        <label>Company Domain <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8">(optional — used for logo)</span></label>
         <input type="text" id="opp-domain" placeholder="e.g. lear.com" />
       </div>
       <div class="form-field" id="opp-date-field">
@@ -799,6 +808,7 @@ let calendarEmail = '';
 // ─────────────────────────────────────────────
 let companies = [];
 const PARENT_NAMES = {};
+const groupNames = {}; // groupId -> display name
 
 // ─────────────────────────────────────────────
 //  Timeline bounds
@@ -966,12 +976,12 @@ function startRowDrag(e, el) {
 
 function endRowDrag() {
   draggedRow = null;
-  document.querySelectorAll('.reorder-above,.reorder-below')
-    .forEach(r => r.classList.remove('reorder-above','reorder-below'));
+  document.querySelectorAll('.reorder-above,.reorder-below,.merge-target')
+    .forEach(r => r.classList.remove('reorder-above','reorder-below','merge-target'));
 }
 
-function startGroupDrag(e, domain) {
-  draggedGroup = domain;
+function startGroupDrag(e, groupId) {
+  draggedGroup = groupId;
   draggedRow   = null;
   draggedEvent = null;
   e.dataTransfer.effectAllowed = 'move';
@@ -1005,9 +1015,9 @@ function dropOnSection(e, status) {
   e.currentTarget.classList.remove('drop-target');
 
   if (draggedGroup) {
-    const domain = draggedGroup;
+    const gid = draggedGroup;
     draggedGroup = null;
-    companies.filter(c => c.domain === domain).forEach(c => c.status = status);
+    companies.filter(c => c.groupId === gid).forEach(c => c.status = status);
     statusSectionOpen[status] = true;
     saveData();
     renderTimeline();
@@ -1089,41 +1099,47 @@ function renderTimeline() {
 
     if (!open || !sectionComps.length) return;
 
-    // Group by domain within this status section
-    const domainOrder = [];
-    const groups = {};
+    // Build render order: grouped items (by groupId) then solo items, preserving companies[] order
+    const seenGroups = new Set();
+    const renderItems = []; // [{type:'group',gid},{type:'solo',company}]
     sectionComps.forEach(c => {
-      if (!groups[c.domain]) { groups[c.domain] = []; domainOrder.push(c.domain); }
-      groups[c.domain].push(c);
+      if (c.groupId) {
+        if (!seenGroups.has(c.groupId)) { seenGroups.add(c.groupId); renderItems.push({ type: 'group', gid: c.groupId }); }
+      } else {
+        renderItems.push({ type: 'solo', company: c });
+      }
     });
 
-    domainOrder.forEach(domain => {
-      const group = groups[domain];
-      const isGrouped = group.length > 1;
-      const parentName = PARENT_NAMES[domain] || domain;
+    renderItems.forEach(item => {
+      const isGrouped = item.type === 'group';
+      const group = isGrouped ? sectionComps.filter(c => c.groupId === item.gid) : [item.company];
+      const gid = isGrouped ? item.gid : null;
+      const groupKey = status + ':' + (gid || group[0].name);
+      const isCollapsed = collapsedGroups.has(groupKey);
       const first = group[0];
       const hasS1 = group.some(c => c.s1);
       const hCls = hasS1 ? 'g' : 'b';
-      const groupKey = status + ':' + domain;
-      const isCollapsed = collapsedGroups.has(groupKey);
 
       if (isGrouped) {
+        const gName = groupNames[gid] || first.name;
+        const safeGid = gid.replace(/'/g,"\\'");
         rowsHTML += `
           <div class="group-header" onclick="toggleGroup('${groupKey}')">
             <div class="group-left">
               <div class="group-header-drag-handle" draggable="true"
-                ondragstart="startGroupDrag(event,'${domain}')"
+                ondragstart="startGroupDrag(event,'${safeGid}')"
                 ondragend="endGroupDrag()">⠿</div>
               <div class="group-logo-box">
-                <img src="https://logo.clearbit.com/${domain}" alt="${parentName}"
+                <img src="https://logo.clearbit.com/${first.domain}" alt="${gName}"
                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
                 <div class="fb ${hCls}">${first.init.substring(0,2)}</div>
               </div>
-              <span class="group-name-text">${parentName}</span>
+              <span class="group-name-text" ondblclick="renameGroup(event,'${safeGid}')" title="Double-click to rename">${gName}</span>
               <span class="group-count">${group.length}</span>
               <span class="group-arrow${isCollapsed ? ' collapsed' : ''}">›</span>
             </div>
             <div class="group-track-spacer"></div>
+            <button class="ungroup-btn" onclick="ungroupAll(event,'${safeGid}')" title="Ungroup">ungroup</button>
           </div>`;
       }
 
@@ -1597,10 +1613,14 @@ function rowDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     const row = e.currentTarget;
-    document.querySelectorAll('.reorder-above,.reorder-below')
-      .forEach(r => r.classList.remove('reorder-above','reorder-below'));
+    document.querySelectorAll('.reorder-above,.reorder-below,.merge-target')
+      .forEach(r => r.classList.remove('reorder-above','reorder-below','merge-target'));
     const rect = row.getBoundingClientRect();
-    row.classList.add(e.clientY < rect.top + rect.height / 2 ? 'reorder-above' : 'reorder-below');
+    const relY = e.clientY - rect.top;
+    const third = rect.height / 3;
+    if (relY < third) row.classList.add('reorder-above');
+    else if (relY > 2 * third) row.classList.add('reorder-below');
+    else row.classList.add('merge-target');
     return;
   }
   if (!draggedEvent) return;
@@ -1611,20 +1631,23 @@ function rowDragOver(e) {
 
 function rowDragLeave(e) {
   if (!e.currentTarget.contains(e.relatedTarget)) {
-    e.currentTarget.classList.remove('drag-over','reorder-above','reorder-below');
+    e.currentTarget.classList.remove('drag-over','reorder-above','reorder-below','merge-target');
   }
 }
 
 function dropOnRow(e, companyName) {
   e.preventDefault();
   const row = e.currentTarget;
-  row.classList.remove('drag-over','reorder-above','reorder-below');
+  const isMerge = row.classList.contains('merge-target');
+  row.classList.remove('drag-over','reorder-above','reorder-below','merge-target');
 
   if (draggedRow) {
     const fromName = draggedRow;
     draggedRow = null;
     if (fromName === companyName) return;
-    const insertBefore = e.clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+    if (isMerge) { groupWithCompany(fromName, companyName); return; }
+    const insertBefore = row.classList.contains('reorder-above') ||
+      e.clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
     const fromIdx = companies.findIndex(c => c.name === fromName);
     const toComp  = companies.find(c => c.name === companyName);
     if (fromIdx === -1 || !toComp) return;
@@ -1735,6 +1758,7 @@ function exportData() {
     user: currentUser,
     companies: companies,
     parentNames: PARENT_NAMES,
+    groupNames: groupNames,
     exportedAt: new Date().toISOString()
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1756,7 +1780,9 @@ function importData(e) {
       if (!Array.isArray(payload.companies)) throw new Error('Invalid file — no companies array found');
       companies = payload.companies;
       for (const k in PARENT_NAMES) delete PARENT_NAMES[k];
+      for (const k in groupNames) delete groupNames[k];
       if (payload.parentNames) Object.assign(PARENT_NAMES, payload.parentNames);
+      if (payload.groupNames) Object.assign(groupNames, payload.groupNames);
       saveData();
       renderStats();
       renderTimeline();
@@ -1769,24 +1795,70 @@ function importData(e) {
 }
 
 // ─────────────────────────────────────────────
+//  Manual grouping
+// ─────────────────────────────────────────────
+function generateGroupId() { return 'g' + Date.now() + Math.random().toString(36).substring(2,6); }
+
+function groupWithCompany(fromName, targetName) {
+  const from   = companies.find(c => c.name === fromName);
+  const target = companies.find(c => c.name === targetName);
+  if (!from || !target) return;
+  let gid = target.groupId;
+  if (!gid) {
+    gid = generateGroupId();
+    target.groupId = gid;
+    groupNames[gid] = target.name;
+  }
+  from.groupId = gid;
+  from.status  = target.status || 'meh';
+  // Move 'from' right after 'target' in the array
+  const fromIdx = companies.findIndex(c => c.name === fromName);
+  companies.splice(fromIdx, 1);
+  const targetIdx = companies.findIndex(c => c.name === targetName);
+  companies.splice(targetIdx + 1, 0, from);
+  saveData(); renderTimeline();
+}
+
+function renameGroup(e, groupId) {
+  e.stopPropagation();
+  const cur = groupNames[groupId] || '';
+  const next = prompt('Group name:', cur);
+  if (next !== null && next.trim()) {
+    groupNames[groupId] = next.trim();
+    saveData(); renderTimeline();
+  }
+}
+
+function ungroupAll(e, groupId) {
+  e.stopPropagation();
+  companies.filter(c => c.groupId === groupId).forEach(c => { c.groupId = null; });
+  delete groupNames[groupId];
+  saveData(); renderTimeline();
+}
+
+// ─────────────────────────────────────────────
 function saveData() {
   if (!currentUser) return;
   try {
     localStorage.setItem(`pipeline_v2_${currentUser}_companies`, JSON.stringify(companies));
     localStorage.setItem(`pipeline_v2_${currentUser}_parent_names`, JSON.stringify(PARENT_NAMES));
+    localStorage.setItem(`pipeline_v2_${currentUser}_group_names`, JSON.stringify(groupNames));
   } catch(e) {}
 }
 
 function loadData() {
   companies = [];
   for (const k in PARENT_NAMES) delete PARENT_NAMES[k];
+  for (const k in groupNames) delete groupNames[k];
   if (!currentUser) return;
   try {
     const savedC = localStorage.getItem(`pipeline_v2_${currentUser}_companies`);
     const savedN = localStorage.getItem(`pipeline_v2_${currentUser}_parent_names`);
+    const savedG = localStorage.getItem(`pipeline_v2_${currentUser}_group_names`);
     if (savedC) {
       companies = JSON.parse(savedC);
       if (savedN) Object.assign(PARENT_NAMES, JSON.parse(savedN));
+      if (savedG) Object.assign(groupNames, JSON.parse(savedG));
     } else {
       // Migrate from v1 keys (one-time migration of original data)
       const oldC = localStorage.getItem('pipeline_v1_companies');
