@@ -218,7 +218,13 @@
   .logo-box .fb.g { background: var(--green-bg); color: var(--green); }
   .logo-box .fb.b { background: var(--blue-bg); color: var(--blue); }
   .name-col { flex: 1; min-width: 0; }
-  .name-col .cname { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name-col .cname { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; }
+  .name-col .cname:hover { color: var(--blue); }
+  .inline-edit-input {
+    border: none; border-bottom: 1.5px solid var(--blue); outline: none;
+    background: transparent; font: inherit; color: inherit;
+    padding: 0; margin: 0; min-width: 60px; max-width: 160px;
+  }
   .s1-tag {
     display: inline-block; margin-top: 2px;
     font-size: 9px; font-weight: 700;
@@ -277,8 +283,8 @@
   }
   .group-header:hover .ungroup-btn { opacity: 1; }
   .ungroup-btn:hover { color: #ef4444; background: #fef2f2; }
-  .group-name-text { cursor: default; }
-  .group-name-text:hover { text-decoration: underline dotted #94a3b8; cursor: text; }
+  .group-name-text { cursor: text; }
+  .group-name-text:hover { color: var(--blue); }
   /* ── Status cycle dot ── */
   .status-cycle-dot {
     width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
@@ -1145,7 +1151,7 @@ function renderTimeline() {
                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
                 <div class="fb ${hCls}">${first.init.substring(0,2)}</div>
               </div>
-              <span class="group-name-text" ondblclick="renameGroup(event,'${safeGid}')" title="Double-click to rename">${gName}</span>
+              <span class="group-name-text" onclick="event.stopPropagation();editGroupName(event,this,'${safeGid}')">${gName}</span>
               <span class="group-count">${group.length}</span>
               <span class="group-arrow${isCollapsed ? ' collapsed' : ''}">›</span>
             </div>
@@ -1189,7 +1195,7 @@ function renderTimeline() {
                 <div class="fb ${cls}">${c.init}</div>
               </div>
               <div class="name-col">
-                <div class="cname">${c.name}</div>
+                <div class="cname" onclick="event.stopPropagation();editCompanyName(event,this,'${safeN}')">${c.name}</div>
                 ${c.s1 ? '<span class="s1-tag">S1</span>' : ''}
               </div>
               <div class="status-cycle-dot ${curStatus}" title="Click to change status"
@@ -1841,14 +1847,57 @@ function groupWithCompany(fromName, targetName) {
   saveData(); renderTimeline();
 }
 
-function renameGroup(e, groupId) {
+function editGroupName(e, el, groupId) {
   e.stopPropagation();
-  const cur = groupNames[groupId] || '';
-  const next = prompt('Group name:', cur);
-  if (next !== null && next.trim()) {
-    groupNames[groupId] = next.trim();
+  if (el.querySelector('input')) return;
+  const cur = groupNames[groupId] || el.textContent;
+  el.textContent = '';
+  const input = document.createElement('input');
+  input.className = 'inline-edit-input';
+  input.value = cur;
+  input.style.width = Math.max(cur.length * 8, 60) + 'px';
+  el.appendChild(input);
+  input.focus(); input.select();
+  let saved = false;
+  function save() {
+    if (saved) return; saved = true;
+    const next = input.value.trim();
+    if (next) groupNames[groupId] = next;
     saveData(); renderTimeline();
   }
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); save(); }
+    if (ev.key === 'Escape') { renderTimeline(); }
+  });
+  input.addEventListener('blur', save);
+}
+
+function editCompanyName(e, el, oldName) {
+  e.stopPropagation();
+  if (el.querySelector('input')) return;
+  const cur = el.textContent;
+  el.textContent = '';
+  const input = document.createElement('input');
+  input.className = 'inline-edit-input';
+  input.value = cur;
+  input.style.width = Math.max(cur.length * 8, 80) + 'px';
+  el.appendChild(input);
+  input.focus(); input.select();
+  let saved = false;
+  function save() {
+    if (saved) return; saved = true;
+    const next = input.value.trim();
+    if (next && next !== oldName) {
+      const company = companies.find(c => c.name === oldName);
+      if (company) company.name = next;
+    }
+    saveData(); renderTimeline();
+  }
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); save(); }
+    if (ev.key === 'Escape') { renderTimeline(); }
+  });
+  input.addEventListener('blur', save);
 }
 
 function ungroupAll(e, groupId) {
