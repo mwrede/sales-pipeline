@@ -1144,8 +1144,11 @@ function renderTimeline() {
     });
 
     renderItems.forEach(item => {
-      const isGrouped = item.type === 'group';
-      const group = isGrouped ? sectionComps.filter(c => c.groupId === item.gid) : [item.company];
+      const rawGroup = item.type === 'group' ? sectionComps.filter(c => c.groupId === item.gid) : [item.company];
+      if (!rawGroup.length) return;
+      // Don't render single-member "groups" as group headers — treat as solo
+      const isGrouped = item.type === 'group' && rawGroup.length > 1;
+      const group = rawGroup;
       const gid = isGrouped ? item.gid : null;
       const groupKey = status + ':' + (gid || group[0].name);
       const isCollapsed = collapsedGroups.has(groupKey);
@@ -1274,9 +1277,21 @@ function deleteMeeting(companyName, dateStr) {
 // ─────────────────────────────────────────────
 //  Delete opportunity (whole row)
 // ─────────────────────────────────────────────
+function cleanupSingleGroups() {
+  const counts = {};
+  companies.forEach(c => { if (c.groupId) counts[c.groupId] = (counts[c.groupId] || 0) + 1; });
+  companies.forEach(c => {
+    if (c.groupId && counts[c.groupId] <= 1) {
+      delete groupNames[c.groupId];
+      c.groupId = null;
+    }
+  });
+}
+
 function deleteOpportunity(companyName) {
   if (!confirm(`Delete "${companyName}" and all its meetings?`)) return;
   companies = companies.filter(c => c.name !== companyName);
+  cleanupSingleGroups();
   saveData();
   renderStats();
   renderTimeline();
@@ -1739,6 +1754,7 @@ function dropOnRow(e, companyName) {
     const [moved] = companies.splice(fromIdx, 1);
     const newToIdx = companies.findIndex(c => c.name === companyName);
     companies.splice(insertBefore ? newToIdx : newToIdx + 1, 0, moved);
+    cleanupSingleGroups();
     saveData();
     renderTimeline();
     return;
