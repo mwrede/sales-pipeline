@@ -338,6 +338,16 @@
     cursor: pointer; z-index: 40;
   }
   .dot:hover .dot-del { display: flex; }
+  .dot-s1 {
+    position: absolute; top: -7px; left: -7px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #4ade80; color: white; font-size: 6px; font-weight: 900;
+    display: none; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 40; border: 1.5px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .dot:hover .dot-s1 { display: flex; }
+  .dot-s1.is-s1 { display: flex; background: #16a34a; }
 
   /* ── Row delete (whole opportunity) ── */
   .row-del {
@@ -773,7 +783,7 @@
         <label>First Meeting Date <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8">(optional)</span></label>
         <input type="date" id="opp-date" />
       </div>
-      <div class="form-field">
+      <div class="form-field" style="display:none">
         <div class="s1-toggle">
           <input type="checkbox" id="opp-s1" />
           <span>Progressed to S1</span>
@@ -1178,8 +1188,10 @@ function renderTimeline() {
           const calMark = c.calendarMeetings && c.calendarMeetings.includes(m) ? ' cal' : '';
           const atts = (c.meetingAttendees && c.meetingAttendees[m]) || [];
           const attStr = atts.length ? '\n' + atts.join('\n') : '';
+          const isS1Dot = c.s1Meeting === m;
           return `<div class="dot ${cls}${calMark}" style="left:${pct(m)}%">
             <div class="mtip">${label}: ${fmtDate(m)}${days}${calMark ? ' 📅' : ''}${attStr}</div>
+            <div class="dot-s1${isS1Dot ? ' is-s1' : ''}" onclick="event.stopPropagation();toggleS1Meeting('${safeN}','${m}')" title="${isS1Dot ? 'Unmark S1' : 'Mark as S1'}">S1</div>
             <div class="dot-del" onclick="event.stopPropagation();deleteMeeting('${safeN}','${m}')">×</div>
           </div>`;
         }).join('');
@@ -1220,6 +1232,22 @@ function renderTimeline() {
     </div>`;
   rowsHTML += `</div>`;
   document.getElementById('timeline').innerHTML = axisHTML + rowsHTML;
+}
+
+// ─────────────────────────────────────────────
+//  S1 toggle
+// ─────────────────────────────────────────────
+function toggleS1Meeting(companyName, date) {
+  const company = companies.find(c => c.name === companyName);
+  if (!company) return;
+  if (company.s1Meeting === date) {
+    company.s1 = false;
+    company.s1Meeting = null;
+  } else {
+    company.s1 = true;
+    company.s1Meeting = date;
+  }
+  saveData(); renderStats(); renderTimeline();
 }
 
 // ─────────────────────────────────────────────
@@ -1292,7 +1320,7 @@ function submitNewOpp() {
   const domain = document.getElementById('opp-domain').value.trim() || _newOppDomain ||
     name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.com'; // fallback slug key
   const date   = document.getElementById('opp-date').value;
-  const s1     = document.getElementById('opp-s1').checked;
+  const s1     = false;
   if (!name) { document.getElementById('opp-name').focus(); return; }
   const words = name.trim().split(/\s+/);
   const init  = words.length >= 2
