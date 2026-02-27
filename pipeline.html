@@ -784,9 +784,9 @@ const IS_CONFIGURED = CLIENT_ID !== 'YOUR_CLIENT_ID_HERE';
 //  Users
 // ─────────────────────────────────────────────
 const USERS = {
-  michael: { label: 'Michael', init: 'M', avatarBg: '#eff6ff', avatarColor: '#1d4ed8' },
-  sylvie:  { label: 'Sylvie',  init: 'S', avatarBg: '#fdf4ff', avatarColor: '#7e22ce' },
-  davis:   { label: 'Davis',   init: 'D', avatarBg: '#f0fdf4', avatarColor: '#15803d' },
+  michael: { label: 'Michael', init: 'M', avatarBg: '#eff6ff', avatarColor: '#1d4ed8', calColorId: '10' },
+  sylvie:  { label: 'Sylvie',  init: 'S', avatarBg: '#fdf4ff', avatarColor: '#7e22ce', calColorId: '10' },
+  davis:   { label: 'Davis',   init: 'D', avatarBg: '#f0fdf4', avatarColor: '#15803d', calColorId: '6'  },
 };
 let currentUser = null;
 let calendarEmail = '';
@@ -1333,7 +1333,7 @@ function resync() {
 }
 
 async function syncCalendar() {
-  const DARK_GREEN_ID = '10';  // Google Calendar "Basil" = dark green label
+  const calColorId = USERS[currentUser]?.calColorId || '10';
 
   try {
     // Fetch the authenticated user's email if we don't have it yet
@@ -1360,9 +1360,9 @@ async function syncCalendar() {
     const data = await resp.json();
     const all = data.items || [];
 
-    // Only dark-green-labeled events that have external invitees
+    // Only correctly-colored events (per user) that have external invitees
     const events = all.filter(ev =>
-      ev.colorId === DARK_GREEN_ID &&
+      ev.colorId === calColorId &&
       ev.attendees && ev.attendees.some(a => a.email !== calendarEmail)
     );
 
