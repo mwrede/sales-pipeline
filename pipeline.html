@@ -313,7 +313,8 @@
     position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%);
     background: #1e293b; color: #f8fafc;
     font-size: 11px; font-weight: 500; padding: 5px 10px; border-radius: 7px;
-    white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    white-space: pre-line; max-width: 260px; text-align: left; line-height: 1.6;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s;
     box-shadow: 0 4px 14px rgba(0,0,0,0.25); z-index: 30;
   }
   .mtip::after {
@@ -498,7 +499,17 @@
     padding: 10px 12px; margin-bottom: 8px; cursor: grab;
     user-select: none; transition: box-shadow 0.15s, border-color 0.15s, opacity 0.15s;
     display: flex; align-items: flex-start; gap: 8px;
+    position: relative;
   }
+  .card-tip {
+    position: absolute; top: calc(100% + 6px); left: 0; min-width: 200px; z-index: 40;
+    background: #1e293b; color: #f8fafc; font-size: 11px; line-height: 1.7;
+    padding: 6px 10px; border-radius: 7px; pointer-events: none;
+    opacity: 0; transition: opacity 0.15s;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    white-space: nowrap;
+  }
+  .cal-event-card:hover .card-tip { opacity: 1; }
   .cal-event-card:hover { border-color: #b0bfd4; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
   .cal-event-card.dragging { opacity: 0.35; cursor: grabbing; }
   .drag-handle { font-size: 15px; color: #cbd5e1; margin-top: 1px; flex-shrink: 0; line-height: 1; }
@@ -1159,8 +1170,10 @@ function renderTimeline() {
           const label = meetingLabels[i] || `Meeting ${i+1}`;
           const days  = i > 0 ? ` (+${daysBetween(sorted[i-1], m)}d)` : '';
           const calMark = c.calendarMeetings && c.calendarMeetings.includes(m) ? ' cal' : '';
+          const atts = (c.meetingAttendees && c.meetingAttendees[m]) || [];
+          const attStr = atts.length ? '\n' + atts.join('\n') : '';
           return `<div class="dot ${cls}${calMark}" style="left:${pct(m)}%">
-            <div class="mtip">${label}: ${fmtDate(m)}${days}${calMark ? ' 📅' : ''}</div>
+            <div class="mtip">${label}: ${fmtDate(m)}${days}${calMark ? ' 📅' : ''}${attStr}</div>
             <div class="dot-del" onclick="event.stopPropagation();deleteMeeting('${safeN}','${m}')">×</div>
           </div>`;
         }).join('');
@@ -1431,12 +1444,11 @@ function processEvents(events) {
   const allEvents = events.map(ev => {
     const dateRaw = ev.start?.date || ev.start?.dateTime || '';
     const date = dateRaw.substring(0, 10);
-    const externalDomain = (ev.attendees || [])
+    const externalAttendees = (ev.attendees || [])
       .map(a => a.email || '')
-      .filter(e => e && e !== calendarEmail && e.includes('@'))
-      .map(e => e.split('@')[1])
-      .find(Boolean) || '';
-    return { id: ev.id, title: ev.summary || '(no title)', date, domainHint: externalDomain };
+      .filter(e => e && e !== calendarEmail && !e.endsWith('@roboflow.com') && e.includes('@'));
+    const externalDomain = externalAttendees.map(e => e.split('@')[1]).find(Boolean) || '';
+    return { id: ev.id, title: ev.summary || '(no title)', date, domainHint: externalDomain, attendees: externalAttendees };
   }).filter(ev => ev.date >= new Date(Date.now() - 90*24*60*60*1000).toISOString().substring(0,10));
 
   pendingMatches = [];
@@ -1493,17 +1505,22 @@ function showCalPanel(matched, unmatched = []) {
       <div id="sh-body-unassigned" style="display:${open ? 'block' : 'none'};">`;
 
     notAssigned.forEach(ev => {
+      const atts = ev.attendees || [];
+      const firstAtt = atts[0] || '';
+      const tipHTML = atts.length ? atts.map(a => `<div>${a}</div>`).join('') : '';
       html += `
         <div class="cal-event-card" draggable="true"
           data-id="${escAttr(ev.id)}" data-title="${escAttr(ev.title)}"
           data-date="${ev.date}" data-domain="${escAttr(ev.domainHint)}"
+          data-attendees="${escAttr(JSON.stringify(atts))}"
           data-company=""
           ondragstart="startDrag(event,this)" ondragend="endDrag(this)">
           <div class="drag-handle">⠿</div>
           <div class="cal-event-card-info">
             <div class="cal-event-title">${ev.title}</div>
-            <div class="cal-event-meta">${fmtDate(ev.date)}</div>
+            <div class="cal-event-meta">${fmtDate(ev.date)}${firstAtt ? ' · ' + firstAtt : ''}</div>
           </div>
+          ${tipHTML ? `<div class="card-tip">${tipHTML}</div>` : ''}
         </div>`;
     });
 
@@ -1591,11 +1608,12 @@ function startDrag(e, card) {
   draggedRow = null;
   draggedGroup = null;
   draggedEvent = {
-    id:      card.dataset.id,
-    title:   card.dataset.title,
-    date:    card.dataset.date,
-    domain:  card.dataset.domain,
-    company: card.dataset.company,
+    id:        card.dataset.id,
+    title:     card.dataset.title,
+    date:      card.dataset.date,
+    domain:    card.dataset.domain,
+    company:   card.dataset.company,
+    attendees: JSON.parse(card.dataset.attendees || '[]'),
   };
   e.dataTransfer.effectAllowed = 'copy';
   e.dataTransfer.setData('text/plain', card.dataset.id);
@@ -1672,6 +1690,10 @@ function dropOnRow(e, companyName) {
     company.meetings.sort();
     if (!company.calendarMeetings) company.calendarMeetings = [];
     company.calendarMeetings.push(date);
+  }
+  if (draggedEvent.attendees && draggedEvent.attendees.length) {
+    if (!company.meetingAttendees) company.meetingAttendees = {};
+    company.meetingAttendees[date] = draggedEvent.attendees;
   }
   const card = document.querySelector(`.cal-event-card[data-id="${CSS.escape(draggedEvent.id)}"]`);
   if (card) card.remove();
