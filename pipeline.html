@@ -361,6 +361,18 @@
   }
   .row-del:hover { background: #dc2626; color: white; border-color: #dc2626; }
   .row:hover .row-del { display: flex; }
+  /* ── Remove from group button ── */
+  .row-ungroup {
+    position: absolute; right: 38px; top: 50%; transform: translateY(-50%);
+    height: 24px; border-radius: 6px; padding: 0 7px;
+    background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;
+    font-size: 11px; font-weight: 600; line-height: 1;
+    display: none; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10; white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .row-ungroup:hover { background: #e2e8f0; color: #1e293b; }
+  .row.grouped:hover .row-ungroup { display: flex; }
 
   /* ── Legend ── */
   .legend { display: flex; align-items: center; gap: 22px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
@@ -1221,6 +1233,7 @@ function renderTimeline() {
               </div>
               <div class="status-cycle-dot ${curStatus}" title="Click to change status"
                 onclick="event.stopPropagation();cycleStatus('${safeN}')"></div>
+              ${isGrouped ? `<button type="button" class="row-ungroup" onclick="event.stopPropagation();removeFromGroup('${safeN}')" title="Remove from group">remove</button>` : ''}
               <button type="button" class="row-del" onclick="event.stopPropagation();deleteOpportunity('${safeN}')" title="Delete opportunity">×</button>
             </div>
             <div class="row-track">
@@ -2014,6 +2027,14 @@ function ungroupAll(e, groupId) {
   e.stopPropagation();
   companies.filter(c => c.groupId === groupId).forEach(c => { c.groupId = null; });
   delete groupNames[groupId];
+  saveData(); renderTimeline();
+}
+
+function removeFromGroup(companyName) {
+  const company = companies.find(c => c.name === companyName);
+  if (!company) return;
+  company.groupId = null;
+  cleanupSingleGroups(); // dissolves the group if only 1 left
   saveData(); renderTimeline();
 }
 
