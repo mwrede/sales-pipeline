@@ -575,9 +575,79 @@
     cursor: pointer;
   }
   .btn-skip:hover { background: #e2e8f0; }
+
+  /* ── User selection screen ── */
+  #user-select-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2000;
+  }
+  .user-sel-wrap { text-align: center; }
+  .user-sel-title { font-size: 34px; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 8px; }
+  .user-sel-sub { color: var(--muted); font-size: 15px; margin-bottom: 40px; }
+  .user-cards { display: flex; gap: 20px; justify-content: center; }
+  .user-card {
+    background: white; border: 1.5px solid var(--border); border-radius: 18px;
+    padding: 36px 28px; width: 148px; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  .user-card:hover {
+    border-color: var(--blue-dot); box-shadow: 0 8px 28px rgba(59,130,246,0.15);
+    transform: translateY(-3px);
+  }
+  .user-avatar {
+    width: 60px; height: 60px; border-radius: 50%;
+    font-size: 24px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .user-card-name { font-size: 15px; font-weight: 600; }
+
+  /* ── User indicator in header ── */
+  .user-indicator {
+    display: flex; align-items: center; gap: 8px;
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    padding: 7px 12px; font-size: 13px; font-weight: 600;
+  }
+  .user-avatar-sm {
+    width: 26px; height: 26px; border-radius: 50%;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .switch-btn {
+    background: none; border: none; cursor: pointer; font-size: 11px;
+    color: var(--muted); padding: 0; margin-left: 4px;
+    font-weight: 600; text-decoration: underline;
+  }
+  .switch-btn:hover { color: var(--text); }
 </style>
 </head>
 <body>
+
+<!-- User selection screen -->
+<div id="user-select-screen">
+  <div class="user-sel-wrap">
+    <h1 class="user-sel-title">Sales Pipeline</h1>
+    <p class="user-sel-sub">Who are you?</p>
+    <div class="user-cards">
+      <div class="user-card" onclick="selectUser('michael')">
+        <div class="user-avatar" style="background:#eff6ff;color:#1d4ed8">M</div>
+        <div class="user-card-name">Michael</div>
+      </div>
+      <div class="user-card" onclick="selectUser('sylvie')">
+        <div class="user-avatar" style="background:#fdf4ff;color:#7e22ce">S</div>
+        <div class="user-card-name">Sylvie</div>
+      </div>
+      <div class="user-card" onclick="selectUser('davis')">
+        <div class="user-avatar" style="background:#f0fdf4;color:#15803d">D</div>
+        <div class="user-card-name">Davis</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app" style="display:none">
 
 <!-- Setup Banner -->
 <div id="setup-banner">
@@ -599,17 +669,24 @@
 <!-- Header -->
 <header>
   <div class="header-left">
-    <h1>Sales Pipeline Overview</h1>
-    <p>January 15 – February 23, 2026 &nbsp;·&nbsp; 15 Active Opportunities</p>
+    <h1>Sales Pipeline</h1>
+    <p id="header-sub">Connect your calendar to get started</p>
   </div>
-  <div class="cal-area">
-    <button id="cal-btn" onclick="connectCalendar()">
-      <span class="gcal-icon"></span>
-      Connect Google Calendar
-    </button>
-    <div id="cal-status">
-      <div class="dot-status"></div>
-      <span>Not connected</span>
+  <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+    <div class="user-indicator">
+      <div class="user-avatar-sm" id="user-avatar-sm"></div>
+      <span id="user-label"></span>
+      <button class="switch-btn" onclick="switchUser()">switch</button>
+    </div>
+    <div class="cal-area">
+      <button id="cal-btn" onclick="connectCalendar()">
+        <span class="gcal-icon"></span>
+        Connect Google Calendar
+      </button>
+      <div id="cal-status">
+        <div class="dot-status"></div>
+        <span>Not connected</span>
+      </div>
     </div>
   </div>
 </header>
@@ -694,7 +771,7 @@
     <button class="btn-new-opp" onclick="openNewOppModal('','')">+ New Opportunity</button>
   </div>
   <div class="cal-panel-body" id="cal-panel-body"></div>
-</div>
+</div><!-- /#app -->
 
 <script>
 // ─────────────────────────────────────────────
@@ -704,42 +781,21 @@ const CLIENT_ID = '543014356558-4bgon1sfme9956ee1p2povdm93lvbrro.apps.googleuser
 const IS_CONFIGURED = CLIENT_ID !== 'YOUR_CLIENT_ID_HERE';
 
 // ─────────────────────────────────────────────
-//  Data
+//  Users
 // ─────────────────────────────────────────────
-let companies = [
-  { name: 'MB',                 domain: 'mercedes-benz.com',        init: 'MB',   meetings: ['2026-01-15'],                              s1: false },
-  { name: 'GM Paint',           domain: 'gm.com',                   init: 'GM',   meetings: ['2026-01-21'],                              s1: false },
-  { name: 'GM — Ryan',          domain: 'gm.com',                   init: 'GM',   meetings: ['2026-01-23'],                              s1: false },
-  { name: 'Toyota Weld',        domain: 'toyota.com',               init: 'TW',   meetings: ['2026-01-27'],                              s1: true  },
-  { name: 'USPS',               domain: 'usps.com',                 init: 'USPS', meetings: ['2026-01-29', '2026-02-12'],                s1: true  },
-  { name: 'Toyota Maintenance', domain: 'toyota.com',               init: 'TM',   meetings: ['2026-01-29'],                              s1: false },
-  { name: 'Lear CKD',           domain: 'lear.com',                 init: 'LC',   meetings: ['2026-02-02', '2026-02-11', '2026-02-17'], s1: true  },
-  { name: 'Lear Alabama',       domain: 'lear.com',                 init: 'LA',   meetings: ['2026-02-06'],                              s1: false },
-  { name: 'Cultavium',          domain: 'cultavium.com',            init: 'CU',   meetings: ['2026-02-10'],                              s1: false },
-  { name: 'Dinkmate',           domain: 'dinkmate.com',             init: 'DK',   meetings: ['2026-02-10'],                              s1: false },
-  { name: 'Vitesco',            domain: 'vitesco-technologies.com', init: 'VT',   meetings: ['2026-02-12'],                              s1: false },
-  { name: 'Toyota Paint',       domain: 'toyota.com',               init: 'TP',   meetings: ['2026-02-12'],                              s1: false },
-  { name: 'Dupont',             domain: 'dupont.com',               init: 'DP',   meetings: ['2026-02-13'],                              s1: true  },
-  { name: 'Kawasaki Rail Car',  domain: 'kawasaki.com',             init: 'KW',   meetings: ['2026-02-13'],                              s1: false },
-  { name: 'Slate',              domain: 'slate.auto',               init: 'SL',   meetings: ['2026-02-23'],                              s1: false },
-];
+const USERS = {
+  michael: { label: 'Michael', init: 'M', avatarBg: '#eff6ff', avatarColor: '#1d4ed8' },
+  sylvie:  { label: 'Sylvie',  init: 'S', avatarBg: '#fdf4ff', avatarColor: '#7e22ce' },
+  davis:   { label: 'Davis',   init: 'D', avatarBg: '#f0fdf4', avatarColor: '#15803d' },
+};
+let currentUser = null;
+let calendarEmail = '';
 
 // ─────────────────────────────────────────────
-//  Parent company names by domain
+//  Data (empty — loaded per user from localStorage)
 // ─────────────────────────────────────────────
-const PARENT_NAMES = {
-  'mercedes-benz.com':        'Mercedes-Benz',
-  'gm.com':                   'General Motors',
-  'toyota.com':               'Toyota',
-  'usps.com':                 'USPS',
-  'lear.com':                 'Lear Corporation',
-  'cultavium.com':            'Cultavium',
-  'dinkmate.com':             'Dinkmate',
-  'vitesco-technologies.com': 'Vitesco Technologies',
-  'dupont.com':               'DuPont',
-  'kawasaki.com':             'Kawasaki',
-  'slate.auto':               'Slate',
-};
+let companies = [];
+const PARENT_NAMES = {};
 
 // ─────────────────────────────────────────────
 //  Timeline bounds
@@ -1277,15 +1333,26 @@ function resync() {
 }
 
 async function syncCalendar() {
-  const CALENDAR_EMAIL = 'michael@roboflow.com';
-  const DARK_GREEN_ID  = '10';  // Google Calendar "Basil" = dark green label
+  const DARK_GREEN_ID = '10';  // Google Calendar "Basil" = dark green label
 
   try {
-    const calId = encodeURIComponent(CALENDAR_EMAIL);
+    // Fetch the authenticated user's email if we don't have it yet
+    if (!calendarEmail) {
+      const infoResp = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',
+        { headers: { Authorization: 'Bearer ' + accessToken } });
+      if (infoResp.ok) {
+        const info = await infoResp.json();
+        calendarEmail = info.email || '';
+      }
+    }
+    if (!calendarEmail) throw new Error('Could not determine your Google account email');
+
+    const calId = encodeURIComponent(calendarEmail);
+    const timeMin = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
     const timeMax = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
     const resp = await fetch(
       `https://www.googleapis.com/calendar/v3/calendars/${calId}/events` +
-      `?timeMin=2026-01-01T00:00:00Z&timeMax=${timeMax}` +
+      `?timeMin=${timeMin}&timeMax=${timeMax}` +
       '&maxResults=500&singleEvents=true&orderBy=startTime',
       { headers: { Authorization: 'Bearer ' + accessToken } }
     );
@@ -1296,7 +1363,7 @@ async function syncCalendar() {
     // Only dark-green-labeled events that have external invitees
     const events = all.filter(ev =>
       ev.colorId === DARK_GREEN_ID &&
-      ev.attendees && ev.attendees.some(a => a.email !== CALENDAR_EMAIL)
+      ev.attendees && ev.attendees.some(a => a.email !== calendarEmail)
     );
 
     const now = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
@@ -1347,11 +1414,11 @@ function processEvents(events) {
     const date = dateRaw.substring(0, 10);
     const externalDomain = (ev.attendees || [])
       .map(a => a.email || '')
-      .filter(e => e && !e.endsWith('@roboflow.com') && e.includes('@'))
+      .filter(e => e && e !== calendarEmail && e.includes('@'))
       .map(e => e.split('@')[1])
       .find(Boolean) || '';
     return { id: ev.id, title: ev.summary || '(no title)', date, domainHint: externalDomain };
-  }).filter(ev => ev.date >= '2026-01-01');
+  }).filter(ev => ev.date >= new Date(Date.now() - 90*24*60*60*1000).toISOString().substring(0,10));
 
   pendingMatches = [];
   pendingUnmatched = allEvents;
@@ -1615,30 +1682,74 @@ function dropToCreate(e) {
 }
 
 // ─────────────────────────────────────────────
+//  User selection
+// ─────────────────────────────────────────────
+function selectUser(name) {
+  currentUser = name;
+  const u = USERS[name];
+
+  // Update header indicator
+  document.getElementById('user-label').textContent = u.label;
+  const av = document.getElementById('user-avatar-sm');
+  av.textContent = u.init;
+  av.style.background = u.avatarBg;
+  av.style.color = u.avatarColor;
+
+  // Reset calendar state
+  accessToken = null;
+  calendarEmail = '';
+  pendingMatches = [];
+  pendingUnmatched = [];
+  document.getElementById('cal-btn').innerHTML = '<span class="gcal-icon"></span> Connect Google Calendar';
+  document.getElementById('sync-btn').style.display = 'none';
+  setCalStatus('', 'Not connected');
+
+  // Load data and render
+  loadData();
+  renderStats();
+  renderTimeline();
+
+  // Show app, hide selection
+  document.getElementById('user-select-screen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+
+function switchUser() {
+  currentUser = null;
+  accessToken = null;
+  calendarEmail = '';
+  closeCalPanel();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('user-select-screen').style.display = '';
+}
+
+// ─────────────────────────────────────────────
 //  Persistence
 // ─────────────────────────────────────────────
 function saveData() {
+  if (!currentUser) return;
   try {
-    localStorage.setItem('pipeline_v1_companies', JSON.stringify(companies));
-    localStorage.setItem('pipeline_v1_parent_names', JSON.stringify(PARENT_NAMES));
+    localStorage.setItem(`pipeline_v2_${currentUser}_companies`, JSON.stringify(companies));
+    localStorage.setItem(`pipeline_v2_${currentUser}_parent_names`, JSON.stringify(PARENT_NAMES));
   } catch(e) {}
 }
 
 function loadData() {
+  companies = [];
+  for (const k in PARENT_NAMES) delete PARENT_NAMES[k];
+  if (!currentUser) return;
   try {
-    const savedC = localStorage.getItem('pipeline_v1_companies');
-    const savedN = localStorage.getItem('pipeline_v1_parent_names');
+    const savedC = localStorage.getItem(`pipeline_v2_${currentUser}_companies`);
+    const savedN = localStorage.getItem(`pipeline_v2_${currentUser}_parent_names`);
     if (savedC) companies = JSON.parse(savedC);
     if (savedN) Object.assign(PARENT_NAMES, JSON.parse(savedN));
   } catch(e) {}
 }
 
 // ─────────────────────────────────────────────
-//  Init
+//  Init — show user selection screen
 // ─────────────────────────────────────────────
-loadData();
-renderStats();
-renderTimeline();
+// (app is hidden by default; selectUser() shows it)
 </script>
 </body>
 </html>
