@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Pipeline — Jan/Feb 2026</title>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --border: #dde3ec;
+    --text: #0f172a;
+    --muted: #64748b;
+    --green: #15803d;
+    --green-bg: #f0fdf4;
+    --green-border: #bbf7d0;
+    --green-dot: #22c55e;
+    --blue: #1e40af;
+    --blue-bg: #eff6ff;
+    --blue-border: #bfdbfe;
+    --blue-dot: #3b82f6;
+    --track: #e2e8f0;
+    --red: #dc2626;
+    --orange: #ea580c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px;
+    min-height: 100vh;
+  }
+
+  /* ── Setup Banner ── */
+  #setup-banner {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  #setup-banner .sb-icon {
+    font-size: 20px; flex-shrink: 0; margin-top: 1px;
+  }
+  #setup-banner h3 {
+    font-size: 14px; font-weight: 700; color: #9a3412; margin-bottom: 6px;
+  }
+  #setup-banner p { font-size: 13px; color: #7c2d12; line-height: 1.6; }
+  #setup-banner ol { font-size: 13px; color: #7c2d12; line-height: 1.8; padding-left: 18px; margin-top: 6px; }
+  #setup-banner code {
+    background: #fff;
+    border: 1px solid #fed7aa;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 12px;
+    color: #9a3412;
+  }
+  #setup-banner .sb-close {
+    margin-left: auto; flex-shrink: 0;
+    background: none; border: none; cursor: pointer;
+    color: #9a3412; font-size: 18px; padding: 2px 4px;
+  }
+  #setup-banner.hidden { display: none; }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 20px;
+  }
+  .header-left h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; }
+  .header-left p { color: var(--muted); font-size: 14px; margin-top: 5px; }
+
+  /* ── Calendar connect button area ── */
+  .cal-area {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0;
+  }
+  #cal-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px; font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+  #cal-btn:hover { background: #f8fafc; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-color: #c7d2e0; }
+  #cal-btn:active { background: #f1f5f9; }
+  #cal-btn .gcal-icon {
+    width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='24' height='24' rx='4' fill='%234285F4'/%3E%3Crect x='4' y='4' width='16' height='16' rx='2' fill='white'/%3E%3Crect x='4' y='8' width='16' height='1' fill='%234285F4'/%3E%3Crect x='8' y='4' width='1' height='4' fill='%234285F4'/%3E%3Crect x='15' y='4' width='1' height='4' fill='%234285F4'/%3E%3Ctext x='12' y='18' text-anchor='middle' font-size='7' fill='%234285F4' font-weight='bold'%3E12%3C/text%3E%3C/svg%3E") center/contain no-repeat;
+  }
+  #cal-status {
+    font-size: 12px; color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+  #cal-status .dot-status {
+    width: 7px; height: 7px; border-radius: 50%; background: #d1d5db; flex-shrink: 0;
+  }
+  #cal-status.syncing .dot-status { background: #f59e0b; }
+  #cal-status.connected .dot-status { background: var(--green-dot); }
+  #cal-status.error .dot-status { background: var(--red); }
+  #cal-status span { color: var(--muted); }
+  #cal-status.connected span { color: var(--green); }
+  #cal-status.error span { color: var(--red); }
+
+  /* ── Stats ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative; overflow: hidden;
+  }
+  .stat::after {
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px; border-radius: 0 0 14px 14px;
+  }
+  .stat.c1::after { background: #6366f1; }
+  .stat.c2::after { background: var(--green-dot); }
+  .stat.c3::after { background: var(--blue-dot); }
+  .stat.c4::after { background: #f97316; }
+  .stat-label {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+  }
+  .stat-val { font-size: 38px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ── Timeline card ── */
+  .tcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px 32px 24px; }
+  .tcard-head { margin-bottom: 24px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .tcard-head h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+  .tcard-head p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  #sync-btn {
+    font-size: 12px; font-weight: 600; color: var(--blue);
+    background: var(--blue-bg); border: 1px solid var(--blue-border);
+    border-radius: 7px; padding: 5px 12px; cursor: pointer;
+    display: none; white-space: nowrap;
+  }
+  #sync-btn:hover { background: #dbeafe; }
+
+  /* ── Axis ── */
+  .axis-row {
+    display: flex; margin-left: 224px; margin-bottom: 6px;
+    position: relative; height: 36px;
+  }
+  .ax-label {
+    position: absolute; transform: translateX(-50%);
+    text-align: center; pointer-events: none;
+  }
+  .ax-label .ax-date { font-size: 10px; font-weight: 600; color: var(--muted); }
+  .ax-label .ax-month {
+    font-size: 9px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #6366f1; display: block; margin-bottom: 2px;
+  }
+
+  /* ── Grid ── */
+  .rows-wrapper { position: relative; }
+  .grid-overlay {
+    position: absolute; left: 224px; right: 0; top: 0; bottom: 0;
+    pointer-events: none; z-index: 0;
+  }
+  .g-line { position: absolute; top: 0; bottom: 0; width: 1px; background: #f1f5f9; }
+  .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(239,68,68,0.35); z-index: 5; }
+  .today-label {
+    position: absolute; top: -24px; transform: translateX(-50%);
+    font-size: 9px; font-weight: 700; color: #ef4444;
+    background: #fff1f2; border: 1px solid #fecaca;
+    border-radius: 4px; padding: 1px 5px;
+  }
+  .quota-line {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: repeating-linear-gradient(to bottom, #f97316 0px, #f97316 6px, transparent 6px, transparent 10px);
+    z-index: 4;
+  }
+  .quota-label {
+    position: absolute; top: -24px; transform: translateX(-50%);
+    font-size: 9px; font-weight: 700; color: #ea580c;
+    background: #fff7ed; border: 1px solid #fed7aa;
+    border-radius: 4px; padding: 1px 5px; white-space: nowrap;
+  }
+
+  /* ── Row ── */
+  .row { display: flex; align-items: center; height: 54px; border-bottom: 1px solid #f8fafc; }
+  .row:last-child { border-bottom: none; }
+  .row-info { width: 224px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding-right: 20px; position: relative; }
+  .logo-box {
+    width: 32px; height: 32px; border-radius: 8px;
+    overflow: hidden; border: 1px solid var(--border);
+    flex-shrink: 0; background: white;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-box img { width: 28px; height: 28px; object-fit: contain; display: block; }
+  .logo-box .fb {
+    display: none; width: 100%; height: 100%;
+    align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; letter-spacing: -0.05em;
+  }
+  .logo-box .fb.g { background: var(--green-bg); color: var(--green); }
+  .logo-box .fb.b { background: var(--blue-bg); color: var(--blue); }
+  .name-col { flex: 1; min-width: 0; }
+  .name-col .cname { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .s1-tag {
+    display: inline-block; margin-top: 2px;
+    font-size: 9px; font-weight: 700;
+    background: var(--green-bg); color: var(--green);
+    padding: 1px 6px; border-radius: 99px;
+    border: 1px solid var(--green-border); letter-spacing: 0.05em;
+  }
+
+  /* ── Status section headers ── */
+  .status-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 12px; border-radius: 8px; cursor: pointer; user-select: none;
+    margin: 10px 0 2px; font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  .status-section-header.hot  { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; }
+  .status-section-header.hot:hover  { background: #ffedd5; }
+  .status-section-header.meh  { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; }
+  .status-section-header.meh:hover  { background: #e8edf4; }
+  .status-section-header.dead { background: #f8fafc; border: 1px solid #e2e8f0; color: #94a3b8; }
+  .status-section-header.dead:hover { background: #f1f5f9; }
+  .ss-left  { display: flex; align-items: center; gap: 7px; }
+  .ss-count { font-size: 10px; font-weight: 700; border-radius: 99px; padding: 1px 6px; }
+  .status-section-header.hot  .ss-count { background: #fed7aa; }
+  .status-section-header.meh  .ss-count { background: #dde3ec; }
+  .status-section-header.dead .ss-count { background: #e2e8f0; }
+  .ss-arrow { font-size: 10px; }
+  .status-section-header.drop-target {
+    border-style: dashed !important; opacity: 0.85;
+    box-shadow: 0 0 0 2px currentColor;
+  }
+
+  /* ── Group drag handle ── */
+  .group-header-drag-handle {
+    font-size: 14px; color: #cbd5e1; cursor: grab; flex-shrink: 0;
+    opacity: 0; transition: opacity 0.12s; padding: 0 4px; line-height: 1;
+  }
+  .group-header:hover .group-header-drag-handle { opacity: 1; }
+  .group-header-drag-handle:active { cursor: grabbing; }
+
+  /* ── Row drag handle for reordering ── */
+  .row-drag-handle {
+    font-size: 14px; color: #cbd5e1; cursor: grab; flex-shrink: 0;
+    opacity: 0; transition: opacity 0.12s; padding: 0 2px; line-height: 1;
+    align-self: center;
+  }
+  .row:hover .row-drag-handle { opacity: 1; }
+  .row-drag-handle:active { cursor: grabbing; }
+  /* ── Reorder drop indicators ── */
+  .row.reorder-above { box-shadow: inset 0 2px 0 #6366f1; }
+  .row.reorder-below { box-shadow: inset 0 -2px 0 #6366f1; }
+  /* ── Status cycle dot ── */
+  .status-cycle-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s; align-self: center;
+  }
+  .status-cycle-dot:hover { transform: scale(1.5); }
+  .status-cycle-dot.hot  { background: #fb923c; box-shadow: 0 0 0 3px rgba(251,146,60,0.2); }
+  .status-cycle-dot.meh  { background: #94a3b8; box-shadow: 0 0 0 3px rgba(148,163,184,0.15); }
+  .status-cycle-dot.dead { background: #e2e8f0; box-shadow: 0 0 0 3px rgba(226,232,240,0.5); }
+
+  /* ── Track ── */
+  .row-track { flex: 1; height: 54px; position: relative; z-index: 1; }
+  .track-bg { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e8edf4; transform: translateY(-50%); }
+  .conn { position: absolute; top: 50%; height: 3px; border-radius: 99px; transform: translateY(-50%); z-index: 2; }
+  .conn.g { background: linear-gradient(90deg, #4ade80, #16a34a); }
+  .conn.b { background: linear-gradient(90deg, #93c5fd, #2563eb); }
+  .dot {
+    position: absolute; width: 14px; height: 14px; border-radius: 50%;
+    top: 50%; transform: translate(-50%, -50%);
+    z-index: 3; cursor: default; transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .dot:hover { transform: translate(-50%, -50%) scale(1.5); z-index: 20; }
+  .dot.g { background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,0.2), 0 2px 6px rgba(0,0,0,0.1); }
+  .dot.b { background: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,0.2), 0 2px 6px rgba(0,0,0,0.1); }
+  .dot.cal { outline: 2px solid white; }
+  .dot.cal::before {
+    content: '📅';
+    position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; pointer-events: none;
+  }
+  .mtip {
+    position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%);
+    background: #1e293b; color: #f8fafc;
+    font-size: 11px; font-weight: 500; padding: 5px 10px; border-radius: 7px;
+    white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25); z-index: 30;
+  }
+  .mtip::after {
+    content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: #1e293b;
+  }
+  .dot:hover .mtip { opacity: 1; }
+  .dot-del {
+    position: absolute; top: -7px; right: -7px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #ef4444; color: white;
+    border: 1.5px solid white;
+    font-size: 10px; font-weight: 900; line-height: 1;
+    display: none; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 40;
+  }
+  .dot:hover .dot-del { display: flex; }
+
+  /* ── Row delete (whole opportunity) ── */
+  .row-del {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; border-radius: 6px;
+    background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;
+    font-size: 14px; font-weight: 700; line-height: 1;
+    display: none; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10; flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .row-del:hover { background: #dc2626; color: white; border-color: #dc2626; }
+  .row:hover .row-del { display: flex; }
+
+  /* ── Legend ── */
+  .legend { display: flex; align-items: center; gap: 22px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .leg-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .leg-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .leg-dot.g { background: #22c55e; }
+  .leg-dot.b { background: #3b82f6; }
+  .leg-today { width: 14px; height: 3px; border-radius: 2px; background: rgba(239,68,68,0.5); }
+
+  /* ── Group headers ── */
+  .group-section { margin-bottom: 2px; }
+  .group-header {
+    display: flex; align-items: center;
+    height: 38px; padding: 0 6px 0 0;
+    background: #f8fafc; border-radius: 8px;
+    border: 1px solid #eef2f7;
+    margin-bottom: 2px;
+  }
+  .group-left {
+    width: 224px; flex-shrink: 0;
+    display: flex; align-items: center;
+    gap: 9px; padding-right: 20px;
+  }
+  .group-logo-box {
+    width: 26px; height: 26px; border-radius: 6px;
+    overflow: hidden; border: 1px solid var(--border);
+    flex-shrink: 0; background: white;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .group-logo-box img { width: 22px; height: 22px; object-fit: contain; display: block; }
+  .group-logo-box .fb {
+    display: none; width: 100%; height: 100%;
+    align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800;
+  }
+  .group-logo-box .fb.g { background: var(--green-bg); color: var(--green); }
+  .group-logo-box .fb.b { background: var(--blue-bg); color: var(--blue); }
+  .group-name-text { font-size: 12px; font-weight: 700; color: var(--text); }
+  .group-count {
+    font-size: 10px; color: var(--muted);
+    background: #e8edf4; border-radius: 99px;
+    padding: 1px 7px; margin-left: 4px; flex-shrink: 0;
+  }
+  .group-track-spacer { flex: 1; }
+  .row.grouped { padding-left: 12px; }
+  .group-header { cursor: pointer; user-select: none; }
+  .group-header:hover { background: #f1f5f9; }
+  .group-arrow {
+    font-size: 13px; color: var(--muted); flex-shrink: 0;
+    display: inline-block; transition: transform 0.18s;
+    transform: rotate(90deg); line-height: 1; margin-left: 2px;
+  }
+  .group-arrow.collapsed { transform: rotate(0deg); }
+
+  /* ── Filter bar ── */
+  .filter-bar {
+    display: flex; align-items: center; gap: 3px; margin-bottom: 22px; flex-wrap: wrap;
+    background: #f1f5f9; border-radius: 10px; padding: 4px; width: fit-content;
+  }
+  .filter-pill {
+    padding: 6px 18px; border-radius: 7px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    border: none; background: transparent; color: var(--muted);
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+  .filter-pill.active {
+    background: white; color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  .filter-pill:hover:not(.active) { color: var(--text); }
+  .custom-range {
+    display: none; align-items: center; gap: 6px; margin-left: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .custom-range.visible { display: flex; }
+  .custom-range input[type="date"] {
+    border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px;
+    font-size: 12px; font-family: inherit; color: var(--text);
+    background: white; outline: none; cursor: pointer;
+  }
+  .custom-range input[type="date"]:focus { border-color: var(--blue-dot); }
+
+  /* ── Shared close button ── */
+  .modal-close {
+    margin-left: auto; flex-shrink: 0;
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 20px; padding: 2px; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  /* ── New Opportunity Modal ── */
+  #new-opp-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(3px); z-index: 200;
+    display: none; align-items: center; justify-content: center;
+  }
+  #new-opp-overlay.open { display: flex; }
+  .new-opp-modal {
+    background: white; border-radius: 18px;
+    width: 420px; max-width: 95vw;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.2); overflow: hidden;
+  }
+  .new-opp-modal .modal-head { padding: 22px 24px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; }
+  .new-opp-modal .modal-head h3 { font-size: 17px; font-weight: 700; flex: 1; }
+  .form-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .form-field label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+  .form-field input[type="text"],
+  .form-field input[type="date"] {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid var(--border); border-radius: 9px;
+    font-size: 14px; color: var(--text);
+    font-family: inherit; outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-field input:focus { border-color: var(--blue-dot); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+  .s1-toggle { display: flex; align-items: center; gap: 10px; }
+  .s1-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green-dot); cursor: pointer; }
+  .s1-toggle span { font-size: 13px; font-weight: 500; color: var(--text); }
+  .new-opp-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ── Calendar Side Panel ── */
+  #cal-panel {
+    position: fixed; top: 0; right: -380px; width: 360px; height: 100vh;
+    background: white; border-left: 1px solid var(--border);
+    box-shadow: -8px 0 40px rgba(0,0,0,0.12);
+    z-index: 100; transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    display: flex; flex-direction: column;
+  }
+  #cal-panel.open { right: 0; }
+  .cal-panel-header {
+    padding: 18px 16px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .cal-panel-top-row {
+    display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px;
+  }
+  .cal-panel-top-row h3 { font-size: 15px; font-weight: 700; flex: 1; }
+  .cal-panel-top-row p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .cal-panel-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 20px; padding: 2px; line-height: 1; flex-shrink: 0;
+  }
+  .cal-panel-close:hover { color: var(--text); }
+  .cal-panel-body { flex: 1; overflow-y: auto; padding: 14px; }
+  .cal-section-title {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px; padding-left: 2px;
+  }
+  .cal-divider { margin: 12px 0 10px; border: none; border-top: 1px dashed #e2e8f0; }
+  .cal-event-card {
+    background: #f8fafc; border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 8px; cursor: grab;
+    user-select: none; transition: box-shadow 0.15s, border-color 0.15s, opacity 0.15s;
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .cal-event-card:hover { border-color: #b0bfd4; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .cal-event-card.dragging { opacity: 0.35; cursor: grabbing; }
+  .drag-handle { font-size: 15px; color: #cbd5e1; margin-top: 1px; flex-shrink: 0; line-height: 1; }
+  .cal-event-card-info { flex: 1; min-width: 0; }
+  .cal-event-title { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cal-event-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .cal-event-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+    flex-shrink: 0; align-self: flex-start; margin-top: 2px;
+  }
+  .cal-event-badge.matched { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .cal-event-badge.new { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+  .cal-panel-hint {
+    font-size: 12px; color: var(--muted); margin-top: 10px;
+    padding: 10px 12px; background: #f8fafc; border-radius: 8px;
+    border: 1px dashed #dde3ec; line-height: 1.5;
+  }
+
+  /* ── Collapsible section headers ── */
+  .cal-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px; border-radius: 8px; cursor: pointer; user-select: none;
+    margin-bottom: 6px; background: #f1f5f9; border: 1px solid #e2e8f0;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--muted);
+  }
+  .cal-section-header:hover { background: #e8edf4; }
+  .sh-left { display: flex; align-items: center; gap: 6px; }
+  .sh-count {
+    font-size: 10px; font-weight: 700; background: #dde3ec;
+    border-radius: 99px; padding: 1px 7px; color: var(--muted);
+  }
+  .sh-arrow { font-size: 11px; color: var(--muted); }
+  .cal-unassign-btn {
+    font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+    background: #fef2f2; color: var(--red); border: 1px solid #fecaca;
+    cursor: pointer; flex-shrink: 0; align-self: flex-start; margin-top: 2px;
+    white-space: nowrap;
+  }
+  .cal-unassign-btn:hover { background: #fee2e2; }
+
+  /* ── New Opportunity button ── */
+  .btn-new-opp {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: #f8fafc; color: var(--text);
+    border: 1.5px dashed var(--border); border-radius: 8px;
+    padding: 8px 14px; font-size: 12px; font-weight: 600;
+    cursor: pointer; width: 100%;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .btn-new-opp:hover { background: #eff6ff; border-color: var(--blue-dot); color: var(--blue); }
+
+  /* ── Drop targets ── */
+  .row.drag-over {
+    background: #eff6ff !important;
+    outline: 2px dashed var(--blue-dot); outline-offset: -2px;
+    border-radius: 8px; z-index: 10;
+  }
+  .create-drop-zone {
+    margin-top: 14px; padding: 18px 16px; border-radius: 10px;
+    border: 2px dashed #e2e8f0; color: var(--muted);
+    text-align: center; font-size: 13px;
+    transition: background 0.15s, border-color 0.15s;
+    display: none;
+  }
+  body.cal-open .create-drop-zone { display: block; }
+  .create-drop-zone.drag-over { background: #eff6ff; border-color: var(--blue-dot); color: var(--blue); }
+  .create-drop-zone .cdz-icon { font-size: 24px; margin-bottom: 6px; }
+  .create-drop-zone p { font-size: 12px; margin-top: 4px; color: var(--muted); }
+
+  /* ── Shared modal buttons ── */
+  .btn-apply {
+    background: var(--green-dot); color: white;
+    border: none; border-radius: 9px;
+    padding: 10px 22px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-apply:hover { background: #16a34a; }
+  .btn-skip {
+    background: #f1f5f9; color: var(--muted);
+    border: none; border-radius: 9px;
+    padding: 10px 16px; font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-skip:hover { background: #e2e8f0; }
+</style>
+</head>
+<body>
+
+<!-- Setup Banner -->
+<div id="setup-banner">
+  <div class="sb-icon">🔑</div>
+  <div>
+    <h3>Connect Google Calendar — one-time setup required</h3>
+    <p>To enable live sync you need a free Google Cloud OAuth credential. It takes ~3 minutes:</p>
+    <ol>
+      <li>Go to <code>console.cloud.google.com</code> → New project → Enable <strong>Google Calendar API</strong></li>
+      <li>Credentials → Create → OAuth 2.0 Client ID → <strong>Web application</strong></li>
+      <li>Add Authorized JavaScript origin: <code>http://localhost:8080</code></li>
+      <li>Copy your <strong>Client ID</strong> and paste it into this file where it says <code>YOUR_CLIENT_ID_HERE</code></li>
+      <li>Serve this file locally: open Terminal and run <code>cd ~/Downloads/"Michael Update" && python3 -m http.server 8080</code>, then open <code>http://localhost:8080/pipeline.html</code></li>
+    </ol>
+  </div>
+  <button class="sb-close" onclick="document.getElementById('setup-banner').classList.add('hidden')">×</button>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="header-left">
+    <h1>Sales Pipeline Overview</h1>
+    <p>January 15 – February 23, 2026 &nbsp;·&nbsp; 15 Active Opportunities</p>
+  </div>
+  <div class="cal-area">
+    <button id="cal-btn" onclick="connectCalendar()">
+      <span class="gcal-icon"></span>
+      Connect Google Calendar
+    </button>
+    <div id="cal-status">
+      <div class="dot-status"></div>
+      <span>Not connected</span>
+    </div>
+  </div>
+</header>
+
+<div class="stats" id="stats"></div>
+
+<div class="tcard">
+  <div class="tcard-head">
+    <div>
+      <h2>Opportunity Timeline</h2>
+      <p>Each dot = one meeting &nbsp;·&nbsp; Hover for details &nbsp;·&nbsp; Green = progressed to S1</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="new-opp-inline-btn" onclick="openNewOppModal('','')" style="font-size:12px;font-weight:600;color:var(--text);background:#f1f5f9;border:1px solid var(--border);border-radius:7px;padding:5px 12px;cursor:pointer;white-space:nowrap;">+ New Opportunity</button>
+      <button id="sync-btn" onclick="resync()">↻ Sync Now</button>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <button class="filter-pill active" data-filter="total"   onclick="setFilter('total')">Total</button>
+    <button class="filter-pill"        data-filter="jan_feb" onclick="setFilter('jan_feb')">Jan / Feb Quota</button>
+    <button class="filter-pill"        data-filter="feb_mar" onclick="setFilter('feb_mar')">Feb / Mar Quota</button>
+    <button class="filter-pill"        data-filter="custom"  onclick="setFilter('custom')">Custom</button>
+    <div class="custom-range" id="custom-range">
+      <input type="date" id="custom-start" onchange="updateCustomRange()" />
+      <span>→</span>
+      <input type="date" id="custom-end" onchange="updateCustomRange()" />
+    </div>
+  </div>
+  <div id="timeline"></div>
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot g"></div> Progressed to S1</div>
+    <div class="leg-item"><div class="leg-dot b"></div> In progress / No S1 yet</div>
+    <div class="leg-item"><div class="leg-today"></div> Today (Feb 25)</div>
+    <div class="leg-item"><div style="width:14px;height:3px;background:repeating-linear-gradient(to right,#f97316 0px,#f97316 4px,transparent 4px,transparent 7px);border-radius:2px"></div> Quota End (15th)</div>
+  </div>
+</div>
+
+<!-- New Opportunity Modal -->
+<div id="new-opp-overlay">
+  <div class="new-opp-modal">
+    <div class="modal-head">
+      <h3 id="new-opp-title">New Opportunity</h3>
+      <button class="modal-close" onclick="closeNewOppModal()">×</button>
+    </div>
+    <div class="form-body">
+      <div class="form-field">
+        <label>Opportunity Name</label>
+        <input type="text" id="opp-name" placeholder="e.g. Lear Body Shop" />
+      </div>
+      <div class="form-field">
+        <label>Company Domain <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8">(optional — used for logo & grouping)</span></label>
+        <input type="text" id="opp-domain" placeholder="e.g. lear.com" />
+      </div>
+      <div class="form-field" id="opp-date-field">
+        <label>First Meeting Date <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8">(optional)</span></label>
+        <input type="date" id="opp-date" />
+      </div>
+      <div class="form-field">
+        <div class="s1-toggle">
+          <input type="checkbox" id="opp-s1" />
+          <span>Progressed to S1</span>
+        </div>
+      </div>
+    </div>
+    <div class="new-opp-footer">
+      <button class="btn-skip" onclick="closeNewOppModal()">Cancel</button>
+      <button class="btn-apply" onclick="submitNewOpp()">Add to Timeline</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar Side Panel -->
+<div id="cal-panel">
+  <div class="cal-panel-header">
+    <div class="cal-panel-top-row">
+      <div>
+        <h3>📅 Calendar Events</h3>
+        <p id="cal-panel-subtitle">Drag events onto rows · drop below to create new</p>
+      </div>
+      <button class="cal-panel-close" onclick="closeCalPanel()">×</button>
+    </div>
+    <button class="btn-new-opp" onclick="openNewOppModal('','')">+ New Opportunity</button>
+  </div>
+  <div class="cal-panel-body" id="cal-panel-body"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  CONFIG — paste your Google OAuth Client ID here
+// ─────────────────────────────────────────────
+const CLIENT_ID = '543014356558-4bgon1sfme9956ee1p2povdm93lvbrro.apps.googleusercontent.com';
+const IS_CONFIGURED = CLIENT_ID !== 'YOUR_CLIENT_ID_HERE';
+
+// ─────────────────────────────────────────────
+//  Data
+// ─────────────────────────────────────────────
+let companies = [
+  { name: 'MB',                 domain: 'mercedes-benz.com',        init: 'MB',   meetings: ['2026-01-15'],                              s1: false },
+  { name: 'GM Paint',           domain: 'gm.com',                   init: 'GM',   meetings: ['2026-01-21'],                              s1: false },
+  { name: 'GM — Ryan',          domain: 'gm.com',                   init: 'GM',   meetings: ['2026-01-23'],                              s1: false },
+  { name: 'Toyota Weld',        domain: 'toyota.com',               init: 'TW',   meetings: ['2026-01-27'],                              s1: true  },
+  { name: 'USPS',               domain: 'usps.com',                 init: 'USPS', meetings: ['2026-01-29', '2026-02-12'],                s1: true  },
+  { name: 'Toyota Maintenance', domain: 'toyota.com',               init: 'TM',   meetings: ['2026-01-29'],                              s1: false },
+  { name: 'Lear CKD',           domain: 'lear.com',                 init: 'LC',   meetings: ['2026-02-02', '2026-02-11', '2026-02-17'], s1: true  },
+  { name: 'Lear Alabama',       domain: 'lear.com',                 init: 'LA',   meetings: ['2026-02-06'],                              s1: false },
+  { name: 'Cultavium',          domain: 'cultavium.com',            init: 'CU',   meetings: ['2026-02-10'],                              s1: false },
+  { name: 'Dinkmate',           domain: 'dinkmate.com',             init: 'DK',   meetings: ['2026-02-10'],                              s1: false },
+  { name: 'Vitesco',            domain: 'vitesco-technologies.com', init: 'VT',   meetings: ['2026-02-12'],                              s1: false },
+  { name: 'Toyota Paint',       domain: 'toyota.com',               init: 'TP',   meetings: ['2026-02-12'],                              s1: false },
+  { name: 'Dupont',             domain: 'dupont.com',               init: 'DP',   meetings: ['2026-02-13'],                              s1: true  },
+  { name: 'Kawasaki Rail Car',  domain: 'kawasaki.com',             init: 'KW',   meetings: ['2026-02-13'],                              s1: false },
+  { name: 'Slate',              domain: 'slate.auto',               init: 'SL',   meetings: ['2026-02-23'],                              s1: false },
+];
+
+// ─────────────────────────────────────────────
+//  Parent company names by domain
+// ─────────────────────────────────────────────
+const PARENT_NAMES = {
+  'mercedes-benz.com':        'Mercedes-Benz',
+  'gm.com':                   'General Motors',
+  'toyota.com':               'Toyota',
+  'usps.com':                 'USPS',
+  'lear.com':                 'Lear Corporation',
+  'cultavium.com':            'Cultavium',
+  'dinkmate.com':             'Dinkmate',
+  'vitesco-technologies.com': 'Vitesco Technologies',
+  'dupont.com':               'DuPont',
+  'kawasaki.com':             'Kawasaki',
+  'slate.auto':               'Slate',
+};
+
+// ─────────────────────────────────────────────
+//  Timeline bounds
+// ─────────────────────────────────────────────
+// Dynamic total period: Jan 8 → 3 months from today
+(function() {
+  const end3mo = new Date(); end3mo.setMonth(end3mo.getMonth() + 3);
+  const endStr = end3mo.toISOString().substring(0, 10);
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const axes = [], labels = {};
+  let d = new Date('2026-01-12'); // first axis tick
+  while (d.toISOString().substring(0, 10) <= endStr) {
+    const ds = d.toISOString().substring(0, 10);
+    axes.push(ds);
+    // label the first tick of each month
+    const prev = new Date(d); prev.setDate(prev.getDate() - 14);
+    if (prev.getMonth() !== d.getMonth()) labels[ds] = MONTH_NAMES[d.getMonth()];
+    d.setDate(d.getDate() + 14);
+  }
+  // Always label first tick
+  if (axes.length && !labels[axes[0]]) labels[axes[0]] = MONTH_NAMES[new Date(axes[0]).getMonth()];
+  window._TOTAL_PERIOD = { start:'2026-01-08', end: endStr, axisDates: axes, monthLabels: labels, quotaDates:['2026-01-15','2026-02-15'] };
+})();
+
+function buildCustomPeriod(start, end) {
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const axes = [], labels = {};
+  // Determine a sensible tick interval based on range length
+  const days = (new Date(end) - new Date(start)) / 86400000;
+  const step = days <= 35 ? 7 : days <= 90 ? 14 : 28;
+  let d = new Date(start); d.setDate(d.getDate() + 3); // first tick slightly after start
+  while (d.toISOString().substring(0, 10) <= end) {
+    const ds = d.toISOString().substring(0, 10);
+    axes.push(ds);
+    const prev = new Date(d); prev.setDate(prev.getDate() - step);
+    if (prev.getMonth() !== d.getMonth()) labels[ds] = MONTH_NAMES[d.getMonth()];
+    d.setDate(d.getDate() + step);
+  }
+  if (axes.length && !labels[axes[0]]) labels[axes[0]] = MONTH_NAMES[new Date(axes[0]).getMonth()];
+  return { start, end, axisDates: axes, monthLabels: labels, quotaDates: [] };
+}
+
+const PERIODS = {
+  total: window._TOTAL_PERIOD,
+  custom: buildCustomPeriod('2026-01-08', window._TOTAL_PERIOD.end),
+  jan_feb: {
+    start:'2026-01-08', end:'2026-02-15',
+    axisDates:['2026-01-12','2026-01-19','2026-01-26','2026-02-02','2026-02-09'],
+    monthLabels:{'2026-01-12':'Jan','2026-02-02':'Feb'},
+    quotaDates:['2026-01-15','2026-02-15'],
+  },
+  feb_mar: {
+    start:'2026-02-15', end:'2026-03-15',
+    axisDates:['2026-02-16','2026-02-23','2026-03-02','2026-03-09'],
+    monthLabels:{'2026-02-16':'Feb','2026-03-02':'Mar'},
+    quotaDates:['2026-02-15','2026-03-15'],
+  },
+};
+let activeFilter = 'total';
+
+function pct(dateStr) {
+  const p = PERIODS[activeFilter];
+  const s = new Date(p.start), span = new Date(p.end) - s;
+  return ((new Date(dateStr) - s) / span * 100).toFixed(3);
+}
+function pctNum(dateStr) {
+  const p = PERIODS[activeFilter];
+  const s = new Date(p.start), span = new Date(p.end) - s;
+  return (new Date(dateStr) - s) / span * 100;
+}
+function fmtDate(d) { return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric' }); }
+function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
+
+// ─────────────────────────────────────────────
+//  Render stats
+// ─────────────────────────────────────────────
+function renderStats() {
+  const p = PERIODS[activeFilter];
+  const filtered = companies.map(c => ({
+    ...c,
+    meetings: [...c.meetings].sort().filter(m => m >= p.start && m <= p.end)
+  })).filter(c => c.meetings.length > 0);
+  const total = filtered.length;
+  const s1Count = filtered.filter(c => c.s1).length;
+  const with2nd = filtered.filter(c => c.meetings.length >= 2);
+  const daysTo2nd = with2nd.map(c => daysBetween(c.meetings[0], c.meetings[1]));
+  const avg = daysTo2nd.length ? (daysTo2nd.reduce((a,b)=>a+b,0)/daysTo2nd.length).toFixed(1) : '—';
+  const subLabel = fmtDate(p.start) + ' – ' + fmtDate(p.end);
+
+  document.getElementById('stats').innerHTML = [
+    { cls:'c1', label:'Total Opportunities', val: total || '—', sub: subLabel },
+    { cls:'c2', label:'S1 Conversions',       val: s1Count,      sub: total ? `${(s1Count/total*100).toFixed(0)}% conversion rate` : '—' },
+    { cls:'c3', label:'2nd Meeting Rate',      val: `${with2nd.length}/${total || 0}`, sub: total ? `${(with2nd.length/(total||1)*100).toFixed(0)}% of opportunities` : '—' },
+    { cls:'c4', label:'Avg Days → 2nd Mtg',   val: avg,          sub: with2nd.length ? `From ${with2nd.map(c=>c.name).join(', ')}` : 'No 2nd meetings yet' },
+  ].map(s => `
+    <div class="stat ${s.cls}">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-val">${s.val}</div>
+      <div class="stat-sub">${s.sub}</div>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────────
+//  Collapsible groups
+// ─────────────────────────────────────────────
+const collapsedGroups = new Set();
+function setFilter(name) {
+  activeFilter = name;
+  document.querySelectorAll('.filter-pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === name);
+  });
+  const cr = document.getElementById('custom-range');
+  if (name === 'custom') {
+    cr.classList.add('visible');
+    // Pre-fill inputs if empty
+    const cs = document.getElementById('custom-start');
+    const ce = document.getElementById('custom-end');
+    if (!cs.value) cs.value = PERIODS.custom.start;
+    if (!ce.value) ce.value = PERIODS.custom.end;
+  } else {
+    cr.classList.remove('visible');
+  }
+  renderStats();
+  renderTimeline();
+}
+
+function updateCustomRange() {
+  const start = document.getElementById('custom-start').value;
+  const end   = document.getElementById('custom-end').value;
+  if (!start || !end || start >= end) return;
+  PERIODS.custom = buildCustomPeriod(start, end);
+  if (activeFilter === 'custom') { renderStats(); renderTimeline(); }
+}
+
+function toggleGroup(key) {
+  if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+  else collapsedGroups.add(key);
+  renderTimeline();
+}
+
+function toggleStatusSection(status) {
+  statusSectionOpen[status] = !statusSectionOpen[status];
+  renderTimeline();
+}
+
+function cycleStatus(companyName) {
+  const company = companies.find(c => c.name === companyName);
+  if (!company) return;
+  const cycle = ['hot', 'meh', 'dead'];
+  const cur = company.status || 'meh';
+  company.status = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
+  saveData();
+  renderTimeline();
+}
+
+function startRowDrag(e, el) {
+  const row = el.closest('.row');
+  draggedRow = row.dataset.company;
+  draggedEvent = null;
+  draggedGroup = null;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', draggedRow);
+  e.stopPropagation();
+}
+
+function endRowDrag() {
+  draggedRow = null;
+  document.querySelectorAll('.reorder-above,.reorder-below')
+    .forEach(r => r.classList.remove('reorder-above','reorder-below'));
+}
+
+function startGroupDrag(e, domain) {
+  draggedGroup = domain;
+  draggedRow   = null;
+  draggedEvent = null;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', domain);
+  e.stopPropagation();
+}
+
+function endGroupDrag() {
+  draggedGroup = null;
+  document.querySelectorAll('.status-section-header.drop-target')
+    .forEach(el => el.classList.remove('drop-target'));
+}
+
+function sectionDragOver(e, status) {
+  if (!draggedRow && !draggedGroup) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drop-target');
+}
+
+function sectionDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drop-target');
+  }
+}
+
+function dropOnSection(e, status) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('drop-target');
+
+  if (draggedGroup) {
+    const domain = draggedGroup;
+    draggedGroup = null;
+    companies.filter(c => c.domain === domain).forEach(c => c.status = status);
+    statusSectionOpen[status] = true;
+    saveData();
+    renderTimeline();
+    return;
+  }
+
+  if (draggedRow) {
+    const name = draggedRow;
+    draggedRow = null;
+    const company = companies.find(c => c.name === name);
+    if (!company) return;
+    company.status = status;
+    statusSectionOpen[status] = true;
+    saveData();
+    renderTimeline();
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Render timeline
+// ─────────────────────────────────────────────
+function renderTimeline() {
+  const p = PERIODS[activeFilter];
+  const periAxiDates    = p.axisDates;
+  const periMonthLabels = p.monthLabels;
+  const periQuotaDates  = p.quotaDates;
+  const periStart = p.start;
+  const periEnd   = p.end;
+  const today = new Date().toISOString().substring(0, 10);
+  const showToday = today >= periStart && today <= periEnd;
+
+  const axisHTML = `<div class="axis-row">${
+    periAxiDates.map(d => `
+      <div class="ax-label" style="left:${pct(d)}%">
+        ${periMonthLabels[d] ? `<span class="ax-month">${periMonthLabels[d]}</span>` : ''}
+        <span class="ax-date">${new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      </div>`).join('')
+  }</div>`;
+
+  // Filter companies to those with at least one meeting in this period
+  const periodCompanies = companies.map(c => ({
+    ...c,
+    meetings: [...c.meetings].sort().filter(m => m >= periStart && m <= periEnd)
+  })).filter(c => c.meetings.length > 0);
+
+  let rowsHTML = `<div class="rows-wrapper">
+    <div class="grid-overlay">
+      ${periAxiDates.map(d => `<div class="g-line" style="left:${pct(d)}%"></div>`).join('')}
+      ${periQuotaDates.map(d => {
+        const dt = new Date(d);
+        const label = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' Quota';
+        return `<div class="quota-line" style="left:${pct(d)}%"><div class="quota-label">${label}</div></div>`;
+      }).join('')}
+      ${showToday ? `<div class="today-line" style="left:${pct(today)}%"><div class="today-label">Today</div></div>` : ''}
+    </div>`;
+
+  const meetingLabels = ['Meeting 1','Meeting 2','Meeting 3','Meeting 4','Meeting 5'];
+  const STATUS_CONFIG = [
+    { key: 'hot',  label: 'Hot'    },
+    { key: 'meh',  label: 'Active' },
+    { key: 'dead', label: 'Dead'   },
+  ];
+
+  STATUS_CONFIG.forEach(({ key: status, label: statusLabel }) => {
+    const sectionComps = periodCompanies.filter(c => (c.status || 'meh') === status);
+    const open = statusSectionOpen[status];
+    rowsHTML += `
+      <div class="status-section-header ${status}"
+        onclick="toggleStatusSection('${status}')"
+        ondragover="sectionDragOver(event,'${status}')"
+        ondragleave="sectionDragLeave(event)"
+        ondrop="dropOnSection(event,'${status}')">
+        <div class="ss-left">
+          <span>${statusLabel}</span>
+          <span class="ss-count">${sectionComps.length}</span>
+        </div>
+        <span class="ss-arrow">${open ? '▾' : '▸'}</span>
+      </div>`;
+
+    if (!open || !sectionComps.length) return;
+
+    // Group by domain within this status section
+    const domainOrder = [];
+    const groups = {};
+    sectionComps.forEach(c => {
+      if (!groups[c.domain]) { groups[c.domain] = []; domainOrder.push(c.domain); }
+      groups[c.domain].push(c);
+    });
+
+    domainOrder.forEach(domain => {
+      const group = groups[domain];
+      const isGrouped = group.length > 1;
+      const parentName = PARENT_NAMES[domain] || domain;
+      const first = group[0];
+      const hasS1 = group.some(c => c.s1);
+      const hCls = hasS1 ? 'g' : 'b';
+      const groupKey = status + ':' + domain;
+      const isCollapsed = collapsedGroups.has(groupKey);
+
+      if (isGrouped) {
+        rowsHTML += `
+          <div class="group-header" onclick="toggleGroup('${groupKey}')">
+            <div class="group-left">
+              <div class="group-header-drag-handle" draggable="true"
+                ondragstart="startGroupDrag(event,'${domain}')"
+                ondragend="endGroupDrag()">⠿</div>
+              <div class="group-logo-box">
+                <img src="https://logo.clearbit.com/${domain}" alt="${parentName}"
+                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                <div class="fb ${hCls}">${first.init.substring(0,2)}</div>
+              </div>
+              <span class="group-name-text">${parentName}</span>
+              <span class="group-count">${group.length}</span>
+              <span class="group-arrow${isCollapsed ? ' collapsed' : ''}">›</span>
+            </div>
+            <div class="group-track-spacer"></div>
+          </div>`;
+      }
+
+      if (isGrouped && isCollapsed) return;
+
+      group.forEach(c => {
+        const curStatus = c.status || 'meh';
+        const cls = c.s1 ? 'g' : 'b';
+        const sorted = [...c.meetings].sort();
+        let connHTML = '';
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const p1 = pctNum(sorted[i]), p2 = pctNum(sorted[i+1]);
+          connHTML += `<div class="conn ${cls}" style="left:${p1.toFixed(3)}%;width:${(p2-p1).toFixed(3)}%;"></div>`;
+        }
+        const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const dotsHTML = sorted.map((m, i) => {
+          const label = meetingLabels[i] || `Meeting ${i+1}`;
+          const days  = i > 0 ? ` (+${daysBetween(sorted[i-1], m)}d)` : '';
+          const calMark = c.calendarMeetings && c.calendarMeetings.includes(m) ? ' cal' : '';
+          return `<div class="dot ${cls}${calMark}" style="left:${pct(m)}%">
+            <div class="mtip">${label}: ${fmtDate(m)}${days}${calMark ? ' 📅' : ''}</div>
+            <div class="dot-del" onclick="event.stopPropagation();deleteMeeting('${safeN}','${m}')">×</div>
+          </div>`;
+        }).join('');
+        rowsHTML += `
+          <div class="row${isGrouped ? ' grouped' : ''}" data-company="${escAttr(c.name)}"
+            ondragover="rowDragOver(event)" ondragleave="rowDragLeave(event)" ondrop="dropOnRow(event,'${safeN}')">
+            <div class="row-info">
+              <div class="row-drag-handle" draggable="true"
+                ondragstart="startRowDrag(event,this)" ondragend="endRowDrag()">⠿</div>
+              <div class="logo-box">
+                <img src="https://logo.clearbit.com/${c.domain}" alt="${c.name}"
+                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                <div class="fb ${cls}">${c.init}</div>
+              </div>
+              <div class="name-col">
+                <div class="cname">${c.name}</div>
+                ${c.s1 ? '<span class="s1-tag">S1</span>' : ''}
+              </div>
+              <div class="status-cycle-dot ${curStatus}" title="Click to change status"
+                onclick="event.stopPropagation();cycleStatus('${safeN}')"></div>
+              <button type="button" class="row-del" onclick="event.stopPropagation();deleteOpportunity('${safeN}')" title="Delete opportunity">×</button>
+            </div>
+            <div class="row-track">
+              <div class="track-bg"></div>
+              ${connHTML}${dotsHTML}
+            </div>
+          </div>`;
+      });
+    });
+  });
+
+  rowsHTML += `
+    <div class="create-drop-zone"
+      ondragover="dropZoneDragOver(event)" ondragleave="dropZoneDragLeave(event)" ondrop="dropToCreate(event)">
+      <div class="cdz-icon">✨</div>
+      <strong>Drop here to create a new opportunity</strong>
+      <p>Or use the + New Opportunity button in the panel</p>
+    </div>`;
+  rowsHTML += `</div>`;
+  document.getElementById('timeline').innerHTML = axisHTML + rowsHTML;
+}
+
+// ─────────────────────────────────────────────
+//  Delete meeting
+// ─────────────────────────────────────────────
+function deleteMeeting(companyName, dateStr) {
+  const company = companies.find(c => c.name === companyName);
+  if (!company) return;
+  company.meetings = company.meetings.filter(m => m !== dateStr);
+  if (company.calendarMeetings) {
+    company.calendarMeetings = company.calendarMeetings.filter(m => m !== dateStr);
+  }
+  saveData();
+  renderStats();
+  renderTimeline();
+}
+
+// ─────────────────────────────────────────────
+//  Delete opportunity (whole row)
+// ─────────────────────────────────────────────
+function deleteOpportunity(companyName) {
+  if (!confirm(`Delete "${companyName}" and all its meetings?`)) return;
+  companies = companies.filter(c => c.name !== companyName);
+  saveData();
+  renderStats();
+  renderTimeline();
+}
+
+// ─────────────────────────────────────────────
+//  New Opportunity modal
+// ─────────────────────────────────────────────
+let _newOppDomain = '';
+
+function openNewOppModal(domain, parentName) {
+  _newOppDomain = domain;
+  document.getElementById('new-opp-title').textContent = parentName ? `New Opportunity — ${parentName}` : 'New Opportunity';
+  document.getElementById('opp-name').value = '';
+  document.getElementById('opp-domain').value = domain;
+  document.getElementById('opp-date').value = '';
+  document.getElementById('opp-date-field').style.display = '';
+  document.getElementById('opp-s1').checked = false;
+  document.getElementById('new-opp-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('opp-name').focus(), 50);
+}
+
+// Called from the calendar panel for unmatched events
+function createOppFromCalEvent(title, date, domainHint) {
+  closeCalPanel();
+  _newOppDomain = domainHint || '';
+  document.getElementById('new-opp-title').textContent = 'New Opportunity from Calendar';
+  document.getElementById('opp-name').value = title;
+  document.getElementById('opp-domain').value = domainHint || '';
+  document.getElementById('opp-date').value = date;
+  document.getElementById('opp-date-field').style.display = 'none';
+  document.getElementById('opp-s1').checked = false;
+  document.getElementById('new-opp-overlay').classList.add('open');
+  // Focus name so user can edit the pre-filled event title
+  setTimeout(() => {
+    const el = document.getElementById('opp-name');
+    el.focus(); el.select();
+  }, 50);
+}
+
+function closeNewOppModal() {
+  document.getElementById('new-opp-overlay').classList.remove('open');
+}
+
+function submitNewOpp() {
+  const name   = document.getElementById('opp-name').value.trim();
+  const domain = document.getElementById('opp-domain').value.trim() || _newOppDomain ||
+    name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.com'; // fallback slug key
+  const date   = document.getElementById('opp-date').value;
+  const s1     = document.getElementById('opp-s1').checked;
+  if (!name) { document.getElementById('opp-name').focus(); return; }
+  const words = name.trim().split(/\s+/);
+  const init  = words.length >= 2
+    ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
+    : name.substring(0, 2).toUpperCase();
+  // Register parent name if it's a new domain
+  if (!PARENT_NAMES[domain]) PARENT_NAMES[domain] = name;
+  companies.push({ name, domain, init, meetings: date ? [date] : [], s1 });
+  saveData();
+  closeNewOppModal();
+  renderStats();
+  renderTimeline();
+}
+
+// ─────────────────────────────────────────────
+//  Google Calendar OAuth
+// ─────────────────────────────────────────────
+let tokenClient = null;
+let accessToken = null;
+
+function setCalStatus(state, msg) {
+  const el = document.getElementById('cal-status');
+  el.className = `${state}`;
+  el.innerHTML = `<div class="dot-status"></div><span>${msg}</span>`;
+}
+
+window.addEventListener('load', () => {
+  // Hide setup banner if configured
+  if (IS_CONFIGURED) {
+    document.getElementById('setup-banner').classList.add('hidden');
+  }
+  // Update button label
+  if (IS_CONFIGURED) {
+    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
+  }
+  // Init GIS when available
+  const waitForGIS = setInterval(() => {
+    if (window.google?.accounts?.oauth2) {
+      clearInterval(waitForGIS);
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        callback: handleToken,
+      });
+    }
+  }, 200);
+});
+
+function connectCalendar() {
+  if (!IS_CONFIGURED) {
+    alert('Please add your Google OAuth Client ID first.\nSee the setup instructions at the top of the page.');
+    return;
+  }
+  if (!tokenClient) {
+    setCalStatus('syncing', 'Loading Google auth...');
+    setTimeout(connectCalendar, 600);
+    return;
+  }
+  tokenClient.requestAccessToken();
+}
+
+async function handleToken(resp) {
+  if (resp.error) {
+    setCalStatus('error', 'Auth error: ' + resp.error);
+    return;
+  }
+  accessToken = resp.access_token;
+  setCalStatus('syncing', 'Fetching calendar events...');
+  document.getElementById('cal-btn').textContent = '↻ Syncing...';
+  await syncCalendar();
+}
+
+function resync() {
+  if (!accessToken) { connectCalendar(); return; }
+  syncCalendar();
+}
+
+async function syncCalendar() {
+  const CALENDAR_EMAIL = 'michael@roboflow.com';
+  const DARK_GREEN_ID  = '10';  // Google Calendar "Basil" = dark green label
+
+  try {
+    const calId = encodeURIComponent(CALENDAR_EMAIL);
+    const timeMax = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    const resp = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${calId}/events` +
+      `?timeMin=2026-01-01T00:00:00Z&timeMax=${timeMax}` +
+      '&maxResults=500&singleEvents=true&orderBy=startTime',
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const all = data.items || [];
+
+    // Only dark-green-labeled events that have external invitees
+    const events = all.filter(ev =>
+      ev.colorId === DARK_GREEN_ID &&
+      ev.attendees && ev.attendees.some(a => a.email !== CALENDAR_EMAIL)
+    );
+
+    const now = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+    setCalStatus('connected', `Connected · ${events.length} of ${all.length} events matched (🟢 + invitees) · ${now}`);
+    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Google Calendar`;
+    document.getElementById('sync-btn').style.display = 'block';
+    processEvents(events);
+  } catch(e) {
+    setCalStatus('error', 'Sync failed: ' + e.message);
+    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Retry`;
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Event matching
+// ─────────────────────────────────────────────
+function scoreMatch(eventTitle, companyName) {
+  const title   = eventTitle.toLowerCase();
+  const company = companyName.toLowerCase().replace(/\s*—\s*/g, ' ');
+  if (title.includes(company)) return 10;
+  // Split into meaningful words (> 3 chars)
+  const words = company.split(/[\s\-\/]+/).filter(w => w.length > 3);
+  if (!words.length) return 0;
+  const hits = words.filter(w => title.includes(w));
+  if (hits.length === words.length) return 8;
+  if (hits.length >= 2) return 5;
+  if (hits.length === 1) return 3;
+  return 0;
+}
+
+function confLabel(score) {
+  if (score >= 8) return ['high', 'High'];
+  if (score >= 5) return ['med', 'Medium'];
+  return ['low', 'Low'];
+}
+
+let pendingMatches = [];
+let pendingUnmatched = [];
+// Collapse state persists across re-renders
+const calSectionOpen = { unassigned: true, assigned: false };
+const statusSectionOpen = { hot: true, meh: true, dead: false };
+let draggedRow = null;
+let draggedGroup = null; // domain being dragged as a whole group
+
+function processEvents(events) {
+  const allEvents = events.map(ev => {
+    const dateRaw = ev.start?.date || ev.start?.dateTime || '';
+    const date = dateRaw.substring(0, 10);
+    const externalDomain = (ev.attendees || [])
+      .map(a => a.email || '')
+      .filter(e => e && !e.endsWith('@roboflow.com') && e.includes('@'))
+      .map(e => e.split('@')[1])
+      .find(Boolean) || '';
+    return { id: ev.id, title: ev.summary || '(no title)', date, domainHint: externalDomain };
+  }).filter(ev => ev.date >= '2026-01-01');
+
+  pendingMatches = [];
+  pendingUnmatched = allEvents;
+
+  if (!allEvents.length) {
+    setCalStatus('connected', 'Connected — no qualifying events found in this period');
+    return;
+  }
+  showCalPanel([], allEvents);
+}
+
+// ─────────────────────────────────────────────
+//  Calendar side panel
+// ─────────────────────────────────────────────
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function showCalPanel(matched, unmatched = []) {
+  // Determine assigned status via calendarMeetings — no auto-matching
+  const notAssigned = [];
+  const alreadyAssigned = [];
+  unmatched.forEach(ev => {
+    const assignedTo = companies.find(c => c.calendarMeetings && c.calendarMeetings.includes(ev.date));
+    if (assignedTo) {
+      alreadyAssigned.push({ ...ev, company: assignedTo });
+    } else {
+      notAssigned.push(ev);
+    }
+  });
+
+  const unassignedCount = notAssigned.length;
+  const assignedCount   = alreadyAssigned.length;
+
+  document.getElementById('cal-panel-subtitle').textContent =
+    [unassignedCount && `${unassignedCount} unassigned`,
+     assignedCount   && `${assignedCount} assigned`].filter(Boolean).join(' · ')
+    || 'Drag events onto rows to add meetings';
+
+  let html = '';
+
+  // ── Section 1: Not Assigned ──
+  {
+    const open = calSectionOpen.unassigned;
+    html += `
+      <div class="cal-section-header" onclick="toggleCalSection('unassigned')">
+        <div class="sh-left">
+          <span>Not Assigned</span>
+          <span class="sh-count">${unassignedCount}</span>
+        </div>
+        <span class="sh-arrow" id="sh-arrow-unassigned">${open ? '▾' : '▸'}</span>
+      </div>
+      <div id="sh-body-unassigned" style="display:${open ? 'block' : 'none'};">`;
+
+    notAssigned.forEach(ev => {
+      html += `
+        <div class="cal-event-card" draggable="true"
+          data-id="${escAttr(ev.id)}" data-title="${escAttr(ev.title)}"
+          data-date="${ev.date}" data-domain="${escAttr(ev.domainHint)}"
+          data-company=""
+          ondragstart="startDrag(event,this)" ondragend="endDrag(this)">
+          <div class="drag-handle">⠿</div>
+          <div class="cal-event-card-info">
+            <div class="cal-event-title">${ev.title}</div>
+            <div class="cal-event-meta">${fmtDate(ev.date)}</div>
+          </div>
+        </div>`;
+    });
+
+    if (!unassignedCount) {
+      html += `<div class="cal-panel-hint" style="margin:8px 0;">All events have been assigned.</div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  // ── Section 2: Already Assigned ──
+  if (assignedCount) {
+    const open = calSectionOpen.assigned;
+    html += `
+      <div class="cal-section-header" onclick="toggleCalSection('assigned')" style="margin-top:8px;">
+        <div class="sh-left">
+          <span>Already Assigned</span>
+          <span class="sh-count">${assignedCount}</span>
+        </div>
+        <span class="sh-arrow" id="sh-arrow-assigned">${open ? '▾' : '▸'}</span>
+      </div>
+      <div id="sh-body-assigned" style="display:${open ? 'block' : 'none'};">`;
+    alreadyAssigned.forEach(m => {
+      const safeN = m.company.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      html += `
+        <div class="cal-event-card" style="opacity:0.65;">
+          <div class="drag-handle" style="opacity:0.4;">⠿</div>
+          <div class="cal-event-card-info">
+            <div class="cal-event-title">${m.title}</div>
+            <div class="cal-event-meta">${fmtDate(m.date)} · ${m.company.name}</div>
+          </div>
+          <button class="cal-unassign-btn" onclick="unassignMeeting('${safeN}','${m.date}')">Remove</button>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (!html) {
+    html = `<div class="cal-panel-hint">No qualifying events found in this period.<br>Try syncing after adding dark-green events with invitees to your calendar.</div>`;
+  } else {
+    html += `<div class="cal-panel-hint">Drag a card onto any timeline row to add a meeting, or drop into the zone below to create a new opportunity.</div>`;
+  }
+
+  document.getElementById('cal-panel-body').innerHTML = html;
+  document.getElementById('cal-panel').classList.add('open');
+  document.body.classList.add('cal-open');
+  renderTimeline(); // re-render so create-drop-zone appears
+}
+
+function toggleCalSection(name) {
+  calSectionOpen[name] = !calSectionOpen[name];
+  const body  = document.getElementById(`sh-body-${name}`);
+  const arrow = document.getElementById(`sh-arrow-${name}`);
+  if (!body || !arrow) return;
+  body.style.display = calSectionOpen[name] ? 'block' : 'none';
+  arrow.textContent  = calSectionOpen[name] ? '▾' : '▸';
+}
+
+function unassignMeeting(companyName, dateStr) {
+  const company = companies.find(c => c.name === companyName);
+  if (!company) return;
+  company.meetings = company.meetings.filter(m => m !== dateStr);
+  if (company.calendarMeetings) {
+    company.calendarMeetings = company.calendarMeetings.filter(m => m !== dateStr);
+  }
+  saveData();
+  renderStats();
+  renderTimeline();
+  showCalPanel(pendingMatches, pendingUnmatched);
+}
+
+function closeCalPanel() {
+  document.getElementById('cal-panel').classList.remove('open');
+  document.body.classList.remove('cal-open');
+  draggedEvent = null;
+  renderTimeline(); // re-render to hide drop zone
+}
+
+// ─────────────────────────────────────────────
+//  Drag and drop
+// ─────────────────────────────────────────────
+let draggedEvent = null;
+
+function startDrag(e, card) {
+  draggedRow = null;
+  draggedGroup = null;
+  draggedEvent = {
+    id:      card.dataset.id,
+    title:   card.dataset.title,
+    date:    card.dataset.date,
+    domain:  card.dataset.domain,
+    company: card.dataset.company,
+  };
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', card.dataset.id);
+  // Slight delay so the card style applies after drag image is captured
+  setTimeout(() => card.classList.add('dragging'), 0);
+}
+
+function endDrag(card) {
+  card.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+
+function rowDragOver(e) {
+  if (draggedRow) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const row = e.currentTarget;
+    document.querySelectorAll('.reorder-above,.reorder-below')
+      .forEach(r => r.classList.remove('reorder-above','reorder-below'));
+    const rect = row.getBoundingClientRect();
+    row.classList.add(e.clientY < rect.top + rect.height / 2 ? 'reorder-above' : 'reorder-below');
+    return;
+  }
+  if (!draggedEvent) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function rowDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over','reorder-above','reorder-below');
+  }
+}
+
+function dropOnRow(e, companyName) {
+  e.preventDefault();
+  const row = e.currentTarget;
+  row.classList.remove('drag-over','reorder-above','reorder-below');
+
+  if (draggedRow) {
+    const fromName = draggedRow;
+    draggedRow = null;
+    if (fromName === companyName) return;
+    const insertBefore = e.clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+    const fromIdx = companies.findIndex(c => c.name === fromName);
+    const toComp  = companies.find(c => c.name === companyName);
+    if (fromIdx === -1 || !toComp) return;
+    // If crossing status sections, inherit target's status
+    const fromComp = companies[fromIdx];
+    const targetStatus = toComp.status || 'meh';
+    if ((fromComp.status || 'meh') !== targetStatus) fromComp.status = targetStatus;
+    const [moved] = companies.splice(fromIdx, 1);
+    const newToIdx = companies.findIndex(c => c.name === companyName);
+    companies.splice(insertBefore ? newToIdx : newToIdx + 1, 0, moved);
+    saveData();
+    renderTimeline();
+    return;
+  }
+
+  if (!draggedEvent) return;
+  const company = companies.find(c => c.name === companyName);
+  if (!company) return;
+  const date = draggedEvent.date;
+  if (!company.meetings.includes(date)) {
+    company.meetings.push(date);
+    company.meetings.sort();
+    if (!company.calendarMeetings) company.calendarMeetings = [];
+    company.calendarMeetings.push(date);
+  }
+  const card = document.querySelector(`.cal-event-card[data-id="${CSS.escape(draggedEvent.id)}"]`);
+  if (card) card.remove();
+  const ev = draggedEvent;
+  draggedEvent = null;
+  saveData();
+  renderStats();
+  renderTimeline();
+  setCalStatus('connected', `Connected · Meeting added to ${company.name} (${fmtDate(date)})`);
+}
+
+function dropZoneDragOver(e) {
+  if (!draggedEvent) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function dropZoneDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+}
+
+function dropToCreate(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!draggedEvent) return;
+  const ev = draggedEvent;
+  draggedEvent = null;
+  const card = document.querySelector(`.cal-event-card[data-id="${CSS.escape(ev.id)}"]`);
+  if (card) card.remove();
+  createOppFromCalEvent(ev.title, ev.date, ev.domain);
+}
+
+// ─────────────────────────────────────────────
+//  Persistence
+// ─────────────────────────────────────────────
+function saveData() {
+  try {
+    localStorage.setItem('pipeline_v1_companies', JSON.stringify(companies));
+    localStorage.setItem('pipeline_v1_parent_names', JSON.stringify(PARENT_NAMES));
+  } catch(e) {}
+}
+
+function loadData() {
+  try {
+    const savedC = localStorage.getItem('pipeline_v1_companies');
+    const savedN = localStorage.getItem('pipeline_v1_parent_names');
+    if (savedC) companies = JSON.parse(savedC);
+    if (savedN) Object.assign(PARENT_NAMES, JSON.parse(savedN));
+  } catch(e) {}
+}
+
+// ─────────────────────────────────────────────
+//  Init
+// ─────────────────────────────────────────────
+loadData();
+renderStats();
+renderTimeline();
+</script>
+</body>
+</html>
