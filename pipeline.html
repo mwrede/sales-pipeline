@@ -677,6 +677,9 @@
       <div class="user-avatar-sm" id="user-avatar-sm"></div>
       <span id="user-label"></span>
       <button class="switch-btn" onclick="switchUser()">switch</button>
+      <button class="switch-btn" onclick="exportData()">export</button>
+      <button class="switch-btn" onclick="document.getElementById('import-file').click()">import</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     </div>
     <div class="cal-area">
       <button id="cal-btn" onclick="connectCalendar()">
@@ -1725,6 +1728,46 @@ function switchUser() {
 
 // ─────────────────────────────────────────────
 //  Persistence
+// ─────────────────────────────────────────────
+function exportData() {
+  if (!currentUser) return;
+  const payload = {
+    user: currentUser,
+    companies: companies,
+    parentNames: PARENT_NAMES,
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pipeline-${currentUser}-${new Date().toISOString().substring(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const payload = JSON.parse(ev.target.result);
+      if (!Array.isArray(payload.companies)) throw new Error('Invalid file — no companies array found');
+      companies = payload.companies;
+      for (const k in PARENT_NAMES) delete PARENT_NAMES[k];
+      if (payload.parentNames) Object.assign(PARENT_NAMES, payload.parentNames);
+      saveData();
+      renderStats();
+      renderTimeline();
+    } catch(err) {
+      alert('Import failed: ' + err.message);
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
 // ─────────────────────────────────────────────
 function saveData() {
   if (!currentUser) return;
