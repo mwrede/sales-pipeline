@@ -550,6 +550,12 @@
     color: var(--muted); background: white;
   }
   .panel-assign-select:focus { outline: none; border-color: var(--blue); }
+  .panel-mark-btn {
+    margin-top: 5px; font-size: 11px; font-weight: 600; width: 100%;
+    color: #16a34a; background: #f0fdf4; border: 1px solid #86efac;
+    border-radius: 6px; padding: 3px 8px; cursor: pointer; text-align: left;
+  }
+  .panel-mark-btn:hover { background: #dcfce7; }
   .cal-event-badge {
     font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
     flex-shrink: 0; align-self: flex-start; margin-top: 2px;
@@ -854,6 +860,7 @@ let calendarEmail = '';
 let companies = [];
 const PARENT_NAMES = {};
 const groupNames = {}; // groupId -> display name
+let dismissedCalEvents = new Set(); // event IDs manually marked as "already assigned"
 
 // ─────────────────────────────────────────────
 //  Timeline bounds
@@ -1559,6 +1566,8 @@ function showCalPanel(matched, unmatched = []) {
     const assignedTo = companies.find(c => c.calendarMeetings && c.calendarMeetings.includes(ev.date));
     if (assignedTo) {
       alreadyAssigned.push({ ...ev, company: assignedTo });
+    } else if (dismissedCalEvents.has(ev.id)) {
+      alreadyAssigned.push({ ...ev, company: null }); // manually marked
     } else {
       notAssigned.push(ev);
     }
@@ -1607,9 +1616,10 @@ function showCalPanel(matched, unmatched = []) {
             <div class="cal-event-meta">${fmtDate(ev.date)}${firstAtt ? ' · ' + firstAtt : ''}</div>
             <select class="panel-assign-select" data-evid="${escAttr(ev.id)}"
               onchange="assignEventFromPanel(this)" onclick="event.stopPropagation()">
-              <option value="">Assign to...</option>
+              <option value="">Assign to opportunity...</option>
               ${companyOpts}
             </select>
+            <button class="panel-mark-btn" onclick="event.stopPropagation();markCalEventAssigned('${escAttr(ev.id)}')">✓ Already assigned</button>
           </div>
           ${tipHTML ? `<div class="card-tip">${tipHTML}</div>` : ''}
         </div>`;
@@ -1635,15 +1645,19 @@ function showCalPanel(matched, unmatched = []) {
       </div>
       <div id="sh-body-assigned" style="display:${open ? 'block' : 'none'};">`;
     alreadyAssigned.forEach(m => {
-      const safeN = m.company.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const isManual = !m.company;
+      const metaLabel = isManual ? 'Manually marked' : m.company.name;
+      const removeBtn = isManual
+        ? `<button class="cal-unassign-btn" onclick="unmarkCalEventAssigned('${escAttr(m.id)}')">Remove</button>`
+        : (() => { const safeN = m.company.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return `<button class="cal-unassign-btn" onclick="unassignMeeting('${safeN}','${m.date}')">Remove</button>`; })();
       html += `
         <div class="cal-event-card" style="opacity:0.65;">
           <div class="drag-handle" style="opacity:0.4;">⠿</div>
           <div class="cal-event-card-info">
             <div class="cal-event-title">${m.title}</div>
-            <div class="cal-event-meta">${fmtDate(m.date)} · ${m.company.name}</div>
+            <div class="cal-event-meta">${fmtDate(m.date)} · ${metaLabel}</div>
           </div>
-          <button class="cal-unassign-btn" onclick="unassignMeeting('${safeN}','${m.date}')">Remove</button>
+          ${removeBtn}
         </div>`;
     });
     html += `</div>`;
@@ -1808,6 +1822,18 @@ function dropZoneDragLeave(e) {
   if (!e.currentTarget.contains(e.relatedTarget)) {
     e.currentTarget.classList.remove('drag-over');
   }
+}
+
+function markCalEventAssigned(evId) {
+  dismissedCalEvents.add(evId);
+  saveData();
+  showCalPanel([], pendingUnmatched);
+}
+
+function unmarkCalEventAssigned(evId) {
+  dismissedCalEvents.delete(evId);
+  saveData();
+  showCalPanel([], pendingUnmatched);
 }
 
 function assignEventFromPanel(sel) {
@@ -2045,6 +2071,7 @@ function saveData() {
     localStorage.setItem(`pipeline_v2_${currentUser}_companies`, JSON.stringify(companies));
     localStorage.setItem(`pipeline_v2_${currentUser}_parent_names`, JSON.stringify(PARENT_NAMES));
     localStorage.setItem(`pipeline_v2_${currentUser}_group_names`, JSON.stringify(groupNames));
+    localStorage.setItem(`pipeline_v2_${currentUser}_dismissed_events`, JSON.stringify([...dismissedCalEvents]));
   } catch(e) {}
 }
 
@@ -2052,15 +2079,18 @@ function loadData() {
   companies = [];
   for (const k in PARENT_NAMES) delete PARENT_NAMES[k];
   for (const k in groupNames) delete groupNames[k];
+  dismissedCalEvents = new Set();
   if (!currentUser) return;
   try {
     const savedC = localStorage.getItem(`pipeline_v2_${currentUser}_companies`);
     const savedN = localStorage.getItem(`pipeline_v2_${currentUser}_parent_names`);
     const savedG = localStorage.getItem(`pipeline_v2_${currentUser}_group_names`);
+    const savedD = localStorage.getItem(`pipeline_v2_${currentUser}_dismissed_events`);
     if (savedC) {
       companies = JSON.parse(savedC);
       if (savedN) Object.assign(PARENT_NAMES, JSON.parse(savedN));
       if (savedG) Object.assign(groupNames, JSON.parse(savedG));
+      if (savedD) dismissedCalEvents = new Set(JSON.parse(savedD));
     } else {
       // Migrate from v1 keys (one-time migration of original data)
       const oldC = localStorage.getItem('pipeline_v1_companies');
