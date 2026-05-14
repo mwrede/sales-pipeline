@@ -1485,6 +1485,63 @@ async function cloudSave(userId, data) {
   });
   if (!r.ok) throw new Error(`cloudSave ${r.status}: ${await r.text()}`);
 }
+
+// Dual-write: mirror companies + meetings into normalized tables
+// (public.opportunities, public.meetings). Replace-by-user strategy: delete
+// the user's rows, then insert fresh. Wrapped in try/catch so a missing
+// table never breaks the app — the JSONB blob remains authoritative.
+async function cloudSyncTables(userId) {
+  const headersAuth = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+  const headersWrite = { ...headersAuth, 'Content-Type': 'application/json', Prefer: 'return=minimal' };
+  try {
+    // Delete meetings first (foreign key from meetings.opportunity_name)
+    await fetch(`${SUPABASE_URL}/rest/v1/meetings?user_id=eq.${encodeURIComponent(userId)}`,
+      { method: 'DELETE', headers: headersAuth });
+    await fetch(`${SUPABASE_URL}/rest/v1/opportunities?user_id=eq.${encodeURIComponent(userId)}`,
+      { method: 'DELETE', headers: headersAuth });
+  } catch (_) { return; /* table likely missing — skip silently */ }
+
+  const opps = companies.map(c => ({
+    user_id: userId,
+    name: c.name,
+    domain: c.domain || null,
+    init: c.init || null,
+    stage_id: c.stageId || null,
+    s1: !!c.s1,
+    likely_s1: !!c.likelyS1,
+    dead: !!c.dead,
+    notes: c.notes || '',
+    primary_email: c.primaryEmail || null,
+    prev_stage_id: c.prevStageId || null,
+    checklist_state: c.checklistState || {}
+  }));
+  const meetings = [];
+  companies.forEach(c => {
+    (c.meetings || []).forEach(date => {
+      const atts = (c.meetingAttendees && c.meetingAttendees[date]) || [];
+      meetings.push({
+        user_id: userId,
+        opportunity_name: c.name,
+        date,
+        attendees: atts,
+        is_calendar_source: (c.calendarMeetings || []).includes(date)
+      });
+    });
+  });
+
+  try {
+    if (opps.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/opportunities`,
+        { method: 'POST', headers: headersWrite, body: JSON.stringify(opps) });
+    }
+    if (meetings.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/meetings`,
+        { method: 'POST', headers: headersWrite, body: JSON.stringify(meetings) });
+    }
+  } catch (e) {
+    console.warn('cloudSyncTables: insert failed (likely missing tables)', e);
+  }
+}
 function setCloudStatus(s) {
   const el = document.getElementById('cloud-status');
   if (!el) return;
@@ -2290,14 +2347,15 @@ function processEvents(events) {
     return;
   }
 
-  // ── Auto-attach to existing opportunities by shared attendee email ──
-  // Sync is additive only:
-  //   • Existing opps gain new meetings (and their attendees) when an event
-  //     shares an external attendee. Stage, S1 flag, dead flag, etc. are
-  //     left untouched — the user's manual assignments win.
-  //   • Events with no existing match feed Pass 2 (clustering → new opps).
+  // ── Auto-attach to existing opportunities by shared attendee email or domain ──
+  // Sync only changes ONE field on existing opps: stageId (and the derived
+  // s1 boolean). Everything else — name, notes, checklist, dead, likelyS1,
+  // primaryEmail — is preserved.
+  // After matching, each touched opp may be re-routed to the stage whose
+  // color matches the MOST RECENT matched event's color in this sync batch.
   const unmatched = [];
   let attached = 0;
+  const stagePromote = new Map(); // company -> { date, color }
   allEvents.forEach(ev => {
     if (!ev.attendees.length) { unmatched.push(ev); return; }
     const existing = findCompanyByAttendees(ev.attendees);
@@ -2308,9 +2366,23 @@ function processEvents(events) {
       } else if (ev.attendees.length && !existing.primaryEmail) {
         existing.primaryEmail = ev.attendees[0];
       }
+      if (ev.colorId) {
+        const cur = stagePromote.get(existing);
+        if (!cur || ev.date > cur.date) stagePromote.set(existing, { date: ev.date, color: ev.colorId });
+      }
     } else {
       unmatched.push(ev);
     }
+  });
+
+  // Apply stage promotion: move opp to the stage matching the most recent
+  // matched event's color. Touches stageId + s1 only — nothing else.
+  stagePromote.forEach(({ color }, opp) => {
+    const target = stageForColor(color);
+    if (!target || target.id === opp.stageId) return;
+    opp.prevStageId = opp.stageId;
+    opp.stageId = target.id;
+    if (target.id === s1StageId()) opp.s1 = true;
   });
 
   // Cluster unmatched events by shared attendee email
@@ -2328,8 +2400,12 @@ function processEvents(events) {
   let autoCreated = 0;
   const stillUnassigned = [];
   clusters.forEach(cl => {
-    if (cl.events.length < 2) {
-      // single unattributable event → leave for manual assign
+    const sortedDesc = [...cl.events].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    const latestColor = sortedDesc.map(e => e.colorId).find(Boolean);
+    const routedStage = stageForColor(latestColor);
+    // Lone event: only leave for manual review if its color isn't mapped to
+    // any stage. If the user color-tagged it, auto-create the opp.
+    if (cl.events.length < 2 && !routedStage) {
       stillUnassigned.push(cl.events[0]);
       return;
     }
@@ -2345,11 +2421,7 @@ function processEvents(events) {
     let finalName = name; let i = 2;
     while (companies.some(c => c.name === finalName)) finalName = `${name} (${i++})`;
     const init = finalName.substring(0,2).toUpperCase();
-    // Route to the stage that matches the cluster's most progressed (last) event color;
-    // fall back to the first stage.
-    const sortedEvents = [...cl.events].sort((a,b) => (a.date||'').localeCompare(b.date||''));
-    const latestColor = [...sortedEvents].reverse().map(e => e.colorId).find(Boolean);
-    const routedStage = stageForColor(latestColor);
+    // Route by the most recent event color (computed above as routedStage)
     const stageId = (routedStage && routedStage.id) || (stages[0] && stages[0].id) || 's_sdr';
     const isS1 = !!(routedStage && routedStage.id === s1StageId());
     const c = {
@@ -3720,6 +3792,9 @@ function saveData() {
     cloudSaveTimer = null;
     try {
       await cloudSave(user, buildCloudBlob());
+      // Dual-write to the normalized tables. Best-effort: failures don't
+      // affect the primary save state.
+      cloudSyncTables(user).catch(e => console.warn('table sync failed', e));
       setCloudStatus('idle');
     } catch (e) {
       console.warn('cloud save failed', e);
