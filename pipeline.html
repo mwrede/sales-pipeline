@@ -885,10 +885,18 @@
 
   /* Full all-stages task list on every card */
   .k-card-tasks-head {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; gap: 6px;
     font-size: 10px; font-weight: 800; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.08em;
-    padding-bottom: 4px; margin-bottom: 4px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 4px 4px; margin-bottom: 4px;
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    border-bottom: 1px solid #e2e8f0; border-radius: 0;
+  }
+  .k-card-tasks-head:hover { background: #fff; color: var(--text); }
+  .k-card-tasks-head-action {
+    font-size: 9px; font-weight: 700; color: #3b82f6;
+    text-transform: none; letter-spacing: 0;
   }
   .k-card-task-group { margin-bottom: 4px; }
   .k-card-task-group:last-child { margin-bottom: 0; }
@@ -1787,7 +1795,12 @@
       <div class="card-modal-section-label" style="margin-top:16px;">Meetings</div>
       <div id="cm-meetings-list" class="cm-meetings-list"></div>
 
-      <div class="card-modal-section-label" style="margin-top:16px;">Checklist</div>
+      <button class="card-modal-section-label cm-checklist-head" id="cm-checklist-head"
+              style="margin-top:16px;border:none;background:none;cursor:pointer;width:100%;display:flex;justify-content:space-between;align-items:center;font-family:inherit;padding:6px 4px;border-radius:6px;"
+              onclick="toggleAllModalStagesOpen()">
+        <span>Checklist</span>
+        <span id="cm-checklist-head-action" style="font-size:10px;font-weight:700;color:#3b82f6;text-transform:none;letter-spacing:0;"></span>
+      </button>
       <div class="checklist" id="cm-checklist"></div>
     </div>
     <div class="card-modal-footer">
@@ -4094,10 +4107,32 @@ function renderCardTaskList(c, stage, safeN) {
         ${itemsHTML}
       </div>`;
   }).join('');
+  const allOpen = stages.every(s => isStageOpen(c, s));
   return `<div class="k-card-tasks" onclick="event.stopPropagation()">
-    <div class="k-card-tasks-head">Checklist</div>
+    <button type="button" class="k-card-tasks-head"
+            onclick="event.stopPropagation();toggleAllStagesOpen('${safeN}')"
+            title="Click to ${allOpen ? 'collapse' : 'expand'} every stage">
+      <span class="k-card-tasks-head-label">Checklist</span>
+      <span class="k-card-tasks-head-action">${allOpen ? '− Collapse all' : '+ Show all'}</span>
+    </button>
     ${blocks}
   </div>`;
+}
+function toggleAllStagesOpen(safeN) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const allOpen = stages.every(s => isStageOpen(c, s));
+  stages.forEach(s => cardStageExpand.set(name + '::' + s.id, !allOpen));
+  renderKanban();
+}
+function toggleAllModalStagesOpen() {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const allOpen = stages.every(s => isStageOpen(c, s));
+  stages.forEach(s => cardStageExpand.set(c.name + '::' + s.id, !allOpen));
+  renderChecklist();
+  renderKanban();
 }
 function toggleCardTaskAtStage(safeN, stageId, itemId) {
   const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
@@ -4600,6 +4635,9 @@ function renderChecklist() {
   document.getElementById('cm-checklist').innerHTML = html;
   document.getElementById('cm-progress').textContent =
     totalAll ? `${totalDone} of ${totalAll} done across all stages` : '';
+  const allOpen = stages.every(s => isStageOpen(c, s));
+  const headAction = document.getElementById('cm-checklist-head-action');
+  if (headAction) headAction.textContent = allOpen ? '− Collapse all' : '+ Show all';
 }
 function toggleChecklistItemAt(stageId, itemId) {
   const c = companies.find(x => x.name === openCardName);
