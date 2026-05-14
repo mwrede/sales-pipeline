@@ -681,6 +681,8 @@
     font-weight: 600; text-decoration: underline;
   }
   .switch-btn:hover { color: var(--text); }
+  .switch-btn-danger { color: #ea580c; }
+  .switch-btn-danger:hover { color: var(--red); }
   .cloud-status {
     font-size: 11px; color: var(--muted); padding: 2px 8px; border-radius: 999px;
     background: #f1f5f9; font-weight: 600; margin-left: 4px;
@@ -1485,6 +1487,7 @@
       <button class="switch-btn" onclick="switchUser()">switch</button>
       <button class="switch-btn" onclick="exportData()">export</button>
       <button class="switch-btn" onclick="document.getElementById('import-file').click()">import</button>
+      <button class="switch-btn switch-btn-danger" onclick="startFromScratch()" title="Wipe all opportunities, meetings, and reset stages to defaults. Two confirmations required.">reset</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     </div>
     <div class="cal-area">
