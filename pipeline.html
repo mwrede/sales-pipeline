@@ -4395,8 +4395,13 @@ function domainsOf(c) {
 }
 function findCompanyByAttendees(emails) {
   if (!emails || !emails.length) return null;
+  // Only consider live opps as match targets. Dead and Hmmm opps were
+  // explicitly removed from the active pipeline — a new sync event from
+  // the same prospect should create a fresh visible opp, not quietly
+  // attach to a hidden card.
+  const active = companies.filter(c => !c.dead && !c.hmmm);
   // Pass 1: exact attendee email match — most reliable, even with rare typos
-  for (const c of companies) {
+  for (const c of active) {
     const known = externalAttendeesOf(c);
     if (emails.some(e => known.has(e))) return c;
   }
@@ -4405,7 +4410,7 @@ function findCompanyByAttendees(emails) {
     .map(e => (e.split('@')[1] || '').toLowerCase())
     .filter(isCompanyDomain);
   if (!evDomains.length) return null;
-  for (const c of companies) {
+  for (const c of active) {
     const known = domainsOf(c);
     if (evDomains.some(d => known.has(d))) return c;
   }
