@@ -7,6 +7,7 @@
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
   :root {
+    --col-width: 300px;
     --bg: #f0f4f8;
     --card: #ffffff;
     --border: #dde3ec;
@@ -719,14 +720,37 @@
     cursor: pointer; font-family: inherit;
   }
   .kanban-toolbar button:hover { background: #f8fafc; border-color: #c7d2e0; }
+  .col-width-control {
+    display: flex; align-items: center; gap: 8px;
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 4px 10px;
+  }
+  .cwc-label { font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; }
+  .cwc-val { font-size: 11px; font-weight: 600; color: var(--text);
+    min-width: 28px; text-align: right; }
+  #col-width-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 140px; height: 4px; background: #e2e8f0; border-radius: 999px;
+    outline: none; cursor: pointer;
+  }
+  #col-width-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%; background: var(--text);
+    cursor: grab; box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  #col-width-slider::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%; background: var(--text);
+    cursor: grab; border: none;
+  }
   .kanban-board {
     display: flex; gap: 14px; overflow-x: auto; padding-bottom: 16px;
     align-items: stretch;
     min-height: calc(100vh - 280px);
   }
   .kanban-col {
-    flex: 0 0 300px;
-    width: 300px; min-width: 300px; max-width: 300px;
+    flex: 0 0 var(--col-width);
+    width: var(--col-width); min-width: var(--col-width); max-width: var(--col-width);
     background: #f8fafc; border: 1px solid var(--border);
     border-radius: 12px; padding: 12px;
     height: calc(100vh - 280px);
@@ -735,6 +759,7 @@
     --stage-color-soft: rgba(148,163,184,0.10);
     position: relative;
     overflow: hidden;
+    transition: flex-basis 0.05s linear;
   }
   .kanban-col::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
@@ -792,7 +817,11 @@
   .kc-menu button.danger { color: var(--red); }
   .kc-menu button.danger:hover { background: #fef2f2; }
   .kc-cards {
-    flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    flex: 1; overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    align-content: start;
     min-height: 40px; padding: 2px;
   }
   .kc-cards.drop-target { background: rgba(59,130,246,0.06); border-radius: 8px; }
@@ -1295,6 +1324,12 @@
   <div class="kanban-toolbar">
     <h2 id="kanban-title">Pipeline</h2>
     <div class="kt-actions">
+      <div class="col-width-control" title="Drag to widen columns — wider columns fit more cards per row">
+        <span class="cwc-label">Width</span>
+        <input type="range" id="col-width-slider" min="280" max="900" step="10" value="300"
+               oninput="setColumnWidth(this.value)" />
+        <span class="cwc-val" id="col-width-val">300</span>
+      </div>
       <button onclick="openNewOppModal('','')">+ New Opportunity</button>
       <button onclick="addStage()">+ Add Column</button>
     </div>
@@ -2777,6 +2812,7 @@ function selectUser(name) {
   renderTimeline();
   // Kanban only (timeline view removed)
   setView('kanban');
+  restoreColumnWidth();
   renderMetrics();
   setCloudStatus('idle');
   refreshFromCloud();
@@ -3153,6 +3189,21 @@ function daysSinceFirstMeeting(c) {
   const ms = Date.now() - new Date(first).getTime();
   if (ms < 0) return null; // first meeting is in the future
   return Math.floor(ms / 86400000);
+}
+
+// ── Column width slider ──
+function setColumnWidth(px) {
+  const n = Math.max(220, Math.min(1200, parseInt(px, 10) || 300));
+  document.documentElement.style.setProperty('--col-width', n + 'px');
+  const valEl = document.getElementById('col-width-val');
+  if (valEl) valEl.textContent = n;
+  const sliderEl = document.getElementById('col-width-slider');
+  if (sliderEl && String(sliderEl.value) !== String(n)) sliderEl.value = n;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_col_width`, n);
+}
+function restoreColumnWidth() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_width`) : null;
+  setColumnWidth(saved || 300);
 }
 
 // ── Month picker + metrics ──
