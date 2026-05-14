@@ -1014,6 +1014,104 @@
   }
   .card-modal-footer button.danger:hover { background: #fef2f2; }
 
+  /* ── Timeline view ── */
+  .tv-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .tv-eyebrow {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0.08em; margin-bottom: 4px;
+  }
+  .tv-head h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+  .tv-head p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .tv-controls { display: flex; gap: 8px; align-items: center; }
+  .tv-select {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 11px; font-size: 12px; font-weight: 600;
+    color: var(--text); font-family: inherit; cursor: pointer;
+  }
+
+  .tv-axis {
+    position: relative; margin-left: 260px; height: 22px;
+    border-bottom: 1px solid var(--border); margin-bottom: 14px;
+  }
+  .tv-tick {
+    position: absolute; top: 0; transform: translateX(-50%);
+    font-size: 11px; color: var(--muted); font-weight: 500;
+    padding-top: 2px; white-space: nowrap;
+  }
+  .tv-tick::before {
+    content: ''; position: absolute; left: 50%; bottom: -6px;
+    width: 1px; height: 6px; background: #e2e8f0;
+  }
+  .tv-today {
+    position: absolute; top: 0; bottom: -1000px;
+    border-left: 1px dashed #94a3b8; pointer-events: none; z-index: 1;
+  }
+
+  .tv-body { display: flex; flex-direction: column; gap: 2px; }
+  .tv-group {
+    margin-top: 14px;
+  }
+  .tv-group-head {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
+    color: var(--muted); text-transform: uppercase;
+    padding: 4px 0 6px 0;
+  }
+  .tv-row {
+    display: flex; align-items: center; min-height: 30px;
+    border-radius: 6px; transition: background 0.1s;
+  }
+  .tv-row:hover { background: #f8fafc; }
+  .tv-row-label {
+    flex: 0 0 252px; padding-right: 14px; font-size: 13px;
+    color: var(--text); overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; cursor: pointer;
+  }
+  .tv-row-label:hover { color: #3b82f6; }
+  .tv-row-track {
+    flex: 1; position: relative; height: 18px;
+  }
+  .tv-conn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 1px; background: #e2e8f0;
+  }
+  .tv-dot {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--dot-color, var(--orange));
+    box-shadow: 0 0 0 2px #fff;
+    cursor: pointer; z-index: 2;
+  }
+  .tv-dot:hover {
+    transform: translate(-50%, -50%) scale(1.4);
+    z-index: 3;
+  }
+  .tv-dot-tip {
+    position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%);
+    background: var(--text); color: #fff;
+    font-size: 11px; font-weight: 500; padding: 4px 8px;
+    border-radius: 5px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity 0.1s;
+    z-index: 10;
+  }
+  .tv-dot:hover .tv-dot-tip { opacity: 1; }
+
+  .tv-legend {
+    display: flex; gap: 14px; margin-top: 24px; padding-top: 14px;
+    border-top: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .tv-legend-item {
+    display: flex; align-items: center; gap: 6px; font-size: 11px;
+    color: var(--muted); font-weight: 500;
+  }
+  .tv-legend-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(0,0,0,0.05);
+  }
+
   /* ── Card email line ── */
   .k-card-email {
     font-size: 11px; color: var(--muted); margin-top: 4px;
@@ -1269,6 +1367,10 @@
     <p id="header-sub">Connect your calendar to get started</p>
   </div>
   <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+    <div class="view-toggle" id="view-toggle">
+      <button id="view-kanban-btn" class="active" onclick="setView('kanban')">Kanban</button>
+      <button id="view-timeline-btn" onclick="setView('timeline')">Timeline</button>
+    </div>
     <div class="user-indicator">
       <div class="user-avatar-sm" id="user-avatar-sm"></div>
       <span id="user-label"></span>
@@ -1348,39 +1450,25 @@
 
 <!-- Timeline View (existing) -->
 <div id="timeline-view" style="display:none">
-<div class="stats" id="stats"></div>
-
-<div class="tcard">
-  <div class="tcard-head">
+  <div class="tv-head">
     <div>
-      <h2>Opportunity Timeline</h2>
-      <p>Each dot = one meeting &nbsp;·&nbsp; Hover for details &nbsp;·&nbsp; Green = progressed to S1</p>
+      <div class="tv-eyebrow">FORECAST</div>
+      <h2>Pipeline timeline</h2>
+      <p>Each dot = one meeting · Dots colored by the opportunity's current stage · Lines connect first → last meeting</p>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button id="new-opp-inline-btn" onclick="openNewOppModal('','')" style="font-size:12px;font-weight:600;color:var(--text);background:#f1f5f9;border:1px solid var(--border);border-radius:7px;padding:5px 12px;cursor:pointer;white-space:nowrap;">+ New Opportunity</button>
-      <button id="sync-btn" onclick="resync()">↻ Sync Now</button>
-    </div>
-  </div>
-  <div class="filter-bar">
-    <button class="filter-pill active" data-filter="total"   onclick="setFilter('total')">Total</button>
-    <button class="filter-pill"        data-filter="jan_feb" onclick="setFilter('jan_feb')">Jan / Feb Quota</button>
-    <button class="filter-pill"        data-filter="feb_mar" onclick="setFilter('feb_mar')">Feb / Mar Quota</button>
-    <button class="filter-pill"        data-filter="custom"  onclick="setFilter('custom')">Custom</button>
-    <div class="custom-range" id="custom-range">
-      <input type="date" id="custom-start" onchange="updateCustomRange()" />
-      <span>→</span>
-      <input type="date" id="custom-end" onchange="updateCustomRange()" />
+    <div class="tv-controls">
+      <select id="tv-sort" class="tv-select" onchange="renderTimelineV2()">
+        <option value="company">Group by company</option>
+        <option value="stage">Group by stage</option>
+        <option value="flat">No grouping</option>
+      </select>
     </div>
   </div>
-  <div id="timeline"></div>
-  <div class="legend">
-    <div class="leg-item"><div class="leg-dot g"></div> Progressed to S1</div>
-    <div class="leg-item"><div class="leg-dot b"></div> In progress / No S1 yet</div>
-    <div class="leg-item"><div class="leg-today"></div> Today (Feb 25)</div>
-    <div class="leg-item"><div style="width:14px;height:3px;background:repeating-linear-gradient(to right,#f97316 0px,#f97316 4px,transparent 4px,transparent 7px);border-radius:2px"></div> Quota End (15th)</div>
-  </div>
-</div>
-
+  <!-- Legacy hidden container for any leftover renderTimeline-callers -->
+  <div id="timeline" style="display:none"></div>
+  <div class="tv-axis" id="tv-axis"></div>
+  <div class="tv-body" id="tv-body"></div>
+  <div class="tv-legend" id="tv-legend"></div>
 </div><!-- /#timeline-view -->
 
 <!-- Sync Settings Modal -->
@@ -1759,6 +1847,7 @@ function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 864
 //  Render stats
 // ─────────────────────────────────────────────
 function renderStats() {
+  if (!document.getElementById('stats')) return;
   const p = PERIODS[activeFilter];
   const filtered = companies.map(c => ({
     ...c,
@@ -2081,9 +2170,11 @@ function renderTimeline() {
       <p>Or use the + New Opportunity button in the panel</p>
     </div>`;
   rowsHTML += `</div>`;
-  document.getElementById('timeline').innerHTML = axisHTML + rowsHTML;
-  // Also refresh kanban so both views stay in sync after any mutation
+  const legacy = document.getElementById('timeline');
+  if (legacy) legacy.innerHTML = axisHTML + rowsHTML;
+  // Also refresh kanban + new timeline so all views stay in sync
   if (document.getElementById('kanban-board')) renderKanban();
+  if (document.getElementById('tv-body')) renderTimelineV2();
 }
 
 // ─────────────────────────────────────────────
@@ -2325,7 +2416,7 @@ async function syncCalendar() {
     const now = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
     setCalStatus('connected', `Connected · ${events.length} of ${all.length} events matched (🟢 + invitees) · ${now}`);
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Google Calendar`;
-    document.getElementById('sync-btn').style.display = 'block';
+    const sb = document.getElementById('sync-btn'); if (sb) sb.style.display = 'block';
     processEvents(events);
   } catch(e) {
     setCalStatus('error', 'Sync failed: ' + e.message);
@@ -2822,13 +2913,14 @@ function selectUser(name) {
   if (savedEmail) {
     calendarEmail = savedEmail;
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> ${savedEmail}`;
-    document.getElementById('sync-btn').style.display = 'block';
+    const sb2 = document.getElementById('sync-btn'); if (sb2) sb2.style.display = 'block';
     setCalStatus('', `Previously connected · click Sync to refresh`);
     // Attempt silent re-auth so sync is ready without user action
     silentSync();
   } else {
     document.getElementById('cal-btn').innerHTML = '<span class="gcal-icon"></span> Connect Google Calendar';
-    document.getElementById('sync-btn').style.display = 'none';
+    const syncBtn = document.getElementById('sync-btn');
+    if (syncBtn) syncBtn.style.display = 'none';
     setCalStatus('', 'Not connected');
   }
 
@@ -2998,7 +3090,7 @@ function setView(v) {
   const tv = document.getElementById('timeline-view');
   if (tv) tv.style.display = v === 'timeline' ? '' : 'none';
   if (v === 'kanban') renderKanban();
-  else { renderStats(); renderTimeline(); }
+  else { renderTimelineV2(); }
 }
 
 function colorHex(colorId) {
@@ -3189,6 +3281,125 @@ function daysSinceFirstMeeting(c) {
   const ms = Date.now() - new Date(first).getTime();
   if (ms < 0) return null; // first meeting is in the future
   return Math.floor(ms / 86400000);
+}
+
+// ── Timeline view (company-grouped, dots colored by stage) ──
+function renderTimelineV2() {
+  const axisEl = document.getElementById('tv-axis');
+  const bodyEl = document.getElementById('tv-body');
+  const legendEl = document.getElementById('tv-legend');
+  if (!axisEl || !bodyEl) return;
+
+  const active = companies.filter(c => !c.dead && !c.hmmm && c.meetings && c.meetings.length);
+  if (!active.length) {
+    axisEl.innerHTML = '';
+    bodyEl.innerHTML = '<div style="padding:40px 0;text-align:center;color:#94a3b8;font-size:13px;">No opportunities with meetings yet.</div>';
+    legendEl.innerHTML = '';
+    return;
+  }
+
+  // Range: earliest meeting → max(today, latest meeting) + small padding
+  const allDates = [];
+  active.forEach(c => (c.meetings || []).forEach(d => allDates.push(d)));
+  allDates.sort();
+  const today = new Date();
+  const todayIso = today.toISOString().substring(0, 10);
+  const startStr = allDates[0];
+  const endStr = (allDates[allDates.length - 1] > todayIso) ? allDates[allDates.length - 1] : todayIso;
+  // Pad by 5 days each side
+  const startD = new Date(startStr); startD.setDate(startD.getDate() - 5);
+  const endD = new Date(endStr); endD.setDate(endD.getDate() + 5);
+  const spanMs = endD - startD;
+  const pct = dateStr => ((new Date(dateStr) - startD) / spanMs * 100);
+
+  // Axis ticks every ~7 days (or wider if range is large)
+  const days = Math.ceil(spanMs / 86400000);
+  const tickDays = days <= 60 ? 7 : days <= 180 ? 14 : 28;
+  const ticks = [];
+  for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + tickDays)) {
+    ticks.push(new Date(d));
+  }
+  axisEl.innerHTML = ticks.map(t => {
+    const ds = t.toISOString().substring(0, 10);
+    const label = `${t.getMonth() + 1}/${t.getDate()}`;
+    return `<span class="tv-tick" style="left:${pct(ds).toFixed(2)}%">${label}</span>`;
+  }).join('') + `<div class="tv-today" style="left:${pct(todayIso).toFixed(2)}%"></div>`;
+
+  const sortMode = (document.getElementById('tv-sort') || {}).value || 'company';
+  // Group active opps according to sortMode
+  let groups; // [{ label, opps }]
+  if (sortMode === 'flat') {
+    groups = [{ label: '', opps: active.slice() }];
+  } else if (sortMode === 'stage') {
+    groups = stages.map(s => ({
+      label: s.label,
+      stageColor: colorHex(s.color),
+      opps: active.filter(c => c.stageId === s.id)
+    })).filter(g => g.opps.length);
+  } else { // company
+    const groupKey = c => parentNameFor(c).toUpperCase();
+    const buckets = new Map();
+    active.forEach(c => {
+      const k = groupKey(c);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(c);
+    });
+    groups = Array.from(buckets.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([label, opps]) => ({ label, opps }));
+  }
+
+  // Sort opps within each group by earliest meeting date asc
+  groups.forEach(g => {
+    g.opps.sort((a, b) => {
+      const fa = [...(a.meetings || [])].sort()[0] || '';
+      const fb = [...(b.meetings || [])].sort()[0] || '';
+      if (fa !== fb) return fa.localeCompare(fb);
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  });
+
+  bodyEl.innerHTML = groups.map(g => {
+    const header = g.label ? `<div class="tv-group-head">${escapeHTML(g.label)}</div>` : '';
+    const rows = g.opps.map(c => {
+      const stage = findStage(c.stageId) || {};
+      const color = colorHex(stage.color);
+      const sorted = [...(c.meetings || [])].sort();
+      const first = sorted[0], last = sorted[sorted.length - 1];
+      const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const conn = (first && last && first !== last)
+        ? `<div class="tv-conn" style="left:${pct(first).toFixed(2)}%;width:${(pct(last)-pct(first)).toFixed(2)}%"></div>`
+        : '';
+      const dots = sorted.map(d => {
+        const lbl = `${fmtDate(d)} · ${escapeHTML(c.name)}`;
+        return `<div class="tv-dot" style="left:${pct(d).toFixed(2)}%;--dot-color:${color}">
+          <div class="tv-dot-tip">${lbl}</div>
+        </div>`;
+      }).join('');
+      return `<div class="tv-row">
+        <div class="tv-row-label" title="${escapeHTML(c.name)} — ${escapeHTML(stage.label||'')}" onclick="openCardModal('${safeN}')">${escapeHTML(c.name)}</div>
+        <div class="tv-row-track">${conn}${dots}</div>
+      </div>`;
+    }).join('');
+    return `<div class="tv-group">${header}${rows}</div>`;
+  }).join('');
+
+  // Legend: one dot per stage that's actually represented
+  const seenStages = new Set(active.map(c => c.stageId));
+  legendEl.innerHTML = stages
+    .filter(s => seenStages.has(s.id))
+    .map(s => `<span class="tv-legend-item"><span class="tv-legend-dot" style="background:${colorHex(s.color)}"></span>${escapeHTML(s.label)}</span>`)
+    .join('') + `<span class="tv-legend-item"><span style="width:14px;height:0;border-top:1px dashed #94a3b8;display:inline-block;"></span>Today</span>`;
+}
+
+function parentNameFor(c) {
+  if (PARENT_NAMES && c.domain && PARENT_NAMES[c.domain]) return PARENT_NAMES[c.domain];
+  if (c.domain) {
+    const root = c.domain.split('.')[0];
+    if (root) return root.toUpperCase();
+  }
+  // Fall back to first word of the name
+  return (c.name || '').split(/[\s—–-]+/)[0] || c.name || '—';
 }
 
 // ── Column width slider ──
