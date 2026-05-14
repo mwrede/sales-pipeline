@@ -721,15 +721,20 @@
   .kanban-toolbar button:hover { background: #f8fafc; border-color: #c7d2e0; }
   .kanban-board {
     display: flex; gap: 14px; overflow-x: auto; padding-bottom: 16px;
-    align-items: flex-start;
+    align-items: stretch;
+    min-height: calc(100vh - 280px);
   }
   .kanban-col {
-    flex: 0 0 280px; background: #f8fafc; border: 1px solid var(--border);
-    border-radius: 12px; padding: 12px; max-height: calc(100vh - 280px);
+    flex: 0 0 300px;
+    width: 300px; min-width: 300px; max-width: 300px;
+    background: #f8fafc; border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px;
+    height: calc(100vh - 280px);
     display: flex; flex-direction: column;
     --stage-color: #94a3b8;
     --stage-color-soft: rgba(148,163,184,0.10);
     position: relative;
+    overflow: hidden;
   }
   .kanban-col::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
