@@ -720,8 +720,26 @@
     flex: 0 0 280px; background: #f8fafc; border: 1px solid var(--border);
     border-radius: 12px; padding: 12px; max-height: calc(100vh - 280px);
     display: flex; flex-direction: column;
+    --stage-color: #94a3b8;
+    --stage-color-soft: rgba(148,163,184,0.10);
+    position: relative;
   }
-  .kanban-col.drop-target { background: #eff6ff; border-color: #93c5fd; }
+  .kanban-col::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: var(--stage-color); border-radius: 12px 12px 0 0;
+  }
+  .kanban-col .kc-head { padding-top: 4px; }
+  .kanban-col.drop-target { background: var(--stage-color-soft); border-color: var(--stage-color); }
+  .kc-label {
+    color: var(--text);
+  }
+  .kanban-col .kc-count {
+    background: var(--stage-color); color: #fff;
+  }
+  .stage-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--stage-color);
+    flex-shrink: 0;
+  }
   .kc-head {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 10px; gap: 6px;
@@ -777,9 +795,35 @@
     background: #fff; border: 1px solid var(--border); border-radius: 9px;
     padding: 10px 12px; cursor: pointer;
     transition: box-shadow 0.12s, transform 0.12s, border-color 0.12s;
+    border-left: 4px solid var(--stage-color, #cbd5e1);
   }
-  .k-card:hover { border-color: #c7d2e0; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+  .k-card:hover { border-color: #c7d2e0; box-shadow: 0 2px 6px rgba(0,0,0,0.06); transform: translateY(-1px); }
   .k-card.dragging { opacity: 0.4; }
+  .k-card.likely-s1 {
+    background: linear-gradient(180deg, rgba(51,182,121,0.06) 0%, #fff 60%);
+  }
+  .k-card.is-s1 {
+    background: var(--green-bg);
+  }
+
+  /* Card action buttons */
+  .k-card-actions {
+    display: flex; gap: 6px; margin-top: 8px;
+    padding-top: 8px; border-top: 1px dashed #eef2f7;
+  }
+  .k-card-btn {
+    background: #fff; border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 9px; font-size: 11px; font-weight: 600; color: var(--muted);
+    cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+  }
+  .k-card-btn:hover { background: #f8fafc; color: var(--text); border-color: #c7d2e0; }
+  .k-card-btn.likely-active {
+    background: #fef3c7; color: #92400e; border-color: #fde68a;
+  }
+  .k-card-btn.s1-active {
+    background: var(--green-bg); color: var(--green); border-color: var(--green-border);
+  }
   .k-card-head {
     display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
   }
@@ -1019,6 +1063,21 @@
     box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
   }
   .color-opt-label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .stage-color-rows { display: flex; flex-direction: column; gap: 8px; }
+  .stage-color-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px;
+    background: #fff;
+  }
+  .scr-swatch { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08); }
+  .scr-label { flex: 1; font-size: 13px; font-weight: 600; color: var(--text);
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scr-select {
+    background: #fff; border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 9px; font-size: 12px; font-weight: 500; color: var(--text);
+    font-family: inherit; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -1159,20 +1218,18 @@
   <div class="sync-settings-modal">
     <div class="card-modal-head" style="border-bottom:1px solid var(--border);">
       <div class="card-modal-titlewrap">
-        <div style="font-size:18px;font-weight:700;">Calendar sync settings</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Pick which Google Calendar event colors to pull into your pipeline.</div>
+        <div style="font-size:18px;font-weight:700;">Calendar color mapping</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Assign a Google Calendar color to each column. Events with that color sync into that column automatically.</div>
       </div>
       <button class="card-modal-close" onclick="closeSyncSettings()">×</button>
     </div>
     <div class="card-modal-body">
-      <div class="card-modal-section-label">Sync these colors</div>
-      <div id="color-picker-grid" class="color-grid"></div>
+      <div id="stage-color-rows" class="stage-color-rows"></div>
     </div>
     <div class="card-modal-footer">
       <span class="progress-text" id="color-pick-count"></span>
       <div style="display:flex;gap:8px;">
-        <button onclick="closeSyncSettings()" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;">Cancel</button>
-        <button onclick="saveSyncSettings()" style="background:var(--text);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Save</button>
+        <button onclick="closeSyncSettings()" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;">Done</button>
       </div>
     </div>
   </div>
@@ -1294,32 +1351,25 @@ let dismissedCalEvents = new Set(); // event IDs manually marked as "already ass
 //  Kanban stages — configurable per user
 // ─────────────────────────────────────────────
 const DEFAULT_STAGES = [
-  { id: 's1', label: '1 · Meeting Booked', checklist: [
-    { id: 'i1', text: 'Send follow-up email' },
-  ]},
-  { id: 's2', label: '2 · Pre-Meeting', checklist: [
+  { id: 's_sdr', label: 'SDR Discovery', color: '6', checklist: [
     { id: 'i1', text: 'Send confirmation email (day before)' },
     { id: 'i2', text: 'Create VSB' },
+    { id: 'i3', text: 'Run discovery call' },
+    { id: 'i4', text: 'Send next steps email same day' },
   ]},
-  { id: 's3', label: '3 · Discovery Call', checklist: [
-    { id: 'i1', text: 'Run discovery call' },
-    { id: 'i2', text: 'Send next steps email same day' },
+  { id: 's_ae', label: 'AE Discovery', color: '5', sortByLikelyS1: true, checklist: [
+    { id: 'i1', text: 'Deliver VSB to AE' },
+    { id: 'i2', text: 'Sync with AE before next call' },
+    { id: 'i3', text: 'Confirm meeting with prospect' },
+    { id: 'i4', text: 'Run call with AE' },
+    { id: 'i5', text: 'Send follow-up & book next meeting' },
   ]},
-  { id: 's4', label: '4 · Post-Discovery', checklist: [
+  { id: 's_s1', label: 'S1', color: '2', checklist: [
     { id: 'i1', text: 'Initiate NDA if needed' },
     { id: 'i2', text: 'Collect footage / sample data' },
     { id: 'i3', text: 'Send AE handoff (Slack + email)' },
   ]},
-  { id: 's5', label: '5 · AE Handoff', checklist: [
-    { id: 'i1', text: 'Deliver VSB to AE' },
-    { id: 'i2', text: 'Sync with AE before next call' },
-  ]},
-  { id: 's6', label: '6 · Next Meeting', checklist: [
-    { id: 'i1', text: 'Confirm meeting with prospect' },
-    { id: 'i2', text: 'Run call with AE' },
-    { id: 'i3', text: 'Send follow-up & book next meeting' },
-  ]},
-  { id: 's7', label: '7 · Op Progression', checklist: [
+  { id: 's_s2', label: 'S2', color: '10', checklist: [
     { id: 'i1', text: 'Progress NDA' },
     { id: 'i2', text: 'Build demo?' },
     { id: 'i3', text: 'Ensure footage collected' },
@@ -1956,9 +2006,15 @@ function resync() {
 }
 
 async function syncCalendar() {
-  const activeColors = (Array.isArray(syncColors) && syncColors.length)
-    ? syncColors
-    : [USERS[currentUser]?.calColorId || '10'];
+  // Sync any color that's mapped to a stage. If no stage has a color yet,
+  // fall back to the user's manual syncColors list, or finally the user's
+  // legacy default.
+  const stageColors = stages.map(s => s.color).filter(Boolean);
+  const activeColors = stageColors.length
+    ? stageColors
+    : (Array.isArray(syncColors) && syncColors.length
+        ? syncColors
+        : [USERS[currentUser]?.calColorId || '10']);
 
   try {
     // Fetch the authenticated user's email if we don't have it yet
@@ -2036,6 +2092,11 @@ const statusSectionOpen = { hot: true, meh: true, dead: false };
 let draggedRow = null;
 let draggedGroup = null; // domain being dragged as a whole group
 
+function stageForColor(colorId) {
+  if (!colorId) return null;
+  return stages.find(s => s.color === colorId) || null;
+}
+
 function processEvents(events) {
   const allEvents = events.map(ev => {
     const dateRaw = ev.start?.date || ev.start?.dateTime || '';
@@ -2044,7 +2105,8 @@ function processEvents(events) {
       .map(a => a.email || '')
       .filter(e => e && e !== calendarEmail && !e.endsWith('@roboflow.com') && e.includes('@'));
     const externalDomain = externalAttendees.map(e => e.split('@')[1]).find(Boolean) || '';
-    return { id: ev.id, title: ev.summary || '(no title)', date, domainHint: externalDomain, attendees: externalAttendees };
+    return { id: ev.id, title: ev.summary || '(no title)', date, colorId: ev.colorId,
+             domainHint: externalDomain, attendees: externalAttendees };
   }).filter(ev => ev.date >= new Date(Date.now() - 90*24*60*60*1000).toISOString().substring(0,10));
 
   pendingMatches = [];
@@ -2058,20 +2120,29 @@ function processEvents(events) {
 
   // ── Auto-attach to existing opportunities by shared attendee email ──
   // Pass 1: events that match an existing company (any shared external attendee)
+  //         If the event's color maps to a stage, also promote the company to
+  //         that stage (e.g. a Sage event → S1 stage; sets s1 flag).
   // Pass 2: remaining events that share an attendee with another unassigned event
-  //         → auto-create a single new opportunity per email cluster
+  //         → auto-create a single new opportunity per email cluster, routed by
+  //         event color to the matching stage.
   const unmatched = [];
   let attached = 0;
   allEvents.forEach(ev => {
     if (!ev.attendees.length) { unmatched.push(ev); return; }
     const existing = findCompanyByAttendees(ev.attendees);
     if (existing) {
-      // skip if this event is already recorded against that company
       if (!existing.calendarMeetings || !existing.calendarMeetings.includes(ev.date)) {
         attachEventToCompany(existing, ev);
         attached++;
       } else if (ev.attendees.length && !existing.primaryEmail) {
         existing.primaryEmail = ev.attendees[0];
+      }
+      // Route by color: promote the company to the matching stage
+      const target = stageForColor(ev.colorId);
+      if (target && existing.stageId !== target.id) {
+        existing.prevStageId = existing.stageId;
+        existing.stageId = target.id;
+        if (target.id === s1StageId()) existing.s1 = true;
       }
     } else {
       unmatched.push(ev);
@@ -2110,12 +2181,18 @@ function processEvents(events) {
     let finalName = name; let i = 2;
     while (companies.some(c => c.name === finalName)) finalName = `${name} (${i++})`;
     const init = finalName.substring(0,2).toUpperCase();
-    const stageId = (stages[0] && stages[0].id) || 's1';
+    // Route to the stage that matches the cluster's most progressed (last) event color;
+    // fall back to the first stage.
+    const sortedEvents = [...cl.events].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    const latestColor = [...sortedEvents].reverse().map(e => e.colorId).find(Boolean);
+    const routedStage = stageForColor(latestColor);
+    const stageId = (routedStage && routedStage.id) || (stages[0] && stages[0].id) || 's_sdr';
+    const isS1 = !!(routedStage && routedStage.id === s1StageId());
     const c = {
       name: finalName, domain, init,
-      meetings: [], s1: false, stageId, checklistState: {},
+      meetings: [], s1: isS1, stageId, checklistState: {},
       meetingAttendees: {}, calendarMeetings: [],
-      primaryEmail
+      primaryEmail, notes: ''
     };
     companies.push(c);
     cl.events.forEach(ev => attachEventToCompany(c, ev));
@@ -2629,13 +2706,37 @@ function setView(v) {
   else { renderStats(); renderTimeline(); }
 }
 
+function colorHex(colorId) {
+  const c = GCAL_COLORS.find(x => x.id === colorId);
+  return c ? c.hex : '#94a3b8';
+}
+function colorSoft(colorId) {
+  const hex = colorHex(colorId);
+  // hex like #rrggbb → rgba with 0.10 alpha
+  const r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+  return `rgba(${r},${g},${b},0.10)`;
+}
+function s1StageId() {
+  const s = stages.find(s => /^s1$/i.test(s.label.trim())) || stages.find(s => s.color === '2');
+  return s ? s.id : null;
+}
+
 function renderKanban() {
   const board = document.getElementById('kanban-board');
   if (!board) return;
   companies.forEach(ensureCompanyStage);
   const html = stages.map((stage, idx) => {
-    const stageCompanies = companies.filter(c => c.stageId === stage.id);
+    let stageCompanies = companies.filter(c => c.stageId === stage.id);
+    if (stage.sortByLikelyS1) {
+      stageCompanies = [...stageCompanies].sort((a, b) => {
+        const av = a.likelyS1 ? 1 : 0, bv = b.likelyS1 ? 1 : 0;
+        return bv - av;
+      });
+    }
     const safeId = stage.id.replace(/'/g,"\\'");
+    const stageColor = colorHex(stage.color);
+    const stageSoft = colorSoft(stage.color);
+    const colStyle = `--stage-color:${stageColor};--stage-color-soft:${stageSoft};`;
     const cardsHTML = stageCompanies.map(c => {
       const state = (c.checklistState && c.checklistState[stage.id]) || {};
       const done = stage.checklist.filter(it => state[it.id]).length;
@@ -2648,8 +2749,11 @@ function renderKanban() {
         : initials;
       const email = primaryEmailForCompany(c);
       const age = daysSinceFirstMeeting(c);
+      const isS1Stage = stage.id === s1StageId();
+      const cardCls = ['k-card', c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '', isS1Stage ? 'is-s1' : '']
+        .filter(Boolean).join(' ');
       return `
-        <div class="k-card" draggable="true"
+        <div class="${cardCls}" draggable="true"
              ondragstart="kCardDragStart(event,'${safeN}')"
              ondragend="kCardDragEnd(event)"
              onclick="openCardModal('${safeN}')">
@@ -2661,14 +2765,21 @@ function renderKanban() {
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
-            ${c.s1 ? '<span class="k-card-pill s1">S1</span>' : ''}
             ${total ? `<span style="margin-left:auto">${done}/${total}</span>` : ''}
           </div>
           ${total ? `<div class="k-card-progress"><div class="k-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
+          <div class="k-card-actions">
+            <button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
+                    onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
+                    title="Mark as likely to progress to S1">⭐ ${c.likelyS1 ? 'Likely S1 ✓' : 'Likely S1'}</button>
+            <button class="k-card-btn ${isS1Stage || c.s1 ? 's1-active' : ''}"
+                    onclick="event.stopPropagation();toggleS1Flip('${safeN}')"
+                    title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}">${isS1Stage || c.s1 ? '✓ S1' : '→ S1'}</button>
+          </div>
         </div>`;
     }).join('');
     return `
-      <div class="kanban-col" data-stage-id="${stage.id}"
+      <div class="kanban-col" data-stage-id="${stage.id}" style="${colStyle}"
            ondragover="kColDragOver(event,'${safeId}')"
            ondragleave="kColDragLeave(event)"
            ondrop="kColDrop(event,'${safeId}')">
@@ -2678,6 +2789,7 @@ function renderKanban() {
                   ondragstart="kStageDragStart(event,'${safeId}')"
                   ondragend="kStageDragEnd(event)"
                   title="Drag to reorder">⋮⋮</span>
+            <span class="stage-dot" title="Calendar color"></span>
             <span class="kc-label" contenteditable="true" spellcheck="false"
                   onblur="commitStageLabel(this,'${safeId}')"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(stage.label)}</span>
@@ -2707,6 +2819,35 @@ function daysSinceFirstMeeting(c) {
   const ms = Date.now() - new Date(first).getTime();
   if (ms < 0) return null; // first meeting is in the future
   return Math.floor(ms / 86400000);
+}
+
+// ── Per-card actions: Likely S1 + Flip to S1 ──
+function toggleLikelyS1(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  c.likelyS1 = !c.likelyS1;
+  saveData(); renderKanban();
+}
+function toggleS1Flip(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  const s1Id = s1StageId();
+  if (!s1Id) return;
+  if (c.stageId === s1Id) {
+    // unflip: restore previous stage if known, else AE Discovery, else first stage
+    const fallback = c.prevStageId || (stages.find(s => /AE/i.test(s.label)) || stages[0]).id;
+    c.stageId = fallback;
+    c.s1 = false;
+  } else {
+    c.prevStageId = c.stageId;
+    c.stageId = s1Id;
+    c.s1 = true;
+    c.likelyS1 = false; // promoted → no longer "likely"
+  }
+  saveData(); renderKanban();
+  if (openCardName === c.name) renderCardModalStageSelect();
 }
 
 // ── Stage management ──
@@ -3048,30 +3189,37 @@ function closeCardModal() {
 //  Sync settings (calendar colors)
 // ─────────────────────────────────────────────
 function openSyncSettings() {
-  const grid = document.getElementById('color-picker-grid');
-  const sel = new Set(syncColors);
-  grid.innerHTML = GCAL_COLORS.map(c => {
-    const checked = sel.has(c.id);
-    return `
-      <label class="color-opt ${checked?'selected':''}">
-        <input type="checkbox" value="${c.id}" ${checked?'checked':''}
-               onchange="this.closest('.color-opt').classList.toggle('selected',this.checked);updateColorPickCount()" />
-        <span class="color-swatch" style="background:${c.hex}"></span>
-        <span class="color-opt-label">${c.name}</span>
-      </label>`;
-  }).join('');
-  updateColorPickCount();
+  renderStageColorRows();
   document.getElementById('sync-settings-overlay').classList.add('show');
 }
-function updateColorPickCount() {
-  const n = document.querySelectorAll('#color-picker-grid input[type="checkbox"]:checked').length;
-  document.getElementById('color-pick-count').textContent = n ? `${n} color${n===1?'':'s'} selected` : 'No colors selected — sync will be empty';
+function renderStageColorRows() {
+  const wrap = document.getElementById('stage-color-rows');
+  if (!wrap) return;
+  wrap.innerHTML = stages.map(s => {
+    const swatch = colorHex(s.color);
+    const opts = ['<option value="">No color</option>'].concat(
+      GCAL_COLORS.map(c => `<option value="${c.id}" ${c.id===s.color?'selected':''}>${c.name}</option>`)
+    ).join('');
+    return `
+      <div class="stage-color-row">
+        <span class="scr-swatch" style="background:${s.color ? swatch : '#e2e8f0'}"></span>
+        <span class="scr-label">${escapeHTML(s.label)}</span>
+        <select class="scr-select" onchange="setStageColor('${s.id.replace(/'/g,"\\'")}',this.value)">
+          ${opts}
+        </select>
+      </div>`;
+  }).join('');
+  const mapped = stages.filter(s => s.color).length;
+  document.getElementById('color-pick-count').textContent =
+    mapped ? `${mapped} of ${stages.length} columns mapped` : 'No colors mapped — sync will be empty';
 }
-function saveSyncSettings() {
-  const picks = Array.from(document.querySelectorAll('#color-picker-grid input[type="checkbox"]:checked')).map(i => i.value);
-  syncColors = picks;
+function setStageColor(stageId, colorId) {
+  const s = findStage(stageId);
+  if (!s) return;
+  s.color = colorId || null;
   saveData();
-  closeSyncSettings();
+  renderStageColorRows();
+  renderKanban();
 }
 function closeSyncSettings() {
   document.getElementById('sync-settings-overlay').classList.remove('show');
