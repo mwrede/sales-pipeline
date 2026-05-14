@@ -884,6 +884,12 @@
   }
 
   /* Full all-stages task list on every card */
+  .k-card-tasks-head {
+    font-size: 10px; font-weight: 800; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding-bottom: 4px; margin-bottom: 4px;
+    border-bottom: 1px solid #e2e8f0;
+  }
   .k-card-task-group { margin-bottom: 6px; }
   .k-card-task-group:last-child { margin-bottom: 0; }
   .k-card-task-group-label {
@@ -4007,7 +4013,10 @@ function renderCardTaskList(c, stage, safeN) {
         ${itemsHTML}
       </div>`;
   }).join('');
-  return `<div class="k-card-tasks" onclick="event.stopPropagation()">${blocks}</div>`;
+  return `<div class="k-card-tasks" onclick="event.stopPropagation()">
+    <div class="k-card-tasks-head">Checklist</div>
+    ${blocks}
+  </div>`;
 }
 function toggleCardTaskAtStage(safeN, stageId, itemId) {
   const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
