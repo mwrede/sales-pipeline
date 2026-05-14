@@ -3760,7 +3760,7 @@ function buildCloudBlob() {
   };
 }
 function applyCloudBlob(b) {
-  if (!b || typeof b !== 'object') return;
+  if (!b || typeof b !== 'object') return false;
   if (Array.isArray(b.companies)) companies = b.companies;
   for (const k in PARENT_NAMES) delete PARENT_NAMES[k];
   if (b.parentNames) Object.assign(PARENT_NAMES, b.parentNames);
@@ -3768,7 +3768,32 @@ function applyCloudBlob(b) {
   if (b.groupNames) Object.assign(groupNames, b.groupNames);
   if (Array.isArray(b.dismissedEvents)) dismissedCalEvents = new Set(b.dismissedEvents);
   if (Array.isArray(b.stages) && b.stages.length) stages = b.stages;
+  const migrated = migrateLegacyStages();
   companies.forEach(ensureCompanyStage);
+  return migrated;
+}
+
+// One-shot upgrade: pre-colored saved stages (the old 7-stage default with
+// IDs s1..s7 and no `color` field) get replaced with the new 4-stage
+// colored defaults, and company.stageId is remapped accordingly. Only fires
+// when saved stages have NO color set anywhere — custom configurations are
+// left alone.
+function migrateLegacyStages() {
+  if (!Array.isArray(stages) || !stages.length) return false;
+  if (stages.some(s => s.color)) return false;
+  const ids = stages.map(s => s.id).sort().join(',');
+  if (ids !== 's1,s2,s3,s4,s5,s6,s7') return false;
+  const oldToNew = {
+    s1: 's_sdr', s2: 's_sdr', s3: 's_sdr',
+    s4: 's_ae',  s5: 's_ae',  s6: 's_ae',
+    s7: 's_s1'
+  };
+  stages = defaultStagesClone();
+  companies.forEach(c => {
+    if (oldToNew[c.stageId]) c.stageId = oldToNew[c.stageId];
+  });
+  console.info('Migrated legacy 7-stage layout → 4-stage colored layout');
+  return true;
 }
 function saveDataLocal() {
   if (!currentUser) return;
@@ -3808,10 +3833,13 @@ async function refreshFromCloud() {
   try {
     const blob = await cloudLoad(currentUser);
     if (blob) {
-      applyCloudBlob(blob);
+      const migrated = applyCloudBlob(blob);
       saveDataLocal();
       renderKanban();
       renderMetrics();
+      // If we just upgraded a legacy layout, push it back to cloud so other
+      // devices pick up the migration too.
+      if (migrated) saveData();
     }
     setCloudStatus('idle');
   } catch (e) {
