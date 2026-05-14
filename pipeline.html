@@ -1002,41 +1002,35 @@
     font-family: inherit; cursor: pointer; min-width: 180px;
   }
 
-  /* ── Dead deals zone ── */
-  #dead-zone {
-    margin-top: 22px; padding: 14px 18px; border: 1px dashed #cbd5e1;
-    border-radius: 12px; background: #f8fafc;
-    transition: background 0.12s, border-color 0.12s;
+  /* ── Per-column Dead pile ── */
+  .kc-dead {
+    margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 8px;
   }
-  #dead-zone.drop-target { background: #fef2f2; border-color: #fca5a5; }
-  .dead-head {
+  .kc-dead-toggle {
+    width: 100%; background: none; border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: space-between;
-    cursor: pointer; user-select: none;
+    padding: 6px 8px; border-radius: 6px; font-family: inherit;
+    font-size: 11px; font-weight: 600; color: var(--muted);
   }
-  .dead-head-left { display: flex; align-items: center; gap: 10px; }
-  .dead-icon { font-size: 14px; opacity: 0.7; }
-  #dead-zone h3 { font-size: 13px; font-weight: 700; color: var(--text); }
-  .dead-count {
-    background: #e2e8f0; color: var(--muted); font-size: 11px; font-weight: 700;
-    border-radius: 999px; padding: 2px 9px;
+  .kc-dead-toggle:hover { background: #eef2f7; color: var(--text); }
+  .kc-dead-toggle-left { display: flex; align-items: center; gap: 7px; }
+  .kc-dead-count {
+    background: #e2e8f0; color: var(--muted); font-size: 10px; font-weight: 700;
+    border-radius: 999px; padding: 1px 7px;
   }
-  .dead-toggle { color: var(--muted); font-size: 14px; }
-  .dead-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
-  .dead-list {
-    margin-top: 12px;
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 8px;
+  .kc-dead-list {
+    display: flex; flex-direction: column; gap: 6px; margin-top: 6px;
   }
   .d-card {
-    background: #fff; border: 1px solid var(--border); border-radius: 8px;
-    padding: 8px 10px; font-size: 12px; display: flex; align-items: center;
-    gap: 8px; opacity: 0.75;
+    background: #fff; border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 9px; font-size: 11px; display: flex; align-items: center;
+    gap: 6px; opacity: 0.75;
   }
   .d-card-name { flex: 1; min-width: 0; font-weight: 600; color: var(--text);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .d-card-restore {
     background: none; border: none; cursor: pointer; color: var(--muted);
-    font-size: 11px; font-weight: 600; padding: 3px 7px; border-radius: 5px;
+    font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 5px;
   }
   .d-card-restore:hover { background: #f1f5f9; color: var(--text); }
 
@@ -1275,18 +1269,6 @@
     <div class="unassigned-list" id="unassigned-list"></div>
   </div>
 
-  <div id="dead-zone">
-    <div class="dead-head" onclick="toggleDeadZone()">
-      <div class="dead-head-left">
-        <span class="dead-icon">⚰️</span>
-        <h3>Dead deals</h3>
-        <span class="dead-count" id="dead-count">0</span>
-      </div>
-      <span class="dead-toggle" id="dead-toggle">▸</span>
-    </div>
-    <div class="dead-hint">Click × Dead on any card to send it here. Restore from this pile anytime.</div>
-    <div class="dead-list" id="dead-list" style="display:none;"></div>
-  </div>
 </div>
 
 <!-- Timeline View (existing) -->
@@ -2640,7 +2622,6 @@ function selectUser(name) {
   // Kanban only (timeline view removed)
   setView('kanban');
   renderMetrics();
-  renderDeadZone();
 
   // Check for previously-connected calendar email
   const savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
@@ -2938,11 +2919,37 @@ function renderKanban() {
           ${cardsHTML || '<div style="color:#cbd5e1;font-size:12px;padding:8px;text-align:center;">Drop cards here</div>'}
         </div>
         <button class="kc-add" onclick="openNewOppModalForStage('${safeId}')">+ Add opportunity</button>
+      ${renderColumnDeadSection(stage)}
       </div>`;
   }).join('');
   board.innerHTML = html;
   renderMetrics();
-  renderDeadZone();
+}
+
+function renderColumnDeadSection(stage) {
+  const dead = companies.filter(c => c.dead && c.stageId === stage.id);
+  if (!dead.length) return '';
+  const open = !!deadOpenByStage[stage.id];
+  const safeId = stage.id.replace(/'/g,"\\'");
+  const items = dead.map(c => {
+    const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `
+      <div class="d-card">
+        <span class="d-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
+        <button class="d-card-restore" onclick="restoreFromDead('${safeN}')">Restore</button>
+      </div>`;
+  }).join('');
+  return `
+    <div class="kc-dead">
+      <button class="kc-dead-toggle" onclick="toggleColumnDead('${safeId}')">
+        <span class="kc-dead-toggle-left">
+          <span>⚰️ Dead</span>
+          <span class="kc-dead-count">${dead.length}</span>
+        </span>
+        <span>${open ? '▾' : '▸'}</span>
+      </button>
+      ${open ? `<div class="kc-dead-list">${items}</div>` : ''}
+    </div>`;
 }
 
 function escapeHTML(s) {
@@ -3011,40 +3018,18 @@ function renderMetrics() {
   if (e3) e3.textContent = opps;
 }
 
-// ── Dead-deals pile ──
-function renderDeadZone() {
-  const list = document.getElementById('dead-list');
-  const count = document.getElementById('dead-count');
-  if (!list || !count) return;
-  const dead = companies.filter(c => c.dead);
-  count.textContent = dead.length;
-  if (!dead.length) {
-    list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:6px 2px;">Nothing here yet.</div>';
-    return;
-  }
-  list.innerHTML = dead.map(c => {
-    const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return `
-      <div class="d-card">
-        <span class="d-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
-        <button class="d-card-restore" onclick="restoreFromDead('${safeN}')">Restore</button>
-      </div>`;
-  }).join('');
-}
-function toggleDeadZone() {
-  const list = document.getElementById('dead-list');
-  const toggle = document.getElementById('dead-toggle');
-  if (!list || !toggle) return;
-  const open = list.style.display !== 'none';
-  list.style.display = open ? 'none' : 'grid';
-  toggle.textContent = open ? '▸' : '▾';
+// ── Per-column dead piles ──
+const deadOpenByStage = {}; // stageId -> bool
+function toggleColumnDead(stageId) {
+  deadOpenByStage[stageId] = !deadOpenByStage[stageId];
+  renderKanban();
 }
 function markDead(name) {
   const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
   const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.dead = true;
-  saveData(); renderKanban(); renderDeadZone(); renderMetrics();
+  saveData(); renderKanban(); renderMetrics();
   if (openCardName === c.name) closeCardModal();
 }
 function restoreFromDead(name) {
@@ -3052,7 +3037,7 @@ function restoreFromDead(name) {
   const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.dead = false;
-  saveData(); renderKanban(); renderDeadZone(); renderMetrics();
+  saveData(); renderKanban(); renderMetrics();
 }
 
 // ── Per-card actions: Likely S1 + Flip to S1 ──
