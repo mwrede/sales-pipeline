@@ -1182,6 +1182,18 @@
         <div class="user-avatar" style="background:#f0fdf4;color:#15803d">D</div>
         <div class="user-card-name">Davis</div>
       </div>
+      <div class="user-card" onclick="selectUser('grace')">
+        <div class="user-avatar" style="background:#fdf2f8;color:#be185d">G</div>
+        <div class="user-card-name">Grace</div>
+      </div>
+      <div class="user-card" onclick="selectUser('sabrina')">
+        <div class="user-avatar" style="background:#ecfeff;color:#0e7490">S</div>
+        <div class="user-card-name">Sabrina</div>
+      </div>
+      <div class="user-card" onclick="selectUser('charlie')">
+        <div class="user-avatar" style="background:#fffbeb;color:#b45309">C</div>
+        <div class="user-card-name">Charlie</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1439,9 +1451,12 @@ const IS_CONFIGURED = CLIENT_ID !== 'YOUR_CLIENT_ID_HERE';
 //  Users
 // ─────────────────────────────────────────────
 const USERS = {
-  michael: { label: 'Michael', init: 'M', avatarBg: '#eff6ff', avatarColor: '#1d4ed8', calColorId: '10' },
-  sylvie:  { label: 'Sylvie',  init: 'S', avatarBg: '#fdf4ff', avatarColor: '#7e22ce', calColorId: '10' },
-  davis:   { label: 'Davis',   init: 'D', avatarBg: '#f0fdf4', avatarColor: '#15803d', calColorId: '6'  },
+  michael:  { label: 'Michael',  init: 'M', avatarBg: '#eff6ff', avatarColor: '#1d4ed8', calColorId: '10' },
+  sylvie:   { label: 'Sylvie',   init: 'S', avatarBg: '#fdf4ff', avatarColor: '#7e22ce', calColorId: '10' },
+  davis:    { label: 'Davis',    init: 'D', avatarBg: '#f0fdf4', avatarColor: '#15803d', calColorId: '6'  },
+  grace:    { label: 'Grace',    init: 'G', avatarBg: '#fdf2f8', avatarColor: '#be185d', calColorId: '10' },
+  sabrina:  { label: 'Sabrina',  init: 'S', avatarBg: '#ecfeff', avatarColor: '#0e7490', calColorId: '10' },
+  charlie:  { label: 'Charlie',  init: 'C', avatarBg: '#fffbeb', avatarColor: '#b45309', calColorId: '10' },
 };
 let currentUser = null;
 let calendarEmail = '';
