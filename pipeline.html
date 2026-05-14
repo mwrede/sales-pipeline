@@ -4624,7 +4624,7 @@ function renderChecklist() {
     return `
       <div class="cm-checklist-group ${open?'open':''}">
         <button type="button" class="cm-checklist-group-label"
-                onclick="toggleStageOpen('${safeN}','${safeStageId}')">
+                onclick="event.stopPropagation();toggleStageOpen('${safeN}','${safeStageId}')">
           <span class="cm-checklist-caret">${open?'▾':'▸'}</span>
           <span class="cm-checklist-group-dot" style="background:${color}"></span>
           <span class="cm-checklist-group-name">${escapeHTML(s.label)}</span>
