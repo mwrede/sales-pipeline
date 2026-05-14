@@ -861,7 +861,29 @@
     background: var(--green-bg);
   }
 
-  /* Per-stage task list on every card */
+  /* Compact next-due-task strip on every card */
+  .k-card-task {
+    display: flex; align-items: center; gap: 7px;
+    margin-bottom: 8px; padding: 6px 8px; border-radius: 7px;
+    background: #f8fafc; border: 1px dashed #e2e8f0;
+  }
+  .k-card-task input[type="checkbox"] {
+    width: 13px; height: 13px; cursor: pointer; flex-shrink: 0;
+    accent-color: var(--green-dot); margin: 0;
+  }
+  .k-card-task-text {
+    flex: 1; min-width: 0;
+    font-size: 11px; font-weight: 600; color: var(--text);
+    padding: 2px 4px; border-radius: 4px; cursor: text;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .k-card-task-text:hover { background: #fff; }
+  .k-card-task-text:focus { outline: 2px solid #3b82f6; background: #fff; }
+  .k-card-task-empty {
+    flex: 1; font-size: 11px; color: #94a3b8; font-style: italic;
+  }
+
+  /* (legacy) Full per-stage task list — kept in case toggle is ever used elsewhere */
   .k-card-tasks {
     display: flex; flex-direction: column; gap: 3px;
     margin-bottom: 8px; padding: 7px 8px; border-radius: 7px;
@@ -3941,27 +3963,19 @@ function firstDueTask(c, stage) {
   return stage.checklist.find(it => !state[it.id]) || null;
 }
 function renderCardTaskList(c, stage, safeN) {
-  if (!stage || !stage.checklist) return '';
-  const state = (c.checklistState && c.checklistState[stage.id]) || {};
-  const items = stage.checklist.map(item => {
-    const done = !!state[item.id];
-    return `
-      <div class="k-card-task-item ${done?'done':''}">
-        <input type="checkbox" ${done?'checked':''}
-               onclick="event.stopPropagation()"
-               onchange="toggleCardTask('${safeN}','${item.id}')" />
-        <span class="k-card-task-item-text" contenteditable="true" spellcheck="false"
-              onclick="event.stopPropagation()"
-              onblur="commitTaskTextOnCard('${safeN}','${item.id}',this)"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(item.text)}</span>
-        <button class="k-card-task-del" title="Delete task"
-                onclick="event.stopPropagation();deleteTaskOnCard('${safeN}','${item.id}')">×</button>
-      </div>`;
-  }).join('');
+  // Compact next-due-task strip on the tile. Full checklist lives in the
+  // card modal (open it by clicking the tile).
+  if (!stage || !stage.checklist || !stage.checklist.length) return '';
+  const next = firstDueTask(c, stage);
+  if (!next) {
+    return `<div class="k-card-task" onclick="event.stopPropagation()"><span class="k-card-task-empty">✓ All tasks done</span></div>`;
+  }
   return `
-    <div class="k-card-tasks" onclick="event.stopPropagation()">
-      ${items || '<div class="k-card-task-empty">No tasks for this stage yet.</div>'}
-      <button class="k-card-task-add" onclick="event.stopPropagation();addTaskOnCard('${safeN}')">+ Add task</button>
+    <div class="k-card-task" onclick="event.stopPropagation()">
+      <input type="checkbox" onchange="toggleCardTask('${safeN}','${next.id}')" />
+      <span class="k-card-task-text" contenteditable="true" spellcheck="false"
+            onblur="commitTaskTextOnCard('${safeN}','${next.id}',this)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(next.text)}</span>
     </div>`;
 }
 function addTaskOnCard(safeN) {
