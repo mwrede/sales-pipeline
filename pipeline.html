@@ -936,6 +936,13 @@
   .snap-row button:hover { background: #f1f5f9; }
   .snap-row button.danger:hover { background: #fef2f2; color: var(--red); border-color: #fecaca; }
 
+  .reset-btn {
+    background: #fef2f2; color: var(--red); border: 1px solid #fecaca;
+    border-radius: 8px; padding: 7px 13px; font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  .reset-btn:hover { background: #fee2e2; border-color: #fca5a5; }
+
   /* Card action buttons */
   .k-card-actions {
     display: flex; gap: 6px; margin-top: 8px;
@@ -1602,7 +1609,8 @@
         <div class="snap-empty">Loading…</div>
       </div>
     </div>
-    <div class="card-modal-footer" style="justify-content:flex-end;">
+    <div class="card-modal-footer" style="justify-content:space-between;">
+      <button class="reset-btn" onclick="resetMeetings()" title="Delete every meeting on every opportunity. Opportunity cards, stages, notes, checklist progress are kept. Re-sync your calendar to repopulate meetings.">🔄 Reset all meetings</button>
       <button onclick="closeSnapshotPanel()" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;">Done</button>
     </div>
   </div>
@@ -2507,16 +2515,9 @@ function resync() {
 }
 
 async function syncCalendar() {
-  // Sync any color that's mapped to a stage. If no stage has a color yet,
-  // fall back to the user's manual syncColors list, or finally the user's
-  // legacy default.
-  const stageColors = stages.map(s => s.color).filter(Boolean);
-  const activeColors = stageColors.length
-    ? stageColors
-    : (Array.isArray(syncColors) && syncColors.length
-        ? syncColors
-        : [USERS[currentUser]?.calColorId || '10']);
-
+  // Sync ALL events with external invitees, regardless of color. Color is
+  // only used for routing into the matching stage; events whose color isn't
+  // mapped to any stage land in the first column (typically SDR Discovery).
   try {
     // Fetch the authenticated user's email if we don't have it yet
     if (!calendarEmail) {
@@ -2533,21 +2534,27 @@ async function syncCalendar() {
     if (!calendarEmail) throw new Error('Could not determine your Google account email');
 
     const calId = encodeURIComponent(calendarEmail);
-    const timeMin = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
-    const timeMax = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
-    const resp = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${calId}/events` +
-      `?timeMin=${timeMin}&timeMax=${timeMax}` +
-      '&maxResults=500&singleEvents=true&orderBy=startTime',
-      { headers: { Authorization: 'Bearer ' + accessToken } }
-    );
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-    const all = data.items || [];
+    // Pull past + present + future. -2 years to +1 year covers most sales
+    // cycles. Paginates if the calendar has more than 500 events in the window.
+    const timeMin = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    const timeMax = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    let all = [];
+    let pageToken = null;
+    do {
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`
+        + `?timeMin=${timeMin}&timeMax=${timeMax}`
+        + '&maxResults=2500&singleEvents=true&orderBy=startTime'
+        + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      all = all.concat(data.items || []);
+      pageToken = data.nextPageToken || null;
+    } while (pageToken);
 
-    // Only events colored with any of the user's selected sync colors AND that have external invitees
+    // Only events with at least one external invitee — color is no longer
+    // used as a filter, just as a routing hint inside processEvents.
     const events = all.filter(ev =>
-      activeColors.includes(ev.colorId) &&
       ev.attendees && ev.attendees.some(a => a.email !== calendarEmail)
     );
 
@@ -2608,7 +2615,7 @@ function processEvents(events) {
     const externalDomain = externalAttendees.map(e => e.split('@')[1]).find(Boolean) || '';
     return { id: ev.id, title: ev.summary || '(no title)', date, colorId: ev.colorId,
              domainHint: externalDomain, attendees: externalAttendees };
-  }).filter(ev => ev.date >= new Date(Date.now() - 90*24*60*60*1000).toISOString().substring(0,10));
+  }).filter(ev => ev.date); // keep past + present + future; only drop events with no resolvable date
 
   pendingMatches = [];
   pendingUnmatched = [];
@@ -3573,6 +3580,40 @@ function showSnapshotBanner() {
 function hideSnapshotBanner() {
   const banner = document.getElementById('snapshot-banner');
   if (banner) banner.style.display = 'none';
+}
+
+async function resetMeetings() {
+  if (inSnapshotMode()) { alert('Exit snapshot view first.'); return; }
+  if (!currentUser) return;
+  const ok1 = confirm(`Delete ALL meetings for ${USERS[currentUser]?.label || currentUser}?\n\nEvery meeting, attendee history, and "primary email" tag will be cleared from every opportunity. Cards, stages, notes, checklist progress, Dead/Hmmm/S1 flags all stay. Hit Sync after this to repopulate from your calendar.`);
+  if (!ok1) return;
+
+  // Clear meeting-related fields on every company in memory
+  companies.forEach(c => {
+    c.meetings = [];
+    c.calendarMeetings = [];
+    c.meetingAttendees = {};
+    c.primaryEmail = '';
+  });
+  dismissedCalEvents = new Set();
+
+  // Push to cloud + wipe the normalized meetings table
+  setCloudStatus('saving');
+  try {
+    await cloudSave(currentUser, buildCloudBlob());
+    await fetch(`${SUPABASE_URL}/rest/v1/meetings?user_id=eq.${encodeURIComponent(currentUser)}`,
+      { method: 'DELETE', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }});
+    setCloudStatus('idle');
+  } catch (e) {
+    console.warn('reset meetings cloud wipe failed', e);
+    setCloudStatus('error');
+  }
+
+  // Update local cache too
+  saveDataLocal();
+
+  renderKanban(); renderTimelineV2(); renderMetrics();
+  closeSnapshotPanel();
 }
 
 async function confirmDeleteSnapshot(id, name) {
