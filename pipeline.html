@@ -824,6 +824,9 @@
   .k-card-btn.s1-active {
     background: var(--green-bg); color: var(--green); border-color: var(--green-border);
   }
+  .k-card-btn.dead-btn:hover {
+    background: #fef2f2; color: var(--red); border-color: #fecaca;
+  }
   .k-card-head {
     display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
   }
@@ -1272,10 +1275,7 @@
     <div class="unassigned-list" id="unassigned-list"></div>
   </div>
 
-  <div id="dead-zone"
-       ondragover="deadZoneDragOver(event)"
-       ondragleave="deadZoneDragLeave(event)"
-       ondrop="deadZoneDrop(event)">
+  <div id="dead-zone">
     <div class="dead-head" onclick="toggleDeadZone()">
       <div class="dead-head-left">
         <span class="dead-icon">⚰️</span>
@@ -1284,7 +1284,7 @@
       </div>
       <span class="dead-toggle" id="dead-toggle">▸</span>
     </div>
-    <div class="dead-hint">Drag a card here to mark it dead. It'll stay hidden from the columns above.</div>
+    <div class="dead-hint">Click × Dead on any card to send it here. Restore from this pile anytime.</div>
     <div class="dead-list" id="dead-list" style="display:none;"></div>
   </div>
 </div>
@@ -2906,6 +2906,9 @@ function renderKanban() {
             <button class="k-card-btn ${isS1Stage || c.s1 ? 's1-active' : ''}"
                     onclick="event.stopPropagation();toggleS1Flip('${safeN}')"
                     title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}">${isS1Stage || c.s1 ? '✓ S1' : '→ S1'}</button>
+            <button class="k-card-btn dead-btn"
+                    onclick="event.stopPropagation();markDead('${safeN}')"
+                    title="Mark this opportunity dead">× Dead</button>
           </div>
         </div>`;
     }).join('');
@@ -3036,24 +3039,13 @@ function toggleDeadZone() {
   list.style.display = open ? 'none' : 'grid';
   toggle.textContent = open ? '▸' : '▾';
 }
-function deadZoneDragOver(e) {
-  if (draggingCardName == null) return;
-  e.preventDefault();
-  document.getElementById('dead-zone').classList.add('drop-target');
-}
-function deadZoneDragLeave(e) {
-  const z = document.getElementById('dead-zone');
-  if (!z.contains(e.relatedTarget)) z.classList.remove('drop-target');
-}
-function deadZoneDrop(e) {
-  e.preventDefault();
-  document.getElementById('dead-zone').classList.remove('drop-target');
-  if (!draggingCardName) return;
-  const c = companies.find(x => x.name === draggingCardName);
+function markDead(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.dead = true;
   saveData(); renderKanban(); renderDeadZone(); renderMetrics();
-  draggingCardName = null;
+  if (openCardName === c.name) closeCardModal();
 }
 function restoreFromDead(name) {
   const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
