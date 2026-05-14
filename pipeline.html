@@ -3490,7 +3490,8 @@ async function renderSnapshotList() {
     }
     list.innerHTML = rows.map(r => {
       const when = new Date(r.created_at);
-      const ds = when.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const dateStr = when.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       const viewing = viewingSnapshot && viewingSnapshot.id === r.id;
       const safeId = r.id;
       const safeName = escapeHTML(r.name || '(unnamed)');
@@ -3498,7 +3499,7 @@ async function renderSnapshotList() {
         <div class="snap-row ${viewing?'viewing':''}">
           <div class="snap-row-main">
             <div class="snap-row-name">${safeName}</div>
-            <div class="snap-row-meta">${ds}${viewing ? ' · currently viewing' : ''}</div>
+            <div class="snap-row-meta"><strong>${dateStr}</strong> · ${timeStr}${viewing ? ' · currently viewing' : ''}</div>
           </div>
           <button onclick="viewSnapshot('${safeId}')">${viewing ? 'Re-load' : 'View'}</button>
           <button class="danger" onclick="confirmDeleteSnapshot('${safeId}','${safeName.replace(/'/g,"&apos;")}')">Delete</button>
