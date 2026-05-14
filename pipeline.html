@@ -2700,15 +2700,22 @@ function processEvents(events) {
     if (target.id === s1StageId()) opp.s1 = true;
   });
 
-  // Cluster unmatched events by shared attendee email
-  const clusters = []; // [{emails:Set, events:[]}]
+  // Cluster unmatched events by (shared attendee email, same color). Different
+  // colors stay in separate clusters even if they share attendees — that way
+  // a Tangerine intro and a Banana AE call with the same prospect produce
+  // two distinct cards (one in SDR Discovery, one in AE Discovery) instead
+  // of being merged into a single AE card that hides the SDR meeting.
+  const clusters = []; // [{emails:Set, color:string, events:[]}]
   unmatched.forEach(ev => {
-    const cluster = clusters.find(c => ev.attendees.some(e => c.emails.has(e)));
+    const cluster = clusters.find(c =>
+      c.color === ev.colorId &&
+      ev.attendees.some(e => c.emails.has(e))
+    );
     if (cluster) {
       ev.attendees.forEach(e => cluster.emails.add(e));
       cluster.events.push(ev);
     } else {
-      clusters.push({ emails: new Set(ev.attendees), events: [ev] });
+      clusters.push({ emails: new Set(ev.attendees), color: ev.colorId, events: [ev] });
     }
   });
 
