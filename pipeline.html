@@ -4062,6 +4062,8 @@ function toggleStageOpen(safeN, stageId) {
   const cur = isStageOpen(c, stage);
   cardStageExpand.set(name + '::' + stageId, !cur);
   renderKanban();
+  // Also refresh the modal if this card's modal is open
+  if (openCardName === name) renderChecklist();
 }
 function firstDueTask(c, stage) {
   if (!stage || !stage.checklist || !stage.checklist.length) return null;
