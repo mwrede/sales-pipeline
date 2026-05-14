@@ -2376,10 +2376,18 @@ function processEvents(events) {
   });
 
   // Apply stage promotion: move opp to the stage matching the most recent
-  // matched event's color. Touches stageId + s1 only — nothing else.
+  // matched event's color. Forward-only — sync can promote an opp further
+  // down the funnel (SDR → AE → S1 → S2) but never demote it. This handles
+  // the case where an AE books an S1 prospect's meeting in their own
+  // calendar with a yellow / AE-Discovery color: the opp stays in S1.
+  // Touches stageId + s1 only — nothing else.
   stagePromote.forEach(({ color }, opp) => {
     const target = stageForColor(color);
-    if (!target || target.id === opp.stageId) return;
+    if (!target) return;
+    const targetIdx  = stages.findIndex(s => s.id === target.id);
+    const currentIdx = stages.findIndex(s => s.id === opp.stageId);
+    if (targetIdx < 0 || currentIdx < 0) return;
+    if (targetIdx <= currentIdx) return; // never demote or move sideways
     opp.prevStageId = opp.stageId;
     opp.stageId = target.id;
     if (target.id === s1StageId()) opp.s1 = true;
