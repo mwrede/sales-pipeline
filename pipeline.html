@@ -2227,12 +2227,11 @@ function processEvents(events) {
   }
 
   // ── Auto-attach to existing opportunities by shared attendee email ──
-  // Pass 1: events that match an existing company (any shared external attendee)
-  //         If the event's color maps to a stage, also promote the company to
-  //         that stage (e.g. a Sage event → S1 stage; sets s1 flag).
-  // Pass 2: remaining events that share an attendee with another unassigned event
-  //         → auto-create a single new opportunity per email cluster, routed by
-  //         event color to the matching stage.
+  // Sync is additive only:
+  //   • Existing opps gain new meetings (and their attendees) when an event
+  //     shares an external attendee. Stage, S1 flag, dead flag, etc. are
+  //     left untouched — the user's manual assignments win.
+  //   • Events with no existing match feed Pass 2 (clustering → new opps).
   const unmatched = [];
   let attached = 0;
   allEvents.forEach(ev => {
@@ -2244,13 +2243,6 @@ function processEvents(events) {
         attached++;
       } else if (ev.attendees.length && !existing.primaryEmail) {
         existing.primaryEmail = ev.attendees[0];
-      }
-      // Route by color: promote the company to the matching stage
-      const target = stageForColor(ev.colorId);
-      if (target && existing.stageId !== target.id) {
-        existing.prevStageId = existing.stageId;
-        existing.stageId = target.id;
-        if (target.id === s1StageId()) existing.s1 = true;
       }
     } else {
       unmatched.push(ev);
