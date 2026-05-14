@@ -1103,6 +1103,16 @@
     padding: 4px 8px; font-size: 12px; font-weight: 600; color: var(--text);
     font-family: inherit; cursor: pointer;
   }
+  .cm-stage-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(0,0,0,0.04);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 4px 10px; font-size: 12px; font-weight: 700; color: var(--text);
+  }
+  .cm-stage-label::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--stage-color, #94a3b8);
+  }
   .card-modal-close {
     background: none; border: none; cursor: pointer; font-size: 22px;
     color: var(--muted); padding: 0 6px; line-height: 1;
@@ -1731,7 +1741,7 @@
              onblur="commitCardTitle(this)"
              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></div>
         <div class="card-modal-meta">
-          <select class="card-modal-stage-select" id="cm-stage" onchange="moveCardStage(this.value)"></select>
+          <span id="cm-stage-label" class="cm-stage-label"></span>
           <span id="cm-meetings"></span>
           <span id="cm-s1"></span>
         </div>
@@ -3998,9 +4008,10 @@ function firstDueTask(c, stage) {
   return stage.checklist.find(it => !state[it.id]) || null;
 }
 function renderCardTaskList(c, stage, safeN) {
-  // Show every stage's checklist on every tile, grouped by stage label.
-  if (!stages || !stages.length) return '';
-  const blocks = stages.map(s => {
+  // Show only the current stage's checklist — past and future stage tasks
+  // are kept in the data but hidden on the tile.
+  if (!stage) return '';
+  const blocks = [stage].map(s => {
     const items = s.checklist || [];
     if (!items.length) return '';
     const state = (c.checklistState && c.checklistState[s.id]) || {};
@@ -4468,48 +4479,55 @@ function renderModalMeetings() {
 function renderCardModalStageSelect() {
   const c = companies.find(x => x.name === openCardName);
   if (!c) return;
+  // Stage selector was removed from the modal; show a static stage label
+  // pill instead. Stage changes happen via the kanban (drag or "→ S1").
+  const lbl = document.getElementById('cm-stage-label');
+  if (lbl) {
+    const s = findStage(c.stageId);
+    if (s) {
+      lbl.textContent = s.label;
+      lbl.style.setProperty('--stage-color', colorHex(s.color));
+    } else {
+      lbl.textContent = '';
+    }
+  }
   const sel = document.getElementById('cm-stage');
-  sel.innerHTML = stages.map(s =>
-    `<option value="${s.id}" ${s.id===c.stageId?'selected':''}>${escapeHTML(s.label)}</option>`
-  ).join('');
+  if (sel) {
+    sel.innerHTML = stages.map(s =>
+      `<option value="${s.id}" ${s.id===c.stageId?'selected':''}>${escapeHTML(s.label)}</option>`
+    ).join('');
+  }
 }
 function renderChecklist() {
   const c = companies.find(x => x.name === openCardName);
   if (!c) return;
   if (!c.checklistState) c.checklistState = {};
-  let totalDone = 0, totalAll = 0;
-  const html = stages.map(s => {
-    if (!c.checklistState[s.id]) c.checklistState[s.id] = {};
-    const state = c.checklistState[s.id];
-    const items = s.checklist || [];
-    totalAll += items.length;
-    totalDone += items.filter(it => state[it.id]).length;
-    const safeStageId = s.id.replace(/'/g,"\\'");
-    const color = colorHex(s.color);
-    const inner = items.map(it => {
-      const done = !!state[it.id];
-      return `
-        <div class="checklist-item ${done?'done':''}">
-          <input type="checkbox" ${done?'checked':''}
-                 onchange="toggleChecklistItemAt('${safeStageId}','${it.id}')" />
-          <span class="checklist-item-text" contenteditable="true" spellcheck="false"
-                onblur="commitChecklistTextAt('${safeStageId}','${it.id}',this)"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(it.text)}</span>
-          <button class="checklist-item-del" onclick="deleteChecklistItemAt('${safeStageId}','${it.id}')" title="Delete task">×</button>
-        </div>`;
-    }).join('');
+  // Only show the current stage's tasks. Past and future stages' state is
+  // preserved in c.checklistState but not displayed here.
+  const stage = findStage(c.stageId);
+  if (!stage) { document.getElementById('cm-checklist').innerHTML = ''; return; }
+  if (!c.checklistState[stage.id]) c.checklistState[stage.id] = {};
+  const state = c.checklistState[stage.id];
+  const items = stage.checklist || [];
+  const safeStageId = stage.id.replace(/'/g,"\\'");
+  const inner = items.map(it => {
+    const done = !!state[it.id];
     return `
-      <div class="cm-checklist-group">
-        <div class="cm-checklist-group-label">
-          <span class="cm-checklist-group-dot" style="background:${color}"></span>${escapeHTML(s.label)}
-        </div>
-        ${inner || '<div class="cm-checklist-empty">No tasks for this stage yet.</div>'}
-        <button class="checklist-add cm-checklist-add" onclick="addChecklistItemAt('${safeStageId}')">+ Add task</button>
+      <div class="checklist-item ${done?'done':''}">
+        <input type="checkbox" ${done?'checked':''}
+               onchange="toggleChecklistItemAt('${safeStageId}','${it.id}')" />
+        <span class="checklist-item-text" contenteditable="true" spellcheck="false"
+              onblur="commitChecklistTextAt('${safeStageId}','${it.id}',this)"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(it.text)}</span>
+        <button class="checklist-item-del" onclick="deleteChecklistItemAt('${safeStageId}','${it.id}')" title="Delete task">×</button>
       </div>`;
   }).join('');
-  document.getElementById('cm-checklist').innerHTML = html;
+  document.getElementById('cm-checklist').innerHTML =
+    (inner || '<div class="cm-checklist-empty">No tasks for this stage yet.</div>')
+    + `<button class="checklist-add cm-checklist-add" onclick="addChecklistItemAt('${safeStageId}')">+ Add task</button>`;
+  const done = items.filter(it => state[it.id]).length;
   document.getElementById('cm-progress').textContent =
-    totalAll ? `${totalDone} of ${totalAll} done across all stages` : '';
+    items.length ? `${done} of ${items.length} done in ${stage.label}` : '';
 }
 function toggleChecklistItemAt(stageId, itemId) {
   const c = companies.find(x => x.name === openCardName);
