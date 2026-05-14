@@ -916,6 +916,78 @@
     font-size: 11px; color: var(--muted); margin-top: 4px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  .k-card-age {
+    font-size: 10px; color: var(--muted); margin-top: 3px; font-weight: 500;
+  }
+
+  /* ── Unassigned events zone ── */
+  #unassigned-zone {
+    margin-top: 28px; padding: 18px; border: 1px dashed #cbd5e1;
+    border-radius: 12px; background: #f8fafc;
+  }
+  #unassigned-zone .unassigned-head {
+    display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  #unassigned-zone h3 { font-size: 14px; font-weight: 700; color: var(--text); }
+  #unassigned-zone p  { font-size: 12px; color: var(--muted); }
+  .unassigned-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+  }
+  .u-event {
+    background: #fff; border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 12px; cursor: grab;
+    transition: box-shadow 0.12s, border-color 0.12s, transform 0.12s;
+  }
+  .u-event:hover { border-color: #c7d2e0; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+  .u-event.dragging { opacity: 0.4; }
+  .u-event-title {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .u-event-meta {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  }
+  .u-event-email {
+    background: #f1f5f9; padding: 2px 7px; border-radius: 999px;
+    font-size: 10px; font-weight: 600; max-width: 180px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .u-event-dismiss {
+    background: none; border: none; cursor: pointer; color: #cbd5e1;
+    font-size: 13px; margin-left: auto; padding: 0 4px;
+  }
+  .u-event-dismiss:hover { color: var(--red); }
+
+  /* ── Card modal: notes + meetings ── */
+  .cm-notes {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-family: inherit; font-size: 13px; color: var(--text);
+    resize: vertical; min-height: 60px; line-height: 1.5;
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  .cm-notes:focus {
+    outline: none; border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  }
+  .cm-meetings-list {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .cm-meeting-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-radius: 7px; background: #f8fafc;
+    font-size: 12px;
+  }
+  .cm-meeting-date { font-weight: 600; color: var(--text); flex-shrink: 0; min-width: 78px; }
+  .cm-meeting-att  { color: var(--muted); flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cm-meeting-cal  {
+    font-size: 10px; background: #eff6ff; color: var(--blue);
+    padding: 1px 6px; border-radius: 999px; font-weight: 600; flex-shrink: 0;
+  }
+  .cm-meeting-empty { font-size: 12px; color: #94a3b8; padding: 6px 2px; }
 
   /* ── Sync Settings modal ── */
   #sync-settings-overlay {
@@ -1035,6 +1107,14 @@
     </div>
   </div>
   <div class="kanban-board" id="kanban-board"></div>
+
+  <div id="unassigned-zone" style="display:none;">
+    <div class="unassigned-head">
+      <h3>Unassigned meetings</h3>
+      <p>Drag a meeting onto a column to create a new opportunity in that stage.</p>
+    </div>
+    <div class="unassigned-list" id="unassigned-list"></div>
+  </div>
 </div>
 
 <!-- Timeline View (existing) -->
@@ -1116,7 +1196,15 @@
       <button class="card-modal-close" onclick="closeCardModal()">×</button>
     </div>
     <div class="card-modal-body">
-      <div class="card-modal-section-label">Checklist</div>
+      <div class="card-modal-section-label">Notes</div>
+      <textarea id="cm-notes" class="cm-notes" rows="3"
+        placeholder="Add notes about this opportunity…"
+        onblur="commitCardNotes(this)"></textarea>
+
+      <div class="card-modal-section-label" style="margin-top:16px;">Meetings</div>
+      <div id="cm-meetings-list" class="cm-meetings-list"></div>
+
+      <div class="card-modal-section-label" style="margin-top:16px;">Checklist</div>
       <div class="checklist" id="cm-checklist"></div>
       <button class="checklist-add" onclick="addChecklistItem()">+ Add task</button>
     </div>
@@ -2044,7 +2132,83 @@ function processEvents(events) {
   const msg = `Connected · ${attached} attached, ${autoCreated} new opportunit${autoCreated===1?'y':'ies'}, ${stillUnassigned.length} need review`;
   setCalStatus('connected', msg);
 
-  if (stillUnassigned.length) showCalPanel([], stillUnassigned);
+  renderUnassignedZone();
+}
+
+// ── Unassigned-events zone (inline, below kanban) ──
+function renderUnassignedZone() {
+  const zone = document.getElementById('unassigned-zone');
+  const list = document.getElementById('unassigned-list');
+  if (!zone || !list) return;
+  const items = pendingUnmatched || [];
+  if (!items.length) { zone.style.display = 'none'; list.innerHTML = ''; return; }
+  zone.style.display = '';
+  list.innerHTML = items.map((ev, idx) => {
+    const safeId = (ev.id || '').replace(/'/g,"\\'");
+    const primary = (ev.attendees && ev.attendees[0]) || '';
+    return `
+      <div class="u-event" draggable="true"
+           data-event-idx="${idx}"
+           ondragstart="uEventDragStart(event, ${idx})"
+           ondragend="uEventDragEnd(event)">
+        <div class="u-event-title">${escapeHTML(ev.title || '(no title)')}</div>
+        <div class="u-event-meta">
+          <span>${fmtDate(ev.date)}</span>
+          ${primary ? `<span class="u-event-email" title="${escapeHTML(primary)}">${escapeHTML(primary)}</span>` : ''}
+          <button class="u-event-dismiss" title="Dismiss this meeting"
+                  onclick="dismissUnassignedEvent('${safeId}')">×</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+let draggingUnassignedIdx = null;
+function uEventDragStart(e, idx) {
+  draggingUnassignedIdx = idx;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', 'event:' + idx); } catch(_) {}
+}
+function uEventDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  draggingUnassignedIdx = null;
+  document.querySelectorAll('.kanban-col.drop-target')
+    .forEach(el => el.classList.remove('drop-target'));
+}
+function dismissUnassignedEvent(eventId) {
+  if (eventId) dismissedCalEvents.add(eventId);
+  pendingUnmatched = (pendingUnmatched || []).filter(ev => ev.id !== eventId);
+  saveData();
+  renderUnassignedZone();
+}
+function createOppFromUnassigned(idx, stageId) {
+  const ev = (pendingUnmatched || [])[idx];
+  if (!ev) return;
+  const primary = (ev.attendees && ev.attendees[0]) || '';
+  const domain = primary ? primary.split('@')[1] : '';
+  let name = (ev.title || '').trim() || domain || primary || 'New opportunity';
+  let finalName = name; let i = 2;
+  while (companies.some(c => c.name === finalName)) finalName = `${name} (${i++})`;
+  const init = finalName.substring(0,2).toUpperCase();
+  const c = {
+    name: finalName, domain, init,
+    meetings: [], s1: false, stageId, checklistState: {},
+    meetingAttendees: {}, calendarMeetings: [],
+    primaryEmail: primary, notes: ''
+  };
+  companies.push(c);
+  attachEventToCompany(c, ev);
+  pendingUnmatched.splice(idx, 1);
+  saveData();
+  renderKanban();
+  renderUnassignedZone();
+}
+
+// Stub: the old slide-in side panel is no longer used — keep no-ops so any
+// remaining call sites don't blow up.
+function showCalPanel(matched, unmatched = []) {
+  pendingUnmatched = unmatched || [];
+  renderUnassignedZone();
 }
 
 // ─────────────────────────────────────────────
@@ -2054,122 +2218,8 @@ function escAttr(s) {
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function showCalPanel(matched, unmatched = []) {
-  // Determine assigned status via calendarMeetings — no auto-matching
-  const notAssigned = [];
-  const alreadyAssigned = [];
-  unmatched.forEach(ev => {
-    const assignedTo = companies.find(c => c.calendarMeetings && c.calendarMeetings.includes(ev.date));
-    if (assignedTo) {
-      alreadyAssigned.push({ ...ev, company: assignedTo });
-    } else if (dismissedCalEvents.has(ev.id)) {
-      alreadyAssigned.push({ ...ev, company: null }); // manually marked
-    } else {
-      notAssigned.push(ev);
-    }
-  });
-
-  const unassignedCount = notAssigned.length;
-  const assignedCount   = alreadyAssigned.length;
-
-  document.getElementById('cal-panel-subtitle').textContent =
-    [unassignedCount && `${unassignedCount} unassigned`,
-     assignedCount   && `${assignedCount} assigned`].filter(Boolean).join(' · ')
-    || 'Drag events onto rows to add meetings';
-
-  let html = '';
-
-  // ── Section 1: Not Assigned ──
-  {
-    const open = calSectionOpen.unassigned;
-    html += `
-      <div class="cal-section-header" onclick="toggleCalSection('unassigned')">
-        <div class="sh-left">
-          <span>Not Assigned</span>
-          <span class="sh-count">${unassignedCount}</span>
-        </div>
-        <span class="sh-arrow" id="sh-arrow-unassigned">${open ? '▾' : '▸'}</span>
-      </div>
-      <div id="sh-body-unassigned" style="display:${open ? 'block' : 'none'};">`;
-
-    notAssigned.forEach(ev => {
-      const atts = ev.attendees || [];
-      const firstAtt = atts[0] || '';
-      const tipHTML = atts.length ? atts.map(a => `<div>${a}</div>`).join('') : '';
-      const companyOpts = companies.map(c =>
-        `<option value="${escAttr(c.name)}">${c.name}</option>`
-      ).join('');
-      html += `
-        <div class="cal-event-card" draggable="true"
-          data-id="${escAttr(ev.id)}" data-title="${escAttr(ev.title)}"
-          data-date="${ev.date}" data-domain="${escAttr(ev.domainHint)}"
-          data-attendees="${escAttr(JSON.stringify(atts))}"
-          data-company=""
-          ondragstart="startDrag(event,this)" ondragend="endDrag(this)">
-          <div class="drag-handle">⠿</div>
-          <div class="cal-event-card-info">
-            <div class="cal-event-title">${ev.title}</div>
-            <div class="cal-event-meta">${fmtDate(ev.date)}${firstAtt ? ' · ' + firstAtt : ''}</div>
-            <select class="panel-assign-select" data-evid="${escAttr(ev.id)}"
-              onchange="assignEventFromPanel(this)" onclick="event.stopPropagation()">
-              <option value="">Assign to opportunity...</option>
-              ${companyOpts}
-            </select>
-            <button class="panel-mark-btn" onclick="event.stopPropagation();markCalEventAssigned('${escAttr(ev.id)}')">✓ Already assigned</button>
-          </div>
-          ${tipHTML ? `<div class="card-tip">${tipHTML}</div>` : ''}
-        </div>`;
-    });
-
-    if (!unassignedCount) {
-      html += `<div class="cal-panel-hint" style="margin:8px 0;">All events have been assigned.</div>`;
-    }
-
-    html += `</div>`;
-  }
-
-  // ── Section 2: Already Assigned ──
-  if (assignedCount) {
-    const open = calSectionOpen.assigned;
-    html += `
-      <div class="cal-section-header" onclick="toggleCalSection('assigned')" style="margin-top:8px;">
-        <div class="sh-left">
-          <span>Already Assigned</span>
-          <span class="sh-count">${assignedCount}</span>
-        </div>
-        <span class="sh-arrow" id="sh-arrow-assigned">${open ? '▾' : '▸'}</span>
-      </div>
-      <div id="sh-body-assigned" style="display:${open ? 'block' : 'none'};">`;
-    alreadyAssigned.forEach(m => {
-      const isManual = !m.company;
-      const metaLabel = isManual ? 'Manually marked' : m.company.name;
-      const removeBtn = isManual
-        ? `<button class="cal-unassign-btn" onclick="unmarkCalEventAssigned('${escAttr(m.id)}')">Remove</button>`
-        : (() => { const safeN = m.company.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return `<button class="cal-unassign-btn" onclick="unassignMeeting('${safeN}','${m.date}')">Remove</button>`; })();
-      html += `
-        <div class="cal-event-card" style="opacity:0.65;">
-          <div class="drag-handle" style="opacity:0.4;">⠿</div>
-          <div class="cal-event-card-info">
-            <div class="cal-event-title">${m.title}</div>
-            <div class="cal-event-meta">${fmtDate(m.date)} · ${metaLabel}</div>
-          </div>
-          ${removeBtn}
-        </div>`;
-    });
-    html += `</div>`;
-  }
-
-  if (!html) {
-    html = `<div class="cal-panel-hint">No qualifying events found in this period.<br>Try syncing after adding dark-green events with invitees to your calendar.</div>`;
-  } else {
-    html += `<div class="cal-panel-hint">Drag a card onto any timeline row to add a meeting, or drop into the zone below to create a new opportunity.</div>`;
-  }
-
-  document.getElementById('cal-panel-body').innerHTML = html;
-  document.getElementById('cal-panel').classList.add('open');
-  document.body.classList.add('cal-open');
-  renderTimeline(); // re-render so create-drop-zone appears
-}
+// (Old side-panel renderer removed — kanban now uses the inline
+// "Unassigned meetings" zone via renderUnassignedZone.)
 
 function toggleCalSection(name) {
   calSectionOpen[name] = !calSectionOpen[name];
@@ -2597,6 +2647,7 @@ function renderKanban() {
         ? `<img src="https://logo.clearbit.com/${c.domain}" onerror="this.style.display='none';this.parentElement.textContent='${initials}';" />`
         : initials;
       const email = primaryEmailForCompany(c);
+      const age = daysSinceFirstMeeting(c);
       return `
         <div class="k-card" draggable="true"
              ondragstart="kCardDragStart(event,'${safeN}')"
@@ -2607,6 +2658,7 @@ function renderKanban() {
             <div class="k-card-name">${escapeHTML(c.name)}</div>
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
+          ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
             ${c.s1 ? '<span class="k-card-pill s1">S1</span>' : ''}
@@ -2647,6 +2699,14 @@ function renderKanban() {
 
 function escapeHTML(s) {
   return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function daysSinceFirstMeeting(c) {
+  if (!c.meetings || !c.meetings.length) return null;
+  const first = [...c.meetings].sort()[0];
+  const ms = Date.now() - new Date(first).getTime();
+  if (ms < 0) return null; // first meeting is in the future
+  return Math.floor(ms / 86400000);
 }
 
 // ── Stage management ──
@@ -2750,7 +2810,7 @@ function kCardDragEnd(e) {
     .forEach(el => el.classList.remove('drop-target'));
 }
 function kColDragOver(e, stageId) {
-  if (draggingCardName == null && draggingStageId == null) return;
+  if (draggingCardName == null && draggingStageId == null && draggingUnassignedIdx == null) return;
   e.preventDefault();
   const col = e.currentTarget.closest('.kanban-col');
   if (col) col.classList.add('drop-target');
@@ -2764,6 +2824,11 @@ function kColDrop(e, stageId) {
   e.preventDefault();
   const col = e.currentTarget.closest('.kanban-col');
   if (col) col.classList.remove('drop-target');
+  if (draggingUnassignedIdx != null) {
+    createOppFromUnassigned(draggingUnassignedIdx, stageId);
+    draggingUnassignedIdx = null;
+    return;
+  }
   if (draggingStageId != null) {
     // reorder columns
     const fromIdx = stages.findIndex(s => s.id === draggingStageId);
@@ -2824,7 +2889,44 @@ function openCardModal(name) {
 
   renderCardModalStageSelect();
   renderChecklist();
+  renderModalNotes();
+  renderModalMeetings();
   document.getElementById('card-modal-overlay').classList.add('show');
+}
+function renderModalNotes() {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  document.getElementById('cm-notes').value = c.notes || '';
+}
+function commitCardNotes(el) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const val = el.value;
+  if (val === (c.notes || '')) return;
+  c.notes = val;
+  saveData(); renderKanban();
+}
+function renderModalMeetings() {
+  const c = companies.find(x => x.name === openCardName);
+  const wrap = document.getElementById('cm-meetings-list');
+  if (!c || !wrap) return;
+  const meetings = [...(c.meetings || [])].sort();
+  if (!meetings.length) {
+    wrap.innerHTML = '<div class="cm-meeting-empty">No meetings logged yet.</div>';
+    return;
+  }
+  const calSet = new Set(c.calendarMeetings || []);
+  wrap.innerHTML = meetings.map(d => {
+    const atts = (c.meetingAttendees && c.meetingAttendees[d]) || [];
+    const ext = atts.filter(a => a && a !== calendarEmail && !a.endsWith('@roboflow.com'));
+    const attStr = ext.length ? ext.join(', ') : (atts.length ? atts.join(', ') : '—');
+    return `
+      <div class="cm-meeting-row">
+        <span class="cm-meeting-date">${fmtDate(d)}</span>
+        <span class="cm-meeting-att" title="${escapeHTML(attStr)}">${escapeHTML(attStr)}</span>
+        ${calSet.has(d) ? '<span class="cm-meeting-cal">📅</span>' : ''}
+      </div>`;
+  }).join('');
 }
 function renderCardModalStageSelect() {
   const c = companies.find(x => x.name === openCardName);
