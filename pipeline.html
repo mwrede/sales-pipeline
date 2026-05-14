@@ -2642,6 +2642,19 @@ function processEvents(events) {
     if (!ev.attendees.length) { unmatched.push(ev); return; }
     const existing = findCompanyByAttendees(ev.attendees);
     if (existing) {
+      // If this event's color routes to an EARLIER stage than the existing
+      // match (e.g. Tangerine event but the existing opp is already in S1),
+      // don't quietly attach + hide it. Treat it as a fresh opp in its own
+      // earlier stage — that's a new touchpoint with the same prospect.
+      const target = stageForColor(ev.colorId);
+      if (target) {
+        const targetIdx = stages.findIndex(s => s.id === target.id);
+        const existIdx  = stages.findIndex(s => s.id === existing.stageId);
+        if (targetIdx >= 0 && existIdx >= 0 && targetIdx < existIdx) {
+          unmatched.push(ev);
+          return;
+        }
+      }
       const wasParked = existing.dead || existing.hmmm;
       if (!existing.calendarMeetings || !existing.calendarMeetings.includes(ev.date)) {
         attachEventToCompany(existing, ev);
