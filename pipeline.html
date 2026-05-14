@@ -3983,10 +3983,11 @@ function firstDueTask(c, stage) {
   return stage.checklist.find(it => !state[it.id]) || null;
 }
 function renderCardTaskList(c, stage, safeN) {
-  // Show every stage's checklist on every tile, grouped by stage label.
-  // Per-card checked state is tracked separately for each stage.
+  // Show the first three stages' checklists on every tile (SDR Discovery,
+  // AE Discovery, S1 in the default layout), grouped by stage label.
+  // S2 / later stages live in the modal only.
   if (!stages || !stages.length) return '';
-  const blocks = stages.map(s => {
+  const blocks = stages.slice(0, 3).map(s => {
     const items = s.checklist || [];
     if (!items.length) return '';
     const state = (c.checklistState && c.checklistState[s.id]) || {};
