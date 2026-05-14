@@ -1033,8 +1033,8 @@
   }
 
   .tv-axis {
-    position: relative; margin-left: 260px; height: 22px;
-    border-bottom: 1px solid var(--border); margin-bottom: 14px;
+    position: relative; margin-left: 252px; height: 24px;
+    border-bottom: 1px solid var(--border); margin-bottom: 0;
   }
   .tv-tick {
     position: absolute; top: 0; transform: translateX(-50%);
@@ -1045,33 +1045,56 @@
     content: ''; position: absolute; left: 50%; bottom: -6px;
     width: 1px; height: 6px; background: #e2e8f0;
   }
+
+  .tv-body {
+    display: flex; flex-direction: column; gap: 2px;
+    position: relative;
+    padding-top: 8px;
+  }
+  .tv-gridlines {
+    position: absolute; top: 0; bottom: 0;
+    left: 252px; right: 0;
+    pointer-events: none; z-index: 0;
+  }
+  .tv-grid-line {
+    position: absolute; top: 0; bottom: 0;
+    width: 1px; background: #eef2f7;
+  }
+  .tv-grid-line.major { background: #e2e8f0; }
   .tv-today {
-    position: absolute; top: 0; bottom: -1000px;
+    position: absolute; top: 0; bottom: 0; width: 0;
     border-left: 1px dashed #94a3b8; pointer-events: none; z-index: 1;
   }
-
-  .tv-body { display: flex; flex-direction: column; gap: 2px; }
   .tv-group {
-    margin-top: 14px;
+    margin-top: 12px;
+    position: relative;
+    z-index: 1;
   }
+  .tv-group:first-child { margin-top: 0; }
   .tv-group-head {
     font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
     color: var(--muted); text-transform: uppercase;
-    padding: 4px 0 6px 0;
+    padding: 6px 0;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 2px;
+    background: #fff;
   }
   .tv-row {
-    display: flex; align-items: center; min-height: 30px;
-    border-radius: 6px; transition: background 0.1s;
+    display: flex; align-items: center; min-height: 32px;
+    border-radius: 4px; transition: background 0.1s;
+    border-bottom: 1px dashed #f1f5f9;
   }
-  .tv-row:hover { background: #f8fafc; }
+  .tv-row:last-child { border-bottom: none; }
+  .tv-row:hover { background: rgba(241,245,249,0.6); }
   .tv-row-label {
-    flex: 0 0 252px; padding-right: 14px; font-size: 13px;
+    flex: 0 0 252px; padding-right: 14px; padding-left: 4px;
+    font-size: 13px;
     color: var(--text); overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; cursor: pointer;
   }
   .tv-row-label:hover { color: #3b82f6; }
   .tv-row-track {
-    flex: 1; position: relative; height: 18px;
+    flex: 1; position: relative; height: 20px;
   }
   .tv-conn {
     position: absolute; top: 50%; transform: translateY(-50%);
@@ -3323,6 +3346,13 @@ function renderTimelineV2() {
     const ds = t.toISOString().substring(0, 10);
     const label = `${t.getMonth() + 1}/${t.getDate()}`;
     return `<span class="tv-tick" style="left:${pct(ds).toFixed(2)}%">${label}</span>`;
+  }).join('');
+
+  // Gridlines for the body — vertical at every tick + today line
+  const gridlinesHTML = ticks.map(t => {
+    const ds = t.toISOString().substring(0, 10);
+    const major = t.getDate() <= 7; // first tick of a month is "major"
+    return `<div class="tv-grid-line ${major?'major':''}" style="left:${pct(ds).toFixed(2)}%"></div>`;
   }).join('') + `<div class="tv-today" style="left:${pct(todayIso).toFixed(2)}%"></div>`;
 
   const sortMode = (document.getElementById('tv-sort') || {}).value || 'company';
@@ -3359,7 +3389,7 @@ function renderTimelineV2() {
     });
   });
 
-  bodyEl.innerHTML = groups.map(g => {
+  bodyEl.innerHTML = `<div class="tv-gridlines">${gridlinesHTML}</div>` + groups.map(g => {
     const header = g.label ? `<div class="tv-group-head">${escapeHTML(g.label)}</div>` : '';
     const rows = g.opps.map(c => {
       const stage = findStage(c.stageId) || {};
