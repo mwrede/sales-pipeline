@@ -861,27 +861,49 @@
     background: var(--green-bg);
   }
 
-  /* Next-due task strip at the top of each card */
-  .k-card-task {
-    display: flex; align-items: center; gap: 7px;
-    margin-bottom: 8px; padding: 6px 8px; border-radius: 7px;
+  /* Per-stage task list on every card */
+  .k-card-tasks {
+    display: flex; flex-direction: column; gap: 3px;
+    margin-bottom: 8px; padding: 7px 8px; border-radius: 7px;
     background: #f8fafc; border: 1px dashed #e2e8f0;
   }
-  .k-card-task input[type="checkbox"] {
-    width: 13px; height: 13px; cursor: pointer; flex-shrink: 0;
+  .k-card-task-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 1px 0;
+  }
+  .k-card-task-item input[type="checkbox"] {
+    width: 12px; height: 12px; cursor: pointer; flex-shrink: 0;
     accent-color: var(--green-dot); margin: 0;
   }
-  .k-card-task-text {
+  .k-card-task-item-text {
     flex: 1; min-width: 0;
-    font-size: 11px; font-weight: 600; color: var(--text);
-    padding: 2px 4px; border-radius: 4px; cursor: text;
+    font-size: 11px; font-weight: 500; color: var(--text);
+    padding: 1px 4px; border-radius: 4px; cursor: text;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .k-card-task-text:hover { background: #fff; }
-  .k-card-task-text:focus { outline: 2px solid #3b82f6; background: #fff; }
-  .k-card-task-empty {
-    flex: 1; font-size: 11px; color: #94a3b8; font-style: italic;
+  .k-card-task-item-text:hover { background: #fff; }
+  .k-card-task-item-text:focus { outline: 2px solid #3b82f6; background: #fff; }
+  .k-card-task-item.done .k-card-task-item-text {
+    color: var(--muted); text-decoration: line-through;
   }
+  .k-card-task-del {
+    background: none; border: none; cursor: pointer; font-size: 12px;
+    color: #cbd5e1; padding: 0 3px; line-height: 1; opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .k-card-task-item:hover .k-card-task-del { opacity: 1; }
+  .k-card-task-del:hover { color: var(--red); }
+  .k-card-task-empty {
+    font-size: 11px; color: #94a3b8; font-style: italic;
+    padding: 2px 0;
+  }
+  .k-card-task-add {
+    background: none; border: none; cursor: pointer;
+    padding: 3px 4px; font-size: 10px; font-weight: 600; color: var(--muted);
+    text-align: left; font-family: inherit; border-radius: 4px;
+    margin-top: 2px;
+  }
+  .k-card-task-add:hover { color: var(--text); background: #fff; }
 
   #task-toggle-btn[data-on="1"] {
     background: var(--green-bg); color: var(--green); border-color: var(--green-border);
@@ -3346,12 +3368,7 @@ function renderKanban() {
              ondragleave="kCardDragLeaveCard(event)"
              ondrop="kCardDropOnCard(event,'${safeN}')"
              onclick="openCardModal('${safeN}')">
-          ${nextTask ? `<div class="k-card-task" onclick="event.stopPropagation()">
-            <input type="checkbox" onchange="toggleCardTask('${safeN}','${nextTask.id}')" />
-            <span class="k-card-task-text" contenteditable="true" spellcheck="false"
-                  onblur="commitTaskTextOnCard('${safeN}','${nextTask.id}',this)"
-                  onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(nextTask.text)}</span>
-          </div>` : (showCardTasks && stage.checklist && stage.checklist.length ? `<div class="k-card-task" onclick="event.stopPropagation()"><span class="k-card-task-empty">✓ All tasks done</span></div>` : '')}
+          ${showCardTasks ? renderCardTaskList(c, stage, safeN) : ''}
           <div class="k-card-head">
             <div class="k-card-logo">${logo}</div>
             <div class="k-card-name">${escapeHTML(c.name)}</div>
@@ -3909,11 +3926,71 @@ function restoreFromHmmm(name) {
   saveData(); renderKanban(); renderMetrics();
 }
 
-// ── Next-due task strip on cards ──
+// ── Per-stage checklist on every card ──
 function firstDueTask(c, stage) {
   if (!stage || !stage.checklist || !stage.checklist.length) return null;
   const state = (c.checklistState && c.checklistState[stage.id]) || {};
   return stage.checklist.find(it => !state[it.id]) || null;
+}
+function renderCardTaskList(c, stage, safeN) {
+  if (!stage || !stage.checklist) return '';
+  const state = (c.checklistState && c.checklistState[stage.id]) || {};
+  const items = stage.checklist.map(item => {
+    const done = !!state[item.id];
+    return `
+      <div class="k-card-task-item ${done?'done':''}">
+        <input type="checkbox" ${done?'checked':''}
+               onclick="event.stopPropagation()"
+               onchange="toggleCardTask('${safeN}','${item.id}')" />
+        <span class="k-card-task-item-text" contenteditable="true" spellcheck="false"
+              onclick="event.stopPropagation()"
+              onblur="commitTaskTextOnCard('${safeN}','${item.id}',this)"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(item.text)}</span>
+        <button class="k-card-task-del" title="Delete task"
+                onclick="event.stopPropagation();deleteTaskOnCard('${safeN}','${item.id}')">×</button>
+      </div>`;
+  }).join('');
+  return `
+    <div class="k-card-tasks" onclick="event.stopPropagation()">
+      ${items || '<div class="k-card-task-empty">No tasks for this stage yet.</div>'}
+      <button class="k-card-task-add" onclick="event.stopPropagation();addTaskOnCard('${safeN}')">+ Add task</button>
+    </div>`;
+}
+function addTaskOnCard(safeN) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const stage = findStage(c.stageId);
+  if (!stage) return;
+  stage.checklist = stage.checklist || [];
+  const newItem = { id: genId('i'), text: 'New task' };
+  stage.checklist.push(newItem);
+  saveData(); renderKanban();
+  // Focus + select the new task's text so the user can rename immediately
+  setTimeout(() => {
+    document.querySelectorAll('.k-card').forEach(card => {
+      const nm = card.querySelector('.k-card-name');
+      if (!nm || nm.textContent !== name) return;
+      const texts = card.querySelectorAll('.k-card-task-item-text');
+      const last = texts[texts.length - 1];
+      if (last) { last.focus(); document.getSelection().selectAllChildren(last); }
+    });
+  }, 0);
+}
+function deleteTaskOnCard(safeN, itemId) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const stage = findStage(c.stageId);
+  if (!stage || !stage.checklist) return;
+  stage.checklist = stage.checklist.filter(i => i.id !== itemId);
+  // Clear any per-card state for that item id
+  companies.forEach(cc => {
+    if (cc.checklistState && cc.checklistState[stage.id]) {
+      delete cc.checklistState[stage.id][itemId];
+    }
+  });
+  saveData(); renderKanban();
 }
 function toggleCardTask(safeN, itemId) {
   const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
