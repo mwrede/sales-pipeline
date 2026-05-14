@@ -964,6 +964,79 @@
     font-size: 10px; color: var(--muted); margin-top: 3px; font-weight: 500;
   }
 
+  /* ── Metric bar ── */
+  .metric-bar {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 22px; flex-wrap: wrap;
+  }
+  .metric-cards {
+    display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr));
+    gap: 12px; flex: 1; min-width: 320px;
+  }
+  .metric-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.03);
+  }
+  .metric-label {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .metric-value {
+    font-size: 30px; font-weight: 800; color: var(--text);
+    margin-top: 4px; letter-spacing: -0.02em; line-height: 1.1;
+  }
+  .metric-sub {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+  }
+  .month-picker-wrap {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  }
+  .mp-label { font-size: 11px; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em; }
+  .month-picker {
+    background: #fff; border: 1px solid var(--border); border-radius: 9px;
+    padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--text);
+    font-family: inherit; cursor: pointer; min-width: 180px;
+  }
+
+  /* ── Dead deals zone ── */
+  #dead-zone {
+    margin-top: 22px; padding: 14px 18px; border: 1px dashed #cbd5e1;
+    border-radius: 12px; background: #f8fafc;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  #dead-zone.drop-target { background: #fef2f2; border-color: #fca5a5; }
+  .dead-head {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
+  }
+  .dead-head-left { display: flex; align-items: center; gap: 10px; }
+  .dead-icon { font-size: 14px; opacity: 0.7; }
+  #dead-zone h3 { font-size: 13px; font-weight: 700; color: var(--text); }
+  .dead-count {
+    background: #e2e8f0; color: var(--muted); font-size: 11px; font-weight: 700;
+    border-radius: 999px; padding: 2px 9px;
+  }
+  .dead-toggle { color: var(--muted); font-size: 14px; }
+  .dead-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .dead-list {
+    margin-top: 12px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+  }
+  .d-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 12px; display: flex; align-items: center;
+    gap: 8px; opacity: 0.75;
+  }
+  .d-card-name { flex: 1; min-width: 0; font-weight: 600; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .d-card-restore {
+    background: none; border: none; cursor: pointer; color: var(--muted);
+    font-size: 11px; font-weight: 600; padding: 3px 7px; border-radius: 5px;
+  }
+  .d-card-restore:hover { background: #f1f5f9; color: var(--text); }
+
   /* ── Unassigned events zone ── */
   #unassigned-zone {
     margin-top: 28px; padding: 18px; border: 1px dashed #cbd5e1;
@@ -1158,6 +1231,30 @@
 
 <!-- Kanban View -->
 <div id="kanban" class="active">
+  <div class="metric-bar">
+    <div class="metric-cards">
+      <div class="metric-card">
+        <div class="metric-label">SALs</div>
+        <div class="metric-value" id="metric-sals">0</div>
+        <div class="metric-sub">AE Discovery + S1 + S2</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Meetings</div>
+        <div class="metric-value" id="metric-meetings">0</div>
+        <div class="metric-sub" id="metric-meetings-sub">in selected month</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Opportunities</div>
+        <div class="metric-value" id="metric-opps">0</div>
+        <div class="metric-sub" id="metric-opps-sub">with activity this month</div>
+      </div>
+    </div>
+    <div class="month-picker-wrap">
+      <label class="mp-label" for="month-picker">Showing metrics for</label>
+      <select id="month-picker" class="month-picker" onchange="onMonthChange(this.value)"></select>
+    </div>
+  </div>
+
   <div class="kanban-toolbar">
     <h2 id="kanban-title">Pipeline</h2>
     <div class="kt-actions">
@@ -1173,6 +1270,22 @@
       <p>Drag a meeting onto a column to create a new opportunity in that stage.</p>
     </div>
     <div class="unassigned-list" id="unassigned-list"></div>
+  </div>
+
+  <div id="dead-zone"
+       ondragover="deadZoneDragOver(event)"
+       ondragleave="deadZoneDragLeave(event)"
+       ondrop="deadZoneDrop(event)">
+    <div class="dead-head" onclick="toggleDeadZone()">
+      <div class="dead-head-left">
+        <span class="dead-icon">⚰️</span>
+        <h3>Dead deals</h3>
+        <span class="dead-count" id="dead-count">0</span>
+      </div>
+      <span class="dead-toggle" id="dead-toggle">▸</span>
+    </div>
+    <div class="dead-hint">Drag a card here to mark it dead. It'll stay hidden from the columns above.</div>
+    <div class="dead-list" id="dead-list" style="display:none;"></div>
   </div>
 </div>
 
@@ -1396,6 +1509,7 @@ const GCAL_COLORS = [
   { id: '11', name: 'Tomato',    hex: '#d60000' },
 ];
 let syncColors = []; // colorIds to include when syncing — per user
+let selectedMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
 
 function defaultStagesClone() {
   return JSON.parse(JSON.stringify(DEFAULT_STAGES));
@@ -2517,10 +2631,16 @@ function selectUser(name) {
 
   // Load data and render
   loadData();
+  // Restore month preference
+  const savedMonth = localStorage.getItem(`pipeline_v2_${name}_month`);
+  if (savedMonth) selectedMonth = savedMonth;
+  populateMonthPicker();
   renderStats();
   renderTimeline();
   // Kanban only (timeline view removed)
   setView('kanban');
+  renderMetrics();
+  renderDeadZone();
 
   // Check for previously-connected calendar email
   const savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
@@ -2721,18 +2841,29 @@ function s1StageId() {
   return s ? s.id : null;
 }
 
+function lastMeetingDate(c) {
+  if (!c.meetings || !c.meetings.length) return '';
+  return [...c.meetings].sort().pop();
+}
+function sortStageCompanies(arr, stage) {
+  return [...arr].sort((a, b) => {
+    if (stage.sortByLikelyS1) {
+      const av = a.likelyS1 ? 1 : 0, bv = b.likelyS1 ? 1 : 0;
+      if (av !== bv) return bv - av;
+    }
+    const da = lastMeetingDate(a), db = lastMeetingDate(b);
+    if (da !== db) return db.localeCompare(da); // most recent first
+    return (a.name || '').localeCompare(b.name || '');
+  });
+}
+
 function renderKanban() {
   const board = document.getElementById('kanban-board');
   if (!board) return;
   companies.forEach(ensureCompanyStage);
+  const visible = companies.filter(c => !c.dead);
   const html = stages.map((stage, idx) => {
-    let stageCompanies = companies.filter(c => c.stageId === stage.id);
-    if (stage.sortByLikelyS1) {
-      stageCompanies = [...stageCompanies].sort((a, b) => {
-        const av = a.likelyS1 ? 1 : 0, bv = b.likelyS1 ? 1 : 0;
-        return bv - av;
-      });
-    }
+    let stageCompanies = sortStageCompanies(visible.filter(c => c.stageId === stage.id), stage);
     const safeId = stage.id.replace(/'/g,"\\'");
     const stageColor = colorHex(stage.color);
     const stageSoft = colorSoft(stage.color);
@@ -2807,6 +2938,8 @@ function renderKanban() {
       </div>`;
   }).join('');
   board.innerHTML = html;
+  renderMetrics();
+  renderDeadZone();
 }
 
 function escapeHTML(s) {
@@ -2819,6 +2952,115 @@ function daysSinceFirstMeeting(c) {
   const ms = Date.now() - new Date(first).getTime();
   if (ms < 0) return null; // first meeting is in the future
   return Math.floor(ms / 86400000);
+}
+
+// ── Month picker + metrics ──
+function populateMonthPicker() {
+  const sel = document.getElementById('month-picker');
+  if (!sel) return;
+  const now = new Date();
+  const months = [];
+  // 12 months back + 2 months forward, anchored on today
+  for (let i = -2; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    months.push({ key, label });
+  }
+  sel.innerHTML = months.map(m =>
+    `<option value="${m.key}" ${m.key===selectedMonth?'selected':''}>${m.label}</option>`
+  ).join('');
+  // Update the metric subtitle with the actual month label
+  const current = months.find(m => m.key === selectedMonth) || months[0];
+  if (current) {
+    const sub = `in ${current.label}`;
+    const a = document.getElementById('metric-meetings-sub');
+    const b = document.getElementById('metric-opps-sub');
+    if (a) a.textContent = sub;
+    if (b) b.textContent = `with activity in ${current.label}`;
+  }
+}
+function onMonthChange(v) {
+  selectedMonth = v;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_month`, v);
+  populateMonthPicker();
+  renderMetrics();
+}
+function dateInSelectedMonth(d) {
+  if (!d) return false;
+  return d.substring(0, 7) === selectedMonth;
+}
+function renderMetrics() {
+  const sals = companies.filter(c => !c.dead && /AE Discovery|S1|S2/i.test((findStage(c.stageId) || {}).label || ''))
+    .filter(c => (c.meetings || []).some(d => dateInSelectedMonth(d)))
+    .length;
+  let meetings = 0;
+  companies.forEach(c => {
+    if (c.dead) return;
+    (c.meetings || []).forEach(d => { if (dateInSelectedMonth(d)) meetings++; });
+  });
+  const opps = companies.filter(c => !c.dead && (c.meetings || []).some(d => dateInSelectedMonth(d))).length;
+  const e1 = document.getElementById('metric-sals');
+  const e2 = document.getElementById('metric-meetings');
+  const e3 = document.getElementById('metric-opps');
+  if (e1) e1.textContent = sals;
+  if (e2) e2.textContent = meetings;
+  if (e3) e3.textContent = opps;
+}
+
+// ── Dead-deals pile ──
+function renderDeadZone() {
+  const list = document.getElementById('dead-list');
+  const count = document.getElementById('dead-count');
+  if (!list || !count) return;
+  const dead = companies.filter(c => c.dead);
+  count.textContent = dead.length;
+  if (!dead.length) {
+    list.innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:6px 2px;">Nothing here yet.</div>';
+    return;
+  }
+  list.innerHTML = dead.map(c => {
+    const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `
+      <div class="d-card">
+        <span class="d-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
+        <button class="d-card-restore" onclick="restoreFromDead('${safeN}')">Restore</button>
+      </div>`;
+  }).join('');
+}
+function toggleDeadZone() {
+  const list = document.getElementById('dead-list');
+  const toggle = document.getElementById('dead-toggle');
+  if (!list || !toggle) return;
+  const open = list.style.display !== 'none';
+  list.style.display = open ? 'none' : 'grid';
+  toggle.textContent = open ? '▸' : '▾';
+}
+function deadZoneDragOver(e) {
+  if (draggingCardName == null) return;
+  e.preventDefault();
+  document.getElementById('dead-zone').classList.add('drop-target');
+}
+function deadZoneDragLeave(e) {
+  const z = document.getElementById('dead-zone');
+  if (!z.contains(e.relatedTarget)) z.classList.remove('drop-target');
+}
+function deadZoneDrop(e) {
+  e.preventDefault();
+  document.getElementById('dead-zone').classList.remove('drop-target');
+  if (!draggingCardName) return;
+  const c = companies.find(x => x.name === draggingCardName);
+  if (!c) return;
+  c.dead = true;
+  saveData(); renderKanban(); renderDeadZone(); renderMetrics();
+  draggingCardName = null;
+}
+function restoreFromDead(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  c.dead = false;
+  saveData(); renderKanban(); renderDeadZone(); renderMetrics();
 }
 
 // ── Per-card actions: Likely S1 + Flip to S1 ──
