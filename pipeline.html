@@ -680,6 +680,273 @@
     font-weight: 600; text-decoration: underline;
   }
   .switch-btn:hover { color: var(--text); }
+
+  /* ── View Toggle ── */
+  .view-toggle {
+    display: inline-flex; background: #fff; border: 1px solid var(--border);
+    border-radius: 10px; padding: 3px; gap: 2px;
+  }
+  .view-toggle button {
+    background: none; border: none; cursor: pointer;
+    padding: 6px 12px; font-size: 12px; font-weight: 600;
+    color: var(--muted); border-radius: 7px;
+    font-family: inherit;
+  }
+  .view-toggle button.active {
+    background: var(--text); color: #fff;
+  }
+  .view-toggle button:not(.active):hover { background: #f1f5f9; color: var(--text); }
+
+  /* ── Kanban Board ── */
+  #kanban { display: none; }
+  #kanban.active { display: block; }
+  .kanban-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; gap: 12px;
+  }
+  .kanban-toolbar h2 { font-size: 18px; font-weight: 700; }
+  .kanban-toolbar .kt-actions { display: flex; gap: 8px; }
+  .kanban-toolbar button {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 13px; font-size: 12px; font-weight: 600; color: var(--text);
+    cursor: pointer; font-family: inherit;
+  }
+  .kanban-toolbar button:hover { background: #f8fafc; border-color: #c7d2e0; }
+  .kanban-board {
+    display: flex; gap: 14px; overflow-x: auto; padding-bottom: 16px;
+    align-items: flex-start;
+  }
+  .kanban-col {
+    flex: 0 0 280px; background: #f8fafc; border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px; max-height: calc(100vh - 280px);
+    display: flex; flex-direction: column;
+  }
+  .kanban-col.drop-target { background: #eff6ff; border-color: #93c5fd; }
+  .kc-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; gap: 6px;
+  }
+  .kc-head-left { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+  .kc-drag-handle {
+    cursor: grab; color: #cbd5e1; font-size: 14px; user-select: none;
+    padding: 0 2px;
+  }
+  .kc-drag-handle:active { cursor: grabbing; }
+  .kc-label {
+    font-size: 13px; font-weight: 700; color: var(--text);
+    flex: 1; min-width: 0; padding: 4px 6px; border-radius: 5px;
+    cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .kc-label:hover { background: #e2e8f0; }
+  .kc-label:focus { outline: 2px solid #3b82f6; background: #fff; }
+  .kc-count {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    background: #e2e8f0; border-radius: 999px; padding: 2px 8px; flex-shrink: 0;
+  }
+  .kc-menu-btn {
+    background: none; border: none; cursor: pointer; padding: 2px 6px;
+    color: var(--muted); font-size: 16px; line-height: 1; border-radius: 4px;
+  }
+  .kc-menu-btn:hover { background: #e2e8f0; color: var(--text); }
+  .kc-menu {
+    position: absolute; background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    z-index: 100; min-width: 140px;
+  }
+  .kc-menu button {
+    display: block; width: 100%; text-align: left; background: none;
+    border: none; padding: 7px 10px; font-size: 12px; font-weight: 500;
+    border-radius: 5px; cursor: pointer; color: var(--text); font-family: inherit;
+  }
+  .kc-menu button:hover { background: #f1f5f9; }
+  .kc-menu button.danger { color: var(--red); }
+  .kc-menu button.danger:hover { background: #fef2f2; }
+  .kc-cards {
+    flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    min-height: 40px; padding: 2px;
+  }
+  .kc-cards.drop-target { background: rgba(59,130,246,0.06); border-radius: 8px; }
+  .kc-add {
+    margin-top: 8px; background: none; border: none; cursor: pointer;
+    padding: 8px; font-size: 12px; font-weight: 600; color: var(--muted);
+    border-radius: 6px; text-align: left; font-family: inherit;
+  }
+  .kc-add:hover { background: #e2e8f0; color: var(--text); }
+
+  .k-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 12px; cursor: pointer;
+    transition: box-shadow 0.12s, transform 0.12s, border-color 0.12s;
+  }
+  .k-card:hover { border-color: #c7d2e0; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+  .k-card.dragging { opacity: 0.4; }
+  .k-card-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .k-card-logo {
+    width: 22px; height: 22px; border-radius: 5px; overflow: hidden;
+    flex-shrink: 0; background: #f1f5f9; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: var(--muted);
+  }
+  .k-card-logo img { width: 100%; height: 100%; object-fit: cover; }
+  .k-card-name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .k-card-meta {
+    display: flex; align-items: center; gap: 8px; font-size: 11px;
+    color: var(--muted); flex-wrap: wrap;
+  }
+  .k-card-pill {
+    background: #f1f5f9; border-radius: 999px; padding: 2px 7px;
+    font-size: 10px; font-weight: 600;
+  }
+  .k-card-pill.s1 { background: var(--green-bg); color: var(--green); }
+  .k-card-progress {
+    margin-top: 6px; height: 4px; background: #e2e8f0; border-radius: 2px;
+    overflow: hidden;
+  }
+  .k-card-progress-fill {
+    height: 100%; background: var(--green-dot);
+    transition: width 0.2s;
+  }
+
+  /* ── Card Modal ── */
+  #card-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+    z-index: 1000; align-items: flex-start; justify-content: center; padding: 60px 20px 20px;
+    overflow-y: auto;
+  }
+  #card-modal-overlay.show { display: flex; }
+  .card-modal {
+    background: #fff; border-radius: 14px; width: 100%; max-width: 560px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden;
+  }
+  .card-modal-head {
+    padding: 20px 22px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .card-modal-logo {
+    width: 44px; height: 44px; border-radius: 9px; overflow: hidden;
+    flex-shrink: 0; background: #f1f5f9; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: var(--muted);
+  }
+  .card-modal-logo img { width: 100%; height: 100%; object-fit: cover; }
+  .card-modal-titlewrap { flex: 1; min-width: 0; }
+  .card-modal-title {
+    font-size: 19px; font-weight: 700; padding: 2px 6px; margin: -2px -6px 4px;
+    border-radius: 5px; cursor: text;
+  }
+  .card-modal-title:hover { background: #f1f5f9; }
+  .card-modal-title:focus { outline: 2px solid #3b82f6; background: #fff; }
+  .card-modal-meta {
+    display: flex; align-items: center; gap: 10px; font-size: 12px;
+    color: var(--muted); flex-wrap: wrap;
+  }
+  .card-modal-stage-select {
+    background: #fff; border: 1px solid var(--border); border-radius: 7px;
+    padding: 4px 8px; font-size: 12px; font-weight: 600; color: var(--text);
+    font-family: inherit; cursor: pointer;
+  }
+  .card-modal-close {
+    background: none; border: none; cursor: pointer; font-size: 22px;
+    color: var(--muted); padding: 0 6px; line-height: 1;
+    align-self: flex-start;
+  }
+  .card-modal-close:hover { color: var(--text); }
+  .card-modal-body { padding: 18px 22px 8px; }
+  .card-modal-section-label {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;
+  }
+  .checklist {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .checklist-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 8px; border-radius: 7px; cursor: pointer;
+    transition: background 0.1s;
+  }
+  .checklist-item:hover { background: #f8fafc; }
+  .checklist-item input[type="checkbox"] {
+    width: 17px; height: 17px; cursor: pointer; flex-shrink: 0;
+    accent-color: var(--green-dot);
+  }
+  .checklist-item-text {
+    flex: 1; font-size: 13px; color: var(--text); padding: 2px 4px;
+    border-radius: 4px; cursor: text;
+    word-break: break-word;
+  }
+  .checklist-item-text:hover { background: #e2e8f0; }
+  .checklist-item-text:focus { outline: 2px solid #3b82f6; background: #fff; }
+  .checklist-item.done .checklist-item-text {
+    color: var(--muted); text-decoration: line-through;
+  }
+  .checklist-item-del {
+    background: none; border: none; cursor: pointer; font-size: 16px;
+    color: #cbd5e1; padding: 0 4px; line-height: 1; opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .checklist-item:hover .checklist-item-del { opacity: 1; }
+  .checklist-item-del:hover { color: var(--red); }
+  .checklist-add {
+    background: none; border: none; cursor: pointer;
+    padding: 8px 8px; font-size: 12px; font-weight: 600; color: var(--muted);
+    border-radius: 6px; text-align: left; font-family: inherit; margin-top: 4px;
+  }
+  .checklist-add:hover { background: #f1f5f9; color: var(--text); }
+  .card-modal-footer {
+    padding: 12px 22px 18px; display: flex; justify-content: space-between;
+    align-items: center; gap: 10px;
+  }
+  .card-modal-footer .progress-text {
+    font-size: 12px; font-weight: 600; color: var(--muted);
+  }
+  .card-modal-footer button.danger {
+    background: none; border: none; cursor: pointer; color: var(--red);
+    font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px;
+    font-family: inherit;
+  }
+  .card-modal-footer button.danger:hover { background: #fef2f2; }
+
+  /* ── Card email line ── */
+  .k-card-email {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ── Sync Settings modal ── */
+  #sync-settings-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+    z-index: 1100; align-items: flex-start; justify-content: center;
+    padding: 60px 20px 20px; overflow-y: auto;
+  }
+  #sync-settings-overlay.show { display: flex; }
+  .sync-settings-modal {
+    background: #fff; border-radius: 14px; width: 100%; max-width: 520px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden;
+  }
+  .color-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  }
+  .color-opt {
+    display: flex; align-items: center; gap: 10px; padding: 10px;
+    border: 1px solid var(--border); border-radius: 9px; cursor: pointer;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .color-opt:hover { background: #f8fafc; }
+  .color-opt.selected { background: #eff6ff; border-color: #93c5fd; }
+  .color-opt input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: var(--green-dot);
+  }
+  .color-swatch {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+  }
+  .color-opt-label { font-size: 13px; font-weight: 500; color: var(--text); }
 </style>
 </head>
 <body>
@@ -742,10 +1009,14 @@
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     </div>
     <div class="cal-area">
-      <button id="cal-btn" onclick="connectCalendar()">
-        <span class="gcal-icon"></span>
-        Connect Google Calendar
-      </button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button id="cal-btn" onclick="connectCalendar()">
+          <span class="gcal-icon"></span>
+          Connect Google Calendar
+        </button>
+        <button id="cal-settings-btn" onclick="openSyncSettings()" title="Calendar sync settings"
+          style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;cursor:pointer;line-height:1;">⚙</button>
+      </div>
       <div id="cal-status">
         <div class="dot-status"></div>
         <span>Not connected</span>
@@ -754,6 +1025,20 @@
   </div>
 </header>
 
+<!-- Kanban View -->
+<div id="kanban" class="active">
+  <div class="kanban-toolbar">
+    <h2 id="kanban-title">Pipeline</h2>
+    <div class="kt-actions">
+      <button onclick="openNewOppModal('','')">+ New Opportunity</button>
+      <button onclick="addStage()">+ Add Column</button>
+    </div>
+  </div>
+  <div class="kanban-board" id="kanban-board"></div>
+</div>
+
+<!-- Timeline View (existing) -->
+<div id="timeline-view" style="display:none">
 <div class="stats" id="stats"></div>
 
 <div class="tcard">
@@ -784,6 +1069,61 @@
     <div class="leg-item"><div class="leg-dot b"></div> In progress / No S1 yet</div>
     <div class="leg-item"><div class="leg-today"></div> Today (Feb 25)</div>
     <div class="leg-item"><div style="width:14px;height:3px;background:repeating-linear-gradient(to right,#f97316 0px,#f97316 4px,transparent 4px,transparent 7px);border-radius:2px"></div> Quota End (15th)</div>
+  </div>
+</div>
+
+</div><!-- /#timeline-view -->
+
+<!-- Sync Settings Modal -->
+<div id="sync-settings-overlay" onclick="if(event.target===this)closeSyncSettings()">
+  <div class="sync-settings-modal">
+    <div class="card-modal-head" style="border-bottom:1px solid var(--border);">
+      <div class="card-modal-titlewrap">
+        <div style="font-size:18px;font-weight:700;">Calendar sync settings</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Pick which Google Calendar event colors to pull into your pipeline.</div>
+      </div>
+      <button class="card-modal-close" onclick="closeSyncSettings()">×</button>
+    </div>
+    <div class="card-modal-body">
+      <div class="card-modal-section-label">Sync these colors</div>
+      <div id="color-picker-grid" class="color-grid"></div>
+    </div>
+    <div class="card-modal-footer">
+      <span class="progress-text" id="color-pick-count"></span>
+      <div style="display:flex;gap:8px;">
+        <button onclick="closeSyncSettings()" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;">Cancel</button>
+        <button onclick="saveSyncSettings()" style="background:var(--text);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Card Detail Modal -->
+<div id="card-modal-overlay" onclick="if(event.target===this)closeCardModal()">
+  <div class="card-modal">
+    <div class="card-modal-head">
+      <div class="card-modal-logo" id="cm-logo"></div>
+      <div class="card-modal-titlewrap">
+        <div class="card-modal-title" id="cm-title" contenteditable="true" spellcheck="false"
+             onblur="commitCardTitle(this)"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></div>
+        <div class="card-modal-meta">
+          <select class="card-modal-stage-select" id="cm-stage" onchange="moveCardStage(this.value)"></select>
+          <span id="cm-meetings"></span>
+          <span id="cm-s1"></span>
+        </div>
+      </div>
+      <button class="card-modal-close" onclick="closeCardModal()">×</button>
+    </div>
+    <div class="card-modal-body">
+      <div class="card-modal-section-label">Checklist</div>
+      <div class="checklist" id="cm-checklist"></div>
+      <button class="checklist-add" onclick="addChecklistItem()">+ Add task</button>
+    </div>
+    <div class="card-modal-footer">
+      <span class="progress-text" id="cm-progress"></span>
+      <button class="danger" onclick="deleteCardFromModal()">Delete opportunity</button>
+    </div>
   </div>
 </div>
 
@@ -861,6 +1201,77 @@ let companies = [];
 const PARENT_NAMES = {};
 const groupNames = {}; // groupId -> display name
 let dismissedCalEvents = new Set(); // event IDs manually marked as "already assigned"
+
+// ─────────────────────────────────────────────
+//  Kanban stages — configurable per user
+// ─────────────────────────────────────────────
+const DEFAULT_STAGES = [
+  { id: 's1', label: '1 · Meeting Booked', checklist: [
+    { id: 'i1', text: 'Send follow-up email' },
+  ]},
+  { id: 's2', label: '2 · Pre-Meeting', checklist: [
+    { id: 'i1', text: 'Send confirmation email (day before)' },
+    { id: 'i2', text: 'Create VSB' },
+  ]},
+  { id: 's3', label: '3 · Discovery Call', checklist: [
+    { id: 'i1', text: 'Run discovery call' },
+    { id: 'i2', text: 'Send next steps email same day' },
+  ]},
+  { id: 's4', label: '4 · Post-Discovery', checklist: [
+    { id: 'i1', text: 'Initiate NDA if needed' },
+    { id: 'i2', text: 'Collect footage / sample data' },
+    { id: 'i3', text: 'Send AE handoff (Slack + email)' },
+  ]},
+  { id: 's5', label: '5 · AE Handoff', checklist: [
+    { id: 'i1', text: 'Deliver VSB to AE' },
+    { id: 'i2', text: 'Sync with AE before next call' },
+  ]},
+  { id: 's6', label: '6 · Next Meeting', checklist: [
+    { id: 'i1', text: 'Confirm meeting with prospect' },
+    { id: 'i2', text: 'Run call with AE' },
+    { id: 'i3', text: 'Send follow-up & book next meeting' },
+  ]},
+  { id: 's7', label: '7 · Op Progression', checklist: [
+    { id: 'i1', text: 'Progress NDA' },
+    { id: 'i2', text: 'Build demo?' },
+    { id: 'i3', text: 'Ensure footage collected' },
+    { id: 'i4', text: 'Triangulate upward with champion' },
+  ]},
+];
+let stages = []; // deep-clone of DEFAULT_STAGES per user, can be edited
+let currentView = 'kanban'; // 'kanban' | 'timeline'
+let openCardName = null; // name of company currently shown in modal
+let openColMenuStageId = null;
+
+// Google Calendar color palette (colorId 1-11 as per Calendar API)
+const GCAL_COLORS = [
+  { id: '1',  name: 'Lavender',  hex: '#7986cb' },
+  { id: '2',  name: 'Sage',      hex: '#33b679' },
+  { id: '3',  name: 'Grape',     hex: '#8e24aa' },
+  { id: '4',  name: 'Flamingo',  hex: '#e67c73' },
+  { id: '5',  name: 'Banana',    hex: '#f6c026' },
+  { id: '6',  name: 'Tangerine', hex: '#f5511d' },
+  { id: '7',  name: 'Peacock',   hex: '#039be5' },
+  { id: '8',  name: 'Graphite',  hex: '#616161' },
+  { id: '9',  name: 'Blueberry', hex: '#3f51b5' },
+  { id: '10', name: 'Basil',     hex: '#0b8043' },
+  { id: '11', name: 'Tomato',    hex: '#d60000' },
+];
+let syncColors = []; // colorIds to include when syncing — per user
+
+function defaultStagesClone() {
+  return JSON.parse(JSON.stringify(DEFAULT_STAGES));
+}
+function genId(prefix) {
+  return prefix + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+}
+function findStage(id) { return stages.find(s => s.id === id); }
+function ensureCompanyStage(c) {
+  if (!c.stageId || !findStage(c.stageId)) {
+    c.stageId = stages[0] ? stages[0].id : 's1';
+  }
+  if (!c.checklistState) c.checklistState = {};
+}
 
 // ─────────────────────────────────────────────
 //  Timeline bounds
@@ -1261,6 +1672,8 @@ function renderTimeline() {
     </div>`;
   rowsHTML += `</div>`;
   document.getElementById('timeline').innerHTML = axisHTML + rowsHTML;
+  // Also refresh kanban so both views stay in sync after any mutation
+  if (document.getElementById('kanban-board')) renderKanban();
 }
 
 // ─────────────────────────────────────────────
@@ -1369,11 +1782,14 @@ function submitNewOpp() {
     : name.substring(0, 2).toUpperCase();
   // Register parent name if it's a new domain
   if (!PARENT_NAMES[domain]) PARENT_NAMES[domain] = name;
-  companies.push({ name, domain, init, meetings: date ? [date] : [], s1 });
+  const stageId = window._newOppTargetStage || (stages[0] && stages[0].id) || 's1';
+  window._newOppTargetStage = null;
+  companies.push({ name, domain, init, meetings: date ? [date] : [], s1, stageId, checklistState: {} });
   saveData();
   closeNewOppModal();
   renderStats();
   renderTimeline();
+  renderKanban();
 }
 
 // ─────────────────────────────────────────────
@@ -1452,7 +1868,9 @@ function resync() {
 }
 
 async function syncCalendar() {
-  const calColorId = USERS[currentUser]?.calColorId || '10';
+  const activeColors = (Array.isArray(syncColors) && syncColors.length)
+    ? syncColors
+    : [USERS[currentUser]?.calColorId || '10'];
 
   try {
     // Fetch the authenticated user's email if we don't have it yet
@@ -1482,9 +1900,9 @@ async function syncCalendar() {
     const data = await resp.json();
     const all = data.items || [];
 
-    // Only correctly-colored events (per user) that have external invitees
+    // Only events colored with any of the user's selected sync colors AND that have external invitees
     const events = all.filter(ev =>
-      ev.colorId === calColorId &&
+      activeColors.includes(ev.colorId) &&
       ev.attendees && ev.attendees.some(a => a.email !== calendarEmail)
     );
 
@@ -1542,13 +1960,91 @@ function processEvents(events) {
   }).filter(ev => ev.date >= new Date(Date.now() - 90*24*60*60*1000).toISOString().substring(0,10));
 
   pendingMatches = [];
-  pendingUnmatched = allEvents;
+  pendingUnmatched = [];
 
   if (!allEvents.length) {
     setCalStatus('connected', 'Connected — no qualifying events found in this period');
+    renderKanban();
     return;
   }
-  showCalPanel([], allEvents);
+
+  // ── Auto-attach to existing opportunities by shared attendee email ──
+  // Pass 1: events that match an existing company (any shared external attendee)
+  // Pass 2: remaining events that share an attendee with another unassigned event
+  //         → auto-create a single new opportunity per email cluster
+  const unmatched = [];
+  let attached = 0;
+  allEvents.forEach(ev => {
+    if (!ev.attendees.length) { unmatched.push(ev); return; }
+    const existing = findCompanyByAttendees(ev.attendees);
+    if (existing) {
+      // skip if this event is already recorded against that company
+      if (!existing.calendarMeetings || !existing.calendarMeetings.includes(ev.date)) {
+        attachEventToCompany(existing, ev);
+        attached++;
+      } else if (ev.attendees.length && !existing.primaryEmail) {
+        existing.primaryEmail = ev.attendees[0];
+      }
+    } else {
+      unmatched.push(ev);
+    }
+  });
+
+  // Cluster unmatched events by shared attendee email
+  const clusters = []; // [{emails:Set, events:[]}]
+  unmatched.forEach(ev => {
+    const cluster = clusters.find(c => ev.attendees.some(e => c.emails.has(e)));
+    if (cluster) {
+      ev.attendees.forEach(e => cluster.emails.add(e));
+      cluster.events.push(ev);
+    } else {
+      clusters.push({ emails: new Set(ev.attendees), events: [ev] });
+    }
+  });
+
+  let autoCreated = 0;
+  const stillUnassigned = [];
+  clusters.forEach(cl => {
+    if (cl.events.length < 2) {
+      // single unattributable event → leave for manual assign
+      stillUnassigned.push(cl.events[0]);
+      return;
+    }
+    // Auto-create a new opportunity from the cluster
+    const primaryEmail = Array.from(cl.emails)[0] || '';
+    const domain = primaryEmail ? primaryEmail.split('@')[1] : '';
+    // Derive a reasonable name: use the most common event title or fall back to domain
+    const titleCounts = {};
+    cl.events.forEach(e => { titleCounts[e.title] = (titleCounts[e.title]||0)+1; });
+    const bestTitle = Object.entries(titleCounts).sort((a,b)=>b[1]-a[1])[0][0];
+    const name = bestTitle || domain || primaryEmail;
+    // Avoid name collisions
+    let finalName = name; let i = 2;
+    while (companies.some(c => c.name === finalName)) finalName = `${name} (${i++})`;
+    const init = finalName.substring(0,2).toUpperCase();
+    const stageId = (stages[0] && stages[0].id) || 's1';
+    const c = {
+      name: finalName, domain, init,
+      meetings: [], s1: false, stageId, checklistState: {},
+      meetingAttendees: {}, calendarMeetings: [],
+      primaryEmail
+    };
+    companies.push(c);
+    cl.events.forEach(ev => attachEventToCompany(c, ev));
+    autoCreated++;
+  });
+
+  pendingUnmatched = stillUnassigned;
+
+  saveData();
+  renderKanban();
+
+  const total = allEvents.length;
+  const handled = attached + (allEvents.length - stillUnassigned.length - attached);
+  const msg = `Connected · ${attached} attached, ${autoCreated} new opportunit${autoCreated===1?'y':'ies'}, ${stillUnassigned.length} need review`;
+  setCalStatus('connected', msg);
+
+  if (stillUnassigned.length) showCalPanel([], stillUnassigned);
 }
 
 // ─────────────────────────────────────────────
@@ -1896,6 +2392,8 @@ function selectUser(name) {
   loadData();
   renderStats();
   renderTimeline();
+  // Kanban only (timeline view removed)
+  setView('kanban');
 
   // Check for previously-connected calendar email
   const savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
@@ -2065,6 +2563,465 @@ function removeFromGroup(companyName) {
 }
 
 // ─────────────────────────────────────────────
+//  View toggle + Kanban
+// ─────────────────────────────────────────────
+function setView(v) {
+  currentView = v;
+  const kanbanBtn = document.getElementById('view-kanban-btn');
+  const timelineBtn = document.getElementById('view-timeline-btn');
+  if (kanbanBtn) kanbanBtn.classList.toggle('active', v === 'kanban');
+  if (timelineBtn) timelineBtn.classList.toggle('active', v === 'timeline');
+  const kb = document.getElementById('kanban');
+  if (kb) kb.classList.toggle('active', v === 'kanban');
+  const tv = document.getElementById('timeline-view');
+  if (tv) tv.style.display = v === 'timeline' ? '' : 'none';
+  if (v === 'kanban') renderKanban();
+  else { renderStats(); renderTimeline(); }
+}
+
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  if (!board) return;
+  companies.forEach(ensureCompanyStage);
+  const html = stages.map((stage, idx) => {
+    const stageCompanies = companies.filter(c => c.stageId === stage.id);
+    const safeId = stage.id.replace(/'/g,"\\'");
+    const cardsHTML = stageCompanies.map(c => {
+      const state = (c.checklistState && c.checklistState[stage.id]) || {};
+      const done = stage.checklist.filter(it => state[it.id]).length;
+      const total = stage.checklist.length;
+      const pct = total ? Math.round((done/total)*100) : 0;
+      const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const initials = (c.init || c.name.substring(0,2)).toUpperCase();
+      const logo = c.domain
+        ? `<img src="https://logo.clearbit.com/${c.domain}" onerror="this.style.display='none';this.parentElement.textContent='${initials}';" />`
+        : initials;
+      const email = primaryEmailForCompany(c);
+      return `
+        <div class="k-card" draggable="true"
+             ondragstart="kCardDragStart(event,'${safeN}')"
+             ondragend="kCardDragEnd(event)"
+             onclick="openCardModal('${safeN}')">
+          <div class="k-card-head">
+            <div class="k-card-logo">${logo}</div>
+            <div class="k-card-name">${escapeHTML(c.name)}</div>
+          </div>
+          ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
+          <div class="k-card-meta">
+            <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
+            ${c.s1 ? '<span class="k-card-pill s1">S1</span>' : ''}
+            ${total ? `<span style="margin-left:auto">${done}/${total}</span>` : ''}
+          </div>
+          ${total ? `<div class="k-card-progress"><div class="k-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
+        </div>`;
+    }).join('');
+    return `
+      <div class="kanban-col" data-stage-id="${stage.id}"
+           ondragover="kColDragOver(event,'${safeId}')"
+           ondragleave="kColDragLeave(event)"
+           ondrop="kColDrop(event,'${safeId}')">
+        <div class="kc-head">
+          <div class="kc-head-left">
+            <span class="kc-drag-handle" draggable="true"
+                  ondragstart="kStageDragStart(event,'${safeId}')"
+                  ondragend="kStageDragEnd(event)"
+                  title="Drag to reorder">⋮⋮</span>
+            <span class="kc-label" contenteditable="true" spellcheck="false"
+                  onblur="commitStageLabel(this,'${safeId}')"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(stage.label)}</span>
+            <span class="kc-count">${stageCompanies.length}</span>
+          </div>
+          <button class="kc-menu-btn" onclick="event.stopPropagation();toggleColMenu(event,'${safeId}')">⋯</button>
+        </div>
+        <div class="kc-cards"
+             ondragover="kColDragOver(event,'${safeId}')"
+             ondragleave="kColDragLeave(event)"
+             ondrop="kColDrop(event,'${safeId}')">
+          ${cardsHTML || '<div style="color:#cbd5e1;font-size:12px;padding:8px;text-align:center;">Drop cards here</div>'}
+        </div>
+        <button class="kc-add" onclick="openNewOppModalForStage('${safeId}')">+ Add opportunity</button>
+      </div>`;
+  }).join('');
+  board.innerHTML = html;
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+// ── Stage management ──
+function addStage() {
+  const id = genId('s');
+  stages.push({ id, label: `New Column`, checklist: [] });
+  saveData(); renderKanban();
+  // focus the new label
+  setTimeout(() => {
+    const cols = document.querySelectorAll('#kanban-board .kanban-col');
+    const last = cols[cols.length-1];
+    if (last) {
+      const lbl = last.querySelector('.kc-label');
+      if (lbl) { lbl.focus(); document.getSelection().selectAllChildren(lbl); }
+    }
+  }, 0);
+}
+function commitStageLabel(el, stageId) {
+  const stage = findStage(stageId);
+  if (!stage) return;
+  const newLabel = el.textContent.trim() || stage.label;
+  if (newLabel !== stage.label) {
+    stage.label = newLabel;
+    saveData();
+    // also update modal stage select if open
+    if (openCardName) renderCardModalStageSelect();
+  }
+  el.textContent = stage.label;
+}
+function deleteStage(stageId) {
+  closeColMenu();
+  const stage = findStage(stageId);
+  if (!stage) return;
+  const used = companies.filter(c => c.stageId === stageId);
+  if (stages.length <= 1) { alert('Need at least one column.'); return; }
+  if (used.length) {
+    if (!confirm(`Delete "${stage.label}"? ${used.length} card${used.length===1?'':'s'} will move to "${stages[0].id === stageId ? stages[1].label : stages[0].label}".`)) return;
+    const fallback = stages.find(s => s.id !== stageId).id;
+    used.forEach(c => c.stageId = fallback);
+  } else {
+    if (!confirm(`Delete column "${stage.label}"?`)) return;
+  }
+  stages = stages.filter(s => s.id !== stageId);
+  saveData(); renderKanban();
+}
+function moveStage(stageId, dir) {
+  closeColMenu();
+  const i = stages.findIndex(s => s.id === stageId);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= stages.length) return;
+  [stages[i], stages[j]] = [stages[j], stages[i]];
+  saveData(); renderKanban();
+}
+function resetStages() {
+  if (!confirm('Reset columns and checklists back to defaults? Cards stay; checklist progress on default columns will be kept where item IDs still match.')) return;
+  stages = defaultStagesClone();
+  companies.forEach(ensureCompanyStage);
+  saveData(); renderKanban();
+}
+
+// ── Column menu ──
+function toggleColMenu(e, stageId) {
+  closeColMenu();
+  if (openColMenuStageId === stageId) { openColMenuStageId = null; return; }
+  openColMenuStageId = stageId;
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'kc-menu';
+  menu.id = 'active-col-menu';
+  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  menu.style.left = (rect.right + window.scrollX - 140) + 'px';
+  menu.innerHTML = `
+    <button onclick="moveStage('${stageId}',-1)">← Move left</button>
+    <button onclick="moveStage('${stageId}',1)">Move right →</button>
+    <button onclick="addStage();closeColMenu()">+ Add column</button>
+    <button onclick="resetStages()">Reset to defaults</button>
+    <button class="danger" onclick="deleteStage('${stageId}')">Delete column</button>`;
+  document.body.appendChild(menu);
+  setTimeout(() => document.addEventListener('click', closeColMenu, { once: true }), 0);
+}
+function closeColMenu() {
+  const m = document.getElementById('active-col-menu');
+  if (m) m.remove();
+  openColMenuStageId = null;
+}
+
+// ── Kanban drag-and-drop ──
+let draggingCardName = null;
+let draggingStageId = null;
+function kCardDragStart(e, name) {
+  draggingCardName = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', draggingCardName); } catch(_) {}
+}
+function kCardDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  draggingCardName = null;
+  document.querySelectorAll('.kanban-col.drop-target, .kc-cards.drop-target')
+    .forEach(el => el.classList.remove('drop-target'));
+}
+function kColDragOver(e, stageId) {
+  if (draggingCardName == null && draggingStageId == null) return;
+  e.preventDefault();
+  const col = e.currentTarget.closest('.kanban-col');
+  if (col) col.classList.add('drop-target');
+}
+function kColDragLeave(e) {
+  const col = e.currentTarget.closest('.kanban-col');
+  if (!col) return;
+  if (!col.contains(e.relatedTarget)) col.classList.remove('drop-target');
+}
+function kColDrop(e, stageId) {
+  e.preventDefault();
+  const col = e.currentTarget.closest('.kanban-col');
+  if (col) col.classList.remove('drop-target');
+  if (draggingStageId != null) {
+    // reorder columns
+    const fromIdx = stages.findIndex(s => s.id === draggingStageId);
+    const toIdx = stages.findIndex(s => s.id === stageId);
+    if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx) {
+      const [moved] = stages.splice(fromIdx, 1);
+      stages.splice(toIdx, 0, moved);
+      saveData(); renderKanban();
+    }
+    draggingStageId = null;
+    return;
+  }
+  if (!draggingCardName) return;
+  const c = companies.find(x => x.name === draggingCardName);
+  if (!c) return;
+  if (c.stageId !== stageId) {
+    c.stageId = stageId;
+    saveData(); renderKanban();
+    if (openCardName === c.name) renderCardModalStageSelect();
+  }
+}
+function kStageDragStart(e, stageId) {
+  draggingStageId = stageId;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', stageId); } catch(_) {}
+}
+function kStageDragEnd(e) {
+  draggingStageId = null;
+  document.querySelectorAll('.kanban-col.drop-target')
+    .forEach(el => el.classList.remove('drop-target'));
+}
+
+function openNewOppModalForStage(stageId) {
+  window._newOppTargetStage = stageId;
+  openNewOppModal('', '');
+}
+
+// ── Card modal ──
+function openCardModal(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  ensureCompanyStage(c);
+  openCardName = c.name;
+
+  const logo = document.getElementById('cm-logo');
+  const initials = (c.init || c.name.substring(0,2)).toUpperCase();
+  if (c.domain) {
+    logo.innerHTML = `<img src="https://logo.clearbit.com/${c.domain}" onerror="this.style.display='none';this.parentElement.textContent='${initials}';" />`;
+  } else {
+    logo.textContent = initials;
+  }
+  document.getElementById('cm-title').textContent = c.name;
+  const email = primaryEmailForCompany(c);
+  const meetingsStr = `${c.meetings ? c.meetings.length : 0} meeting${(c.meetings && c.meetings.length===1)?'':'s'}`;
+  document.getElementById('cm-meetings').textContent = email ? `${meetingsStr} · ${email}` : meetingsStr;
+  document.getElementById('cm-s1').innerHTML = c.s1 ? '<span class="k-card-pill s1">S1</span>' : '';
+
+  renderCardModalStageSelect();
+  renderChecklist();
+  document.getElementById('card-modal-overlay').classList.add('show');
+}
+function renderCardModalStageSelect() {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const sel = document.getElementById('cm-stage');
+  sel.innerHTML = stages.map(s =>
+    `<option value="${s.id}" ${s.id===c.stageId?'selected':''}>${escapeHTML(s.label)}</option>`
+  ).join('');
+}
+function renderChecklist() {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const stage = findStage(c.stageId);
+  if (!stage) return;
+  if (!c.checklistState) c.checklistState = {};
+  if (!c.checklistState[stage.id]) c.checklistState[stage.id] = {};
+  const state = c.checklistState[stage.id];
+  const html = stage.checklist.map(it => {
+    const done = !!state[it.id];
+    return `
+      <div class="checklist-item ${done?'done':''}">
+        <input type="checkbox" ${done?'checked':''} onchange="toggleChecklistItem('${it.id}')" />
+        <span class="checklist-item-text" contenteditable="true" spellcheck="false"
+              onblur="commitChecklistText('${it.id}',this)"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(it.text)}</span>
+        <button class="checklist-item-del" onclick="deleteChecklistItem('${it.id}')" title="Delete task">×</button>
+      </div>`;
+  }).join('');
+  document.getElementById('cm-checklist').innerHTML = html || '<div style="color:#94a3b8;font-size:12px;padding:8px 0;">No tasks yet.</div>';
+  const done = stage.checklist.filter(it => state[it.id]).length;
+  document.getElementById('cm-progress').textContent =
+    stage.checklist.length ? `${done} of ${stage.checklist.length} done` : '';
+}
+function toggleChecklistItem(itemId) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const stageId = c.stageId;
+  c.checklistState[stageId] = c.checklistState[stageId] || {};
+  c.checklistState[stageId][itemId] = !c.checklistState[stageId][itemId];
+  saveData(); renderChecklist(); renderKanban();
+}
+function commitChecklistText(itemId, el) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const stage = findStage(c.stageId);
+  if (!stage) return;
+  const item = stage.checklist.find(i => i.id === itemId);
+  if (!item) return;
+  const newText = el.textContent.trim();
+  if (!newText) { el.textContent = item.text; return; }
+  if (newText !== item.text) {
+    item.text = newText;
+    saveData(); renderKanban();
+  }
+}
+function deleteChecklistItem(itemId) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const stage = findStage(c.stageId);
+  if (!stage) return;
+  stage.checklist = stage.checklist.filter(i => i.id !== itemId);
+  if (c.checklistState[stage.id]) delete c.checklistState[stage.id][itemId];
+  saveData(); renderChecklist(); renderKanban();
+}
+function addChecklistItem() {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const stage = findStage(c.stageId);
+  if (!stage) return;
+  const newItem = { id: genId('i'), text: 'New task' };
+  stage.checklist.push(newItem);
+  saveData(); renderChecklist(); renderKanban();
+  setTimeout(() => {
+    const items = document.querySelectorAll('#cm-checklist .checklist-item-text');
+    const last = items[items.length-1];
+    if (last) { last.focus(); document.getSelection().selectAllChildren(last); }
+  }, 0);
+}
+function moveCardStage(newStageId) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  c.stageId = newStageId;
+  saveData(); renderChecklist(); renderKanban();
+}
+function commitCardTitle(el) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const newName = el.textContent.trim();
+  if (!newName) { el.textContent = c.name; return; }
+  if (newName === c.name) return;
+  if (companies.some(x => x !== c && x.name === newName)) {
+    alert('Another opportunity already has that name.');
+    el.textContent = c.name;
+    return;
+  }
+  // Update any references that key off the name
+  const oldName = c.name;
+  c.name = newName;
+  c.init = newName.substring(0,2).toUpperCase();
+  if (PARENT_NAMES[oldName]) { PARENT_NAMES[newName] = PARENT_NAMES[oldName]; delete PARENT_NAMES[oldName]; }
+  openCardName = newName;
+  saveData(); renderKanban(); renderTimeline && renderTimeline();
+}
+function deleteCardFromModal() {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  if (!confirm(`Delete opportunity "${c.name}"?`)) return;
+  companies = companies.filter(x => x !== c);
+  closeCardModal();
+  saveData(); renderKanban();
+  if (currentView === 'timeline') renderTimeline();
+}
+function closeCardModal() {
+  openCardName = null;
+  document.getElementById('card-modal-overlay').classList.remove('show');
+}
+
+// ─────────────────────────────────────────────
+//  Sync settings (calendar colors)
+// ─────────────────────────────────────────────
+function openSyncSettings() {
+  const grid = document.getElementById('color-picker-grid');
+  const sel = new Set(syncColors);
+  grid.innerHTML = GCAL_COLORS.map(c => {
+    const checked = sel.has(c.id);
+    return `
+      <label class="color-opt ${checked?'selected':''}">
+        <input type="checkbox" value="${c.id}" ${checked?'checked':''}
+               onchange="this.closest('.color-opt').classList.toggle('selected',this.checked);updateColorPickCount()" />
+        <span class="color-swatch" style="background:${c.hex}"></span>
+        <span class="color-opt-label">${c.name}</span>
+      </label>`;
+  }).join('');
+  updateColorPickCount();
+  document.getElementById('sync-settings-overlay').classList.add('show');
+}
+function updateColorPickCount() {
+  const n = document.querySelectorAll('#color-picker-grid input[type="checkbox"]:checked').length;
+  document.getElementById('color-pick-count').textContent = n ? `${n} color${n===1?'':'s'} selected` : 'No colors selected — sync will be empty';
+}
+function saveSyncSettings() {
+  const picks = Array.from(document.querySelectorAll('#color-picker-grid input[type="checkbox"]:checked')).map(i => i.value);
+  syncColors = picks;
+  saveData();
+  closeSyncSettings();
+}
+function closeSyncSettings() {
+  document.getElementById('sync-settings-overlay').classList.remove('show');
+}
+
+// ─────────────────────────────────────────────
+//  Attendee-based auto-grouping helpers
+// ─────────────────────────────────────────────
+function externalAttendeesOf(c) {
+  const out = new Set();
+  if (c.primaryEmail) out.add(c.primaryEmail);
+  if (c.meetingAttendees) {
+    Object.values(c.meetingAttendees).forEach(arr => arr.forEach(e => out.add(e)));
+  }
+  return out;
+}
+function findCompanyByAttendees(emails) {
+  if (!emails || !emails.length) return null;
+  for (const c of companies) {
+    const known = externalAttendeesOf(c);
+    if (emails.some(e => known.has(e))) return c;
+  }
+  return null;
+}
+function primaryEmailForCompany(c) {
+  if (c.primaryEmail) return c.primaryEmail;
+  if (c.meetingAttendees) {
+    // Pick the most-recent meeting's first attendee
+    const dates = Object.keys(c.meetingAttendees).sort();
+    for (let i = dates.length - 1; i >= 0; i--) {
+      const arr = c.meetingAttendees[dates[i]] || [];
+      if (arr.length) return arr[0];
+    }
+  }
+  return '';
+}
+function attachEventToCompany(c, ev) {
+  if (!c.meetings.includes(ev.date)) c.meetings.push(ev.date);
+  c.meetings.sort();
+  if (!c.calendarMeetings) c.calendarMeetings = [];
+  if (!c.calendarMeetings.includes(ev.date)) c.calendarMeetings.push(ev.date);
+  if (ev.attendees && ev.attendees.length) {
+    if (!c.meetingAttendees) c.meetingAttendees = {};
+    // merge attendees if multiple events fall on the same date
+    const merged = new Set([...(c.meetingAttendees[ev.date] || []), ...ev.attendees]);
+    c.meetingAttendees[ev.date] = Array.from(merged);
+    if (!c.primaryEmail) c.primaryEmail = ev.attendees[0];
+  }
+  ensureCompanyStage(c);
+}
+
+// ─────────────────────────────────────────────
 function saveData() {
   if (!currentUser) return;
   try {
@@ -2072,6 +3029,8 @@ function saveData() {
     localStorage.setItem(`pipeline_v2_${currentUser}_parent_names`, JSON.stringify(PARENT_NAMES));
     localStorage.setItem(`pipeline_v2_${currentUser}_group_names`, JSON.stringify(groupNames));
     localStorage.setItem(`pipeline_v2_${currentUser}_dismissed_events`, JSON.stringify([...dismissedCalEvents]));
+    localStorage.setItem(`pipeline_v2_${currentUser}_stages`, JSON.stringify(stages));
+    localStorage.setItem(`pipeline_v2_${currentUser}_sync_colors`, JSON.stringify(syncColors));
   } catch(e) {}
 }
 
@@ -2080,12 +3039,21 @@ function loadData() {
   for (const k in PARENT_NAMES) delete PARENT_NAMES[k];
   for (const k in groupNames) delete groupNames[k];
   dismissedCalEvents = new Set();
+  stages = defaultStagesClone();
+  syncColors = USERS[currentUser]?.calColorId ? [USERS[currentUser].calColorId] : ['10'];
   if (!currentUser) return;
   try {
     const savedC = localStorage.getItem(`pipeline_v2_${currentUser}_companies`);
     const savedN = localStorage.getItem(`pipeline_v2_${currentUser}_parent_names`);
     const savedG = localStorage.getItem(`pipeline_v2_${currentUser}_group_names`);
     const savedD = localStorage.getItem(`pipeline_v2_${currentUser}_dismissed_events`);
+    const savedS = localStorage.getItem(`pipeline_v2_${currentUser}_stages`);
+    const savedCol = localStorage.getItem(`pipeline_v2_${currentUser}_sync_colors`);
+    if (savedCol) { try { const arr = JSON.parse(savedCol); if (Array.isArray(arr) && arr.length) syncColors = arr; } catch(_){} }
+    if (savedS) {
+      const parsed = JSON.parse(savedS);
+      if (Array.isArray(parsed) && parsed.length) stages = parsed;
+    }
     if (savedC) {
       companies = JSON.parse(savedC);
       if (savedN) Object.assign(PARENT_NAMES, JSON.parse(savedN));
@@ -2099,6 +3067,7 @@ function loadData() {
       if (oldN) Object.assign(PARENT_NAMES, JSON.parse(oldN));
       if (oldC) saveData(); // save under new key so migration only runs once
     }
+    companies.forEach(ensureCompanyStage);
   } catch(e) {}
 }
 
