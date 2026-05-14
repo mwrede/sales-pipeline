@@ -890,18 +890,34 @@
     padding-bottom: 4px; margin-bottom: 4px;
     border-bottom: 1px solid #e2e8f0;
   }
-  .k-card-task-group { margin-bottom: 6px; }
+  .k-card-task-group { margin-bottom: 4px; }
   .k-card-task-group:last-child { margin-bottom: 0; }
   .k-card-task-group-label {
-    display: flex; align-items: center; gap: 5px;
+    display: flex; align-items: center; gap: 6px; width: 100%;
     font-size: 10px; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.05em;
-    padding: 2px 0 3px 0;
+    padding: 4px 4px; border: none; background: none;
+    cursor: pointer; font-family: inherit; text-align: left;
+    border-radius: 5px;
+  }
+  .k-card-task-group-label:hover { background: #fff; color: var(--text); }
+  .k-card-task-group.open .k-card-task-group-label { color: var(--text); }
+  .k-card-task-caret {
+    width: 9px; flex-shrink: 0;
+    font-size: 9px; color: var(--muted);
+    transition: transform 0.15s;
   }
   .k-card-task-group-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--stage-color, #94a3b8);
     flex-shrink: 0;
+  }
+  .k-card-task-group-name { flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .k-card-task-group-count {
+    background: rgba(0,0,0,0.06); padding: 1px 6px; border-radius: 999px;
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    text-transform: none; letter-spacing: 0;
   }
 
   .k-card-tasks {
@@ -1162,17 +1178,31 @@
   .checklist-add:hover { background: #f1f5f9; color: var(--text); }
 
   /* Modal — per-stage checklist groups */
-  .cm-checklist-group { margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
+  .cm-checklist-group { margin-bottom: 10px; padding-bottom: 4px; border-bottom: 1px solid #f1f5f9; }
   .cm-checklist-group:last-child { border-bottom: none; margin-bottom: 0; }
   .cm-checklist-group-label {
-    display: flex; align-items: center; gap: 7px;
-    font-size: 11px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.06em;
-    padding: 4px 0 8px 0;
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 8px 4px; border: none; background: none;
+    cursor: pointer; font-family: inherit; text-align: left;
+    border-radius: 6px;
+  }
+  .cm-checklist-group-label:hover { background: #f8fafc; color: var(--text); }
+  .cm-checklist-group.open .cm-checklist-group-label { color: var(--text); }
+  .cm-checklist-caret {
+    width: 10px; font-size: 10px; color: var(--muted); flex-shrink: 0;
   }
   .cm-checklist-group-dot {
     width: 9px; height: 9px; border-radius: 50%;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08); flex-shrink: 0;
+  }
+  .cm-checklist-group-name { flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cm-checklist-group-count {
+    background: rgba(0,0,0,0.06); padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: none; letter-spacing: 0;
   }
   .cm-checklist-empty { font-size: 12px; color: #94a3b8; padding: 4px 8px; font-style: italic; }
   .cm-checklist-add { margin-top: 4px; }
@@ -4002,22 +4032,43 @@ function restoreFromHmmm(name) {
 }
 
 // ── Per-stage checklist on every card ──
+// Track which stage groups the user has manually expanded/collapsed. Key:
+// "<cardName>::<stageId>". A missing entry falls back to "current stage open".
+const cardStageExpand = new Map();
+function isStageOpen(c, stage) {
+  const key = c.name + '::' + stage.id;
+  if (cardStageExpand.has(key)) return cardStageExpand.get(key);
+  return stage.id === c.stageId;
+}
+function toggleStageOpen(safeN, stageId) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const stage = findStage(stageId);
+  if (!stage) return;
+  const cur = isStageOpen(c, stage);
+  cardStageExpand.set(name + '::' + stageId, !cur);
+  renderKanban();
+}
 function firstDueTask(c, stage) {
   if (!stage || !stage.checklist || !stage.checklist.length) return null;
   const state = (c.checklistState && c.checklistState[stage.id]) || {};
   return stage.checklist.find(it => !state[it.id]) || null;
 }
 function renderCardTaskList(c, stage, safeN) {
-  // Show only the current stage's checklist — past and future stage tasks
-  // are kept in the data but hidden on the tile.
-  if (!stage) return '';
-  const blocks = [stage].map(s => {
+  // Render every stage as a collapsible group. The card's CURRENT stage
+  // opens expanded by default; the rest collapse to just a caret + label.
+  // Click the caret/label to peek into another stage.
+  if (!stages || !stages.length) return '';
+  const blocks = stages.map(s => {
     const items = s.checklist || [];
     if (!items.length) return '';
     const state = (c.checklistState && c.checklistState[s.id]) || {};
     const safeStageId = s.id.replace(/'/g,"\\'");
     const color = colorHex(s.color);
-    const itemsHTML = items.map(item => {
+    const open = isStageOpen(c, s);
+    const doneCount = items.filter(it => state[it.id]).length;
+    const itemsHTML = !open ? '' : items.map(item => {
       const done = !!state[item.id];
       return `
         <div class="k-card-task-item ${done?'done':''}">
@@ -4031,10 +4082,15 @@ function renderCardTaskList(c, stage, safeN) {
         </div>`;
     }).join('');
     return `
-      <div class="k-card-task-group">
-        <div class="k-card-task-group-label" style="--stage-color:${color}">
-          <span class="k-card-task-group-dot"></span>${escapeHTML(s.label)}
-        </div>
+      <div class="k-card-task-group ${open?'open':''}">
+        <button type="button" class="k-card-task-group-label"
+                style="--stage-color:${color}"
+                onclick="event.stopPropagation();toggleStageOpen('${safeN}','${safeStageId}')">
+          <span class="k-card-task-caret">${open ? '▾' : '▸'}</span>
+          <span class="k-card-task-group-dot"></span>
+          <span class="k-card-task-group-name">${escapeHTML(s.label)}</span>
+          <span class="k-card-task-group-count">${doneCount}/${items.length}</span>
+        </button>
         ${itemsHTML}
       </div>`;
   }).join('');
@@ -4502,32 +4558,48 @@ function renderChecklist() {
   const c = companies.find(x => x.name === openCardName);
   if (!c) return;
   if (!c.checklistState) c.checklistState = {};
-  // Only show the current stage's tasks. Past and future stages' state is
-  // preserved in c.checklistState but not displayed here.
-  const stage = findStage(c.stageId);
-  if (!stage) { document.getElementById('cm-checklist').innerHTML = ''; return; }
-  if (!c.checklistState[stage.id]) c.checklistState[stage.id] = {};
-  const state = c.checklistState[stage.id];
-  const items = stage.checklist || [];
-  const safeStageId = stage.id.replace(/'/g,"\\'");
-  const inner = items.map(it => {
-    const done = !!state[it.id];
+  // Render every stage as a collapsible group, with the card's current
+  // stage expanded by default. Cards keep their per-card per-stage state.
+  let totalDone = 0, totalAll = 0;
+  const html = stages.map(s => {
+    if (!c.checklistState[s.id]) c.checklistState[s.id] = {};
+    const state = c.checklistState[s.id];
+    const items = s.checklist || [];
+    totalAll += items.length;
+    totalDone += items.filter(it => state[it.id]).length;
+    const safeStageId = s.id.replace(/'/g,"\\'");
+    const color = colorHex(s.color);
+    const open = isStageOpen(c, s);
+    const itemsHTML = !open ? '' : items.map(it => {
+      const done = !!state[it.id];
+      return `
+        <div class="checklist-item ${done?'done':''}">
+          <input type="checkbox" ${done?'checked':''}
+                 onchange="toggleChecklistItemAt('${safeStageId}','${it.id}')" />
+          <span class="checklist-item-text" contenteditable="true" spellcheck="false"
+                onblur="commitChecklistTextAt('${safeStageId}','${it.id}',this)"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(it.text)}</span>
+          <button class="checklist-item-del" onclick="deleteChecklistItemAt('${safeStageId}','${it.id}')" title="Delete task">×</button>
+        </div>`;
+    }).join('');
+    const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const stageDoneCount = items.filter(it => state[it.id]).length;
     return `
-      <div class="checklist-item ${done?'done':''}">
-        <input type="checkbox" ${done?'checked':''}
-               onchange="toggleChecklistItemAt('${safeStageId}','${it.id}')" />
-        <span class="checklist-item-text" contenteditable="true" spellcheck="false"
-              onblur="commitChecklistTextAt('${safeStageId}','${it.id}',this)"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(it.text)}</span>
-        <button class="checklist-item-del" onclick="deleteChecklistItemAt('${safeStageId}','${it.id}')" title="Delete task">×</button>
+      <div class="cm-checklist-group ${open?'open':''}">
+        <button type="button" class="cm-checklist-group-label"
+                onclick="toggleStageOpen('${safeN}','${safeStageId}')">
+          <span class="cm-checklist-caret">${open?'▾':'▸'}</span>
+          <span class="cm-checklist-group-dot" style="background:${color}"></span>
+          <span class="cm-checklist-group-name">${escapeHTML(s.label)}</span>
+          <span class="cm-checklist-group-count">${stageDoneCount}/${items.length}</span>
+        </button>
+        ${open ? (itemsHTML || '<div class="cm-checklist-empty">No tasks for this stage yet.</div>') : ''}
+        ${open ? `<button class="checklist-add cm-checklist-add" onclick="addChecklistItemAt('${safeStageId}')">+ Add task</button>` : ''}
       </div>`;
   }).join('');
-  document.getElementById('cm-checklist').innerHTML =
-    (inner || '<div class="cm-checklist-empty">No tasks for this stage yet.</div>')
-    + `<button class="checklist-add cm-checklist-add" onclick="addChecklistItemAt('${safeStageId}')">+ Add task</button>`;
-  const done = items.filter(it => state[it.id]).length;
+  document.getElementById('cm-checklist').innerHTML = html;
   document.getElementById('cm-progress').textContent =
-    items.length ? `${done} of ${items.length} done in ${stage.label}` : '';
+    totalAll ? `${totalDone} of ${totalAll} done across all stages` : '';
 }
 function toggleChecklistItemAt(stageId, itemId) {
   const c = companies.find(x => x.name === openCardName);
