@@ -1881,22 +1881,30 @@ let dismissedCalEvents = new Set(); // event IDs manually marked as "already ass
 // ─────────────────────────────────────────────
 const DEFAULT_STAGES = [
   { id: 's_sdr', label: 'SDR Discovery', color: '6', checklist: [
-    { id: 'i1', text: 'Send confirmation email (day before)' },
+    { id: 'i1', text: 'Send meeting confirmation email (day before)' },
     { id: 'i2', text: 'Create VSB' },
     { id: 'i3', text: 'Run discovery call' },
     { id: 'i4', text: 'Send next steps email same day' },
+    { id: 'i5', text: 'Create AE handoff doc' },
+    { id: 'i6', text: 'If relevant: initiate NDA' },
+    { id: 'i7', text: 'Keep prospect warm: send blog posts, features' },
   ]},
   { id: 's_ae', label: 'AE Discovery', color: '5', sortByLikelyS1: true, checklist: [
-    { id: 'i1', text: 'Deliver VSB to AE' },
+    { id: 'i1', text: 'Send updated VSB to AE' },
     { id: 'i2', text: 'Sync with AE before next call' },
-    { id: 'i3', text: 'Confirm meeting with prospect' },
+    { id: 'i3', text: 'Confirm meeting with prospect (day before)' },
     { id: 'i4', text: 'Run call with AE' },
-    { id: 'i5', text: 'Send follow-up & book next meeting' },
+    { id: 'i5', text: 'Send follow-up & book meeting' },
+    { id: 'i6', text: 'Keep prospect warm: send blog posts, features' },
+    { id: 'i7', text: 'If relevant: execute NDA' },
+    { id: 'i8', text: 'Create folder to collect prospect footage + data' },
+    { id: 'i9', text: 'Triangulate upward into account' },
   ]},
   { id: 's_s1', label: 'S1', color: '2', checklist: [
-    { id: 'i1', text: 'Initiate NDA if needed' },
-    { id: 'i2', text: 'Collect footage / sample data' },
-    { id: 'i3', text: 'Send AE handoff (Slack + email)' },
+    { id: 'i1', text: 'Collect footage / sample data' },
+    { id: 'i2', text: 'Execute NDA' },
+    { id: 'i3', text: 'Build demo if AE thinks it will progress deal' },
+    { id: 'i4', text: 'Triangulate upward into account' },
   ]},
   { id: 's_s2', label: 'S2', color: '10', checklist: [
     { id: 'i1', text: 'Progress NDA' },
