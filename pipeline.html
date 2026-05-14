@@ -2545,15 +2545,21 @@ async function syncCalendar() {
     const calId = encodeURIComponent(calendarEmail);
     const timeMin = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
     const timeMax = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
-    const resp = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${calId}/events` +
-      `?timeMin=${timeMin}&timeMax=${timeMax}` +
-      '&maxResults=500&singleEvents=true&orderBy=startTime',
-      { headers: { Authorization: 'Bearer ' + accessToken } }
-    );
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-    const all = data.items || [];
+    // Paginate — heavy calendars can have well over 500 events in the
+    // ±90 day window. Without nextPageToken we'd silently truncate.
+    let all = [];
+    let pageToken = null;
+    do {
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`
+        + `?timeMin=${timeMin}&timeMax=${timeMax}`
+        + '&maxResults=2500&singleEvents=true&orderBy=startTime'
+        + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      all = all.concat(data.items || []);
+      pageToken = data.nextPageToken || null;
+    } while (pageToken);
 
     // Only events colored with any of the user's stage-mapped colors AND with external invitees
     const events = all.filter(ev =>
