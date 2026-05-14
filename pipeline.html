@@ -680,6 +680,13 @@
     font-weight: 600; text-decoration: underline;
   }
   .switch-btn:hover { color: var(--text); }
+  .cloud-status {
+    font-size: 11px; color: var(--muted); padding: 2px 8px; border-radius: 999px;
+    background: #f1f5f9; font-weight: 600; margin-left: 4px;
+  }
+  .cloud-status[data-state="saving"] { background: #fff7ed; color: #9a3412; }
+  .cloud-status[data-state="error"]  { background: #fef2f2; color: var(--red); }
+  .cloud-status[data-state="idle"]   { background: #ecfdf5; color: #047857; }
 
   /* ── View Toggle ── */
   .view-toggle {
@@ -1228,6 +1235,7 @@
     <div class="user-indicator">
       <div class="user-avatar-sm" id="user-avatar-sm"></div>
       <span id="user-label"></span>
+      <span id="cloud-status" class="cloud-status" data-state="idle"></span>
       <button class="switch-btn" onclick="switchUser()">switch</button>
       <button class="switch-btn" onclick="exportData()">export</button>
       <button class="switch-btn" onclick="document.getElementById('import-file').click()">import</button>
@@ -1446,6 +1454,47 @@
 // ─────────────────────────────────────────────
 const CLIENT_ID = '543014356558-4bgon1sfme9956ee1p2povdm93lvbrro.apps.googleusercontent.com';
 const IS_CONFIGURED = CLIENT_ID !== 'YOUR_CLIENT_ID_HERE';
+
+// ─────────────────────────────────────────────
+//  Supabase — anon key (safe to ship in client code).
+//  One row per user in public.pipeline_blob, keyed by user_id.
+// ─────────────────────────────────────────────
+const SUPABASE_URL = 'https://sylxsaquzuochdvonuzr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5bHhzYXF1enVvY2hkdm9udXpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNzIyNDksImV4cCI6MjA4MTY0ODI0OX0.Y9Qh0qx_CB7RdkgvglpA5t6enoLSogiAC9l4ODYzEWY';
+function cloudReady() {
+  return !!SUPABASE_URL && !!SUPABASE_KEY && !SUPABASE_KEY.startsWith('<');
+}
+async function cloudLoad(userId) {
+  const url = `${SUPABASE_URL}/rest/v1/pipeline_blob?user_id=eq.${encodeURIComponent(userId)}&select=data`;
+  const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+  if (!r.ok) throw new Error(`cloudLoad ${r.status}: ${await r.text()}`);
+  const arr = await r.json();
+  return arr.length ? arr[0].data : null;
+}
+async function cloudSave(userId, data) {
+  const url = `${SUPABASE_URL}/rest/v1/pipeline_blob`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal'
+    },
+    body: JSON.stringify({ user_id: userId, data, updated_at: new Date().toISOString() })
+  });
+  if (!r.ok) throw new Error(`cloudSave ${r.status}: ${await r.text()}`);
+}
+function setCloudStatus(s) {
+  const el = document.getElementById('cloud-status');
+  if (!el) return;
+  const label = !cloudReady() ? '☁ Local only'
+    : s === 'saving' ? '☁ Syncing…'
+    : s === 'error' ? '☁ Sync error (local cached)'
+    : '☁ Synced';
+  el.textContent = label;
+  el.dataset.state = s || 'idle';
+}
 
 // ─────────────────────────────────────────────
 //  Users
@@ -2641,6 +2690,8 @@ function selectUser(name) {
   // Kanban only (timeline view removed)
   setView('kanban');
   renderMetrics();
+  setCloudStatus('idle');
+  refreshFromCloud();
 
   // Check for previously-connected calendar email
   const savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
@@ -3627,7 +3678,27 @@ function attachEventToCompany(c, ev) {
 }
 
 // ─────────────────────────────────────────────
-function saveData() {
+function buildCloudBlob() {
+  return {
+    companies,
+    parentNames: PARENT_NAMES,
+    groupNames,
+    dismissedEvents: [...dismissedCalEvents],
+    stages
+  };
+}
+function applyCloudBlob(b) {
+  if (!b || typeof b !== 'object') return;
+  if (Array.isArray(b.companies)) companies = b.companies;
+  for (const k in PARENT_NAMES) delete PARENT_NAMES[k];
+  if (b.parentNames) Object.assign(PARENT_NAMES, b.parentNames);
+  for (const k in groupNames) delete groupNames[k];
+  if (b.groupNames) Object.assign(groupNames, b.groupNames);
+  if (Array.isArray(b.dismissedEvents)) dismissedCalEvents = new Set(b.dismissedEvents);
+  if (Array.isArray(b.stages) && b.stages.length) stages = b.stages;
+  companies.forEach(ensureCompanyStage);
+}
+function saveDataLocal() {
   if (!currentUser) return;
   try {
     localStorage.setItem(`pipeline_v2_${currentUser}_companies`, JSON.stringify(companies));
@@ -3637,6 +3708,41 @@ function saveData() {
     localStorage.setItem(`pipeline_v2_${currentUser}_stages`, JSON.stringify(stages));
     localStorage.setItem(`pipeline_v2_${currentUser}_sync_colors`, JSON.stringify(syncColors));
   } catch(e) {}
+}
+let cloudSaveTimer = null;
+function saveData() {
+  saveDataLocal();
+  if (!cloudReady() || !currentUser) { setCloudStatus('idle'); return; }
+  setCloudStatus('saving');
+  if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
+  const user = currentUser;
+  cloudSaveTimer = setTimeout(async () => {
+    cloudSaveTimer = null;
+    try {
+      await cloudSave(user, buildCloudBlob());
+      setCloudStatus('idle');
+    } catch (e) {
+      console.warn('cloud save failed', e);
+      setCloudStatus('error');
+    }
+  }, 800);
+}
+async function refreshFromCloud() {
+  if (!cloudReady() || !currentUser) return;
+  setCloudStatus('saving');
+  try {
+    const blob = await cloudLoad(currentUser);
+    if (blob) {
+      applyCloudBlob(blob);
+      saveDataLocal();
+      renderKanban();
+      renderMetrics();
+    }
+    setCloudStatus('idle');
+  } catch (e) {
+    console.warn('cloud load failed', e);
+    setCloudStatus('error');
+  }
 }
 
 function loadData() {
