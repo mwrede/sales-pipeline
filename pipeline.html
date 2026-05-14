@@ -2632,9 +2632,12 @@ function processEvents(events) {
     if (!ev.attendees.length) { unmatched.push(ev); return; }
     const existing = findCompanyByAttendees(ev.attendees);
     if (existing) {
+      const wasParked = existing.dead || existing.hmmm;
       if (!existing.calendarMeetings || !existing.calendarMeetings.includes(ev.date)) {
         attachEventToCompany(existing, ev);
         attached++;
+        // Auto-revive: a new meeting from the same prospect un-flags Dead/Hmmm
+        if (wasParked) { existing.dead = false; existing.hmmm = false; }
       } else if (ev.attendees.length && !existing.primaryEmail) {
         existing.primaryEmail = ev.attendees[0];
       }
@@ -4395,22 +4398,31 @@ function domainsOf(c) {
 }
 function findCompanyByAttendees(emails) {
   if (!emails || !emails.length) return null;
-  // Only consider live opps as match targets. Dead and Hmmm opps were
-  // explicitly removed from the active pipeline — a new sync event from
-  // the same prospect should create a fresh visible opp, not quietly
-  // attach to a hidden card.
-  const active = companies.filter(c => !c.dead && !c.hmmm);
-  // Pass 1: exact attendee email match — most reliable, even with rare typos
-  for (const c of active) {
+  // Prefer live opps first, but fall back to dead/hmmm so a new meeting
+  // can auto-revive a parked deal rather than spawning a duplicate.
+  const live = companies.filter(c => !c.dead && !c.hmmm);
+  const parked = companies.filter(c => c.dead || c.hmmm);
+  // Pass 1: exact attendee email match against live opps
+  for (const c of live) {
     const known = externalAttendeesOf(c);
     if (emails.some(e => known.has(e))) return c;
   }
-  // Pass 2: company-domain match — catches new people from the same prospect
+  // Pass 1b: exact attendee email match against dead/hmmm opps
+  for (const c of parked) {
+    const known = externalAttendeesOf(c);
+    if (emails.some(e => known.has(e))) return c;
+  }
+  // Pass 2: company-domain match against live opps
   const evDomains = emails
     .map(e => (e.split('@')[1] || '').toLowerCase())
     .filter(isCompanyDomain);
   if (!evDomains.length) return null;
-  for (const c of active) {
+  for (const c of live) {
+    const known = domainsOf(c);
+    if (evDomains.some(d => known.has(d))) return c;
+  }
+  // Pass 2b: domain match against dead/hmmm opps
+  for (const c of parked) {
     const known = domainsOf(c);
     if (evDomains.some(d => known.has(d))) return c;
   }
