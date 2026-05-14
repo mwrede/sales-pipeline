@@ -2562,7 +2562,16 @@ async function syncCalendar() {
     );
 
     const now = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
-    setCalStatus('connected', `Connected · ${events.length} of ${all.length} events matched (🟢 + invitees) · ${now}`);
+    // Per-color breakdown of what came through so users can see if their
+    // calendar tagging matches the stage colors they expect.
+    const byColor = {};
+    events.forEach(ev => { byColor[ev.colorId] = (byColor[ev.colorId] || 0) + 1; });
+    const colorSummary = Object.entries(byColor)
+      .sort((a,b) => b[1] - a[1])
+      .map(([cid, n]) => `${(GCAL_COLORS.find(c=>c.id===cid)||{}).name||cid}: ${n}`)
+      .join(', ');
+    console.info(`[sync] ${events.length}/${all.length} events kept. By color: ${colorSummary || '(none)'}`);
+    setCalStatus('connected', `${events.length}/${all.length} synced · ${colorSummary || 'no color-matched events'} · ${now}`);
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Google Calendar`;
     const sb = document.getElementById('sync-btn'); if (sb) sb.style.display = 'block';
     processEvents(events);
