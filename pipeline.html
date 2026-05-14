@@ -799,6 +799,18 @@
   }
   .k-card:hover { border-color: #c7d2e0; box-shadow: 0 2px 6px rgba(0,0,0,0.06); transform: translateY(-1px); }
   .k-card.dragging { opacity: 0.4; }
+  .k-card.merge-target {
+    outline: 2px solid #3b82f6; outline-offset: 1px;
+    box-shadow: 0 0 0 4px rgba(59,130,246,0.12);
+  }
+  .k-card.merge-target::after {
+    content: '⇢ Drop to merge'; position: absolute;
+    top: -22px; left: 50%; transform: translateX(-50%);
+    background: #3b82f6; color: #fff; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+    pointer-events: none;
+  }
+  .k-card { position: relative; }
   .k-card.likely-s1 {
     background: linear-gradient(180deg, rgba(51,182,121,0.06) 0%, #fff 60%);
   }
@@ -2868,6 +2880,9 @@ function renderKanban() {
         <div class="${cardCls}" draggable="true"
              ondragstart="kCardDragStart(event,'${safeN}')"
              ondragend="kCardDragEnd(event)"
+             ondragover="kCardDragOverCard(event,'${safeN}')"
+             ondragleave="kCardDragLeaveCard(event)"
+             ondrop="kCardDropOnCard(event,'${safeN}')"
              onclick="openCardModal('${safeN}')">
           <div class="k-card-head">
             <div class="k-card-logo">${logo}</div>
@@ -3166,8 +3181,92 @@ function kCardDragStart(e, name) {
 function kCardDragEnd(e) {
   e.currentTarget.classList.remove('dragging');
   draggingCardName = null;
+  document.querySelectorAll('.kanban-col.drop-target, .kc-cards.drop-target, .k-card.merge-target')
+    .forEach(el => el.classList.remove('drop-target', 'merge-target'));
+}
+
+// ── Merge: drag a card directly on top of another card ──
+function kCardDragOverCard(e, targetName) {
+  if (!draggingCardName) return;
+  const target = targetName.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  if (target === draggingCardName) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.add('merge-target');
+  // Don't let the column underneath also light up while merging
   document.querySelectorAll('.kanban-col.drop-target, .kc-cards.drop-target')
     .forEach(el => el.classList.remove('drop-target'));
+}
+function kCardDragLeaveCard(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('merge-target');
+  }
+}
+function kCardDropOnCard(e, targetName) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('merge-target');
+  if (!draggingCardName) return;
+  const target = targetName.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  if (target === draggingCardName) return;
+  mergeCards(draggingCardName, target);
+  draggingCardName = null;
+}
+
+function mergeCards(sourceName, targetName) {
+  const src = companies.find(c => c.name === sourceName);
+  const tgt = companies.find(c => c.name === targetName);
+  if (!src || !tgt) return;
+  if (!confirm(`Merge "${src.name}" into "${tgt.name}"?\n\nThis combines meetings, attendees, notes, and checklist progress into "${tgt.name}" and removes "${src.name}".`)) return;
+
+  // Meetings + calendar-source flags
+  const meetings = new Set([...(tgt.meetings || []), ...(src.meetings || [])]);
+  tgt.meetings = Array.from(meetings).sort();
+  const cal = new Set([...(tgt.calendarMeetings || []), ...(src.calendarMeetings || [])]);
+  tgt.calendarMeetings = Array.from(cal);
+
+  // Attendees per date
+  if (src.meetingAttendees) {
+    tgt.meetingAttendees = tgt.meetingAttendees || {};
+    Object.entries(src.meetingAttendees).forEach(([d, atts]) => {
+      const merged = new Set([...(tgt.meetingAttendees[d] || []), ...atts]);
+      tgt.meetingAttendees[d] = Array.from(merged);
+    });
+  }
+
+  // Notes: append source notes if any, separated by a blank line
+  if (src.notes && src.notes.trim()) {
+    tgt.notes = tgt.notes && tgt.notes.trim()
+      ? `${tgt.notes}\n\n— from ${src.name} —\n${src.notes}`
+      : src.notes;
+  }
+
+  // Primary email: keep target's, fall back to source's
+  if (!tgt.primaryEmail && src.primaryEmail) tgt.primaryEmail = src.primaryEmail;
+  if (!tgt.domain && src.domain) tgt.domain = src.domain;
+
+  // Flags merge with OR
+  tgt.s1 = !!(tgt.s1 || src.s1);
+  tgt.likelyS1 = !!(tgt.likelyS1 || src.likelyS1);
+
+  // Checklist state — target wins on conflict
+  if (src.checklistState) {
+    tgt.checklistState = tgt.checklistState || {};
+    Object.entries(src.checklistState).forEach(([sid, items]) => {
+      tgt.checklistState[sid] = tgt.checklistState[sid] || {};
+      Object.entries(items).forEach(([itemId, val]) => {
+        if (!(itemId in tgt.checklistState[sid])) {
+          tgt.checklistState[sid][itemId] = val;
+        }
+      });
+    });
+  }
+
+  // Remove source
+  companies = companies.filter(c => c !== src);
+  if (openCardName === src.name) closeCardModal();
+
+  saveData(); renderKanban(); renderMetrics();
 }
 function kColDragOver(e, stageId) {
   if (draggingCardName == null && draggingStageId == null && draggingUnassignedIdx == null) return;
