@@ -883,7 +883,21 @@
     flex: 1; font-size: 11px; color: #94a3b8; font-style: italic;
   }
 
-  /* (legacy) Full per-stage task list — kept in case toggle is ever used elsewhere */
+  /* Full all-stages task list on every card */
+  .k-card-task-group { margin-bottom: 6px; }
+  .k-card-task-group:last-child { margin-bottom: 0; }
+  .k-card-task-group-label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 2px 0 3px 0;
+  }
+  .k-card-task-group-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--stage-color, #94a3b8);
+    flex-shrink: 0;
+  }
+
   .k-card-tasks {
     display: flex; flex-direction: column; gap: 3px;
     margin-bottom: 8px; padding: 7px 8px; border-radius: 7px;
@@ -3963,20 +3977,58 @@ function firstDueTask(c, stage) {
   return stage.checklist.find(it => !state[it.id]) || null;
 }
 function renderCardTaskList(c, stage, safeN) {
-  // Compact next-due-task strip on the tile. Full checklist lives in the
-  // card modal (open it by clicking the tile).
-  if (!stage || !stage.checklist || !stage.checklist.length) return '';
-  const next = firstDueTask(c, stage);
-  if (!next) {
-    return `<div class="k-card-task" onclick="event.stopPropagation()"><span class="k-card-task-empty">✓ All tasks done</span></div>`;
+  // Show every stage's checklist on every tile, grouped by stage label.
+  // Per-card checked state is tracked separately for each stage.
+  if (!stages || !stages.length) return '';
+  const blocks = stages.map(s => {
+    const items = s.checklist || [];
+    if (!items.length) return '';
+    const state = (c.checklistState && c.checklistState[s.id]) || {};
+    const safeStageId = s.id.replace(/'/g,"\\'");
+    const color = colorHex(s.color);
+    const itemsHTML = items.map(item => {
+      const done = !!state[item.id];
+      return `
+        <div class="k-card-task-item ${done?'done':''}">
+          <input type="checkbox" ${done?'checked':''}
+                 onclick="event.stopPropagation()"
+                 onchange="toggleCardTaskAtStage('${safeN}','${safeStageId}','${item.id}')" />
+          <span class="k-card-task-item-text" contenteditable="true" spellcheck="false"
+                onclick="event.stopPropagation()"
+                onblur="commitTaskTextAtStage('${safeStageId}','${item.id}',this)"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(item.text)}</span>
+        </div>`;
+    }).join('');
+    return `
+      <div class="k-card-task-group">
+        <div class="k-card-task-group-label" style="--stage-color:${color}">
+          <span class="k-card-task-group-dot"></span>${escapeHTML(s.label)}
+        </div>
+        ${itemsHTML}
+      </div>`;
+  }).join('');
+  return `<div class="k-card-tasks" onclick="event.stopPropagation()">${blocks}</div>`;
+}
+function toggleCardTaskAtStage(safeN, stageId, itemId) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  c.checklistState = c.checklistState || {};
+  c.checklistState[stageId] = c.checklistState[stageId] || {};
+  c.checklistState[stageId][itemId] = !c.checklistState[stageId][itemId];
+  saveData(); renderKanban();
+}
+function commitTaskTextAtStage(stageId, itemId, el) {
+  const stage = findStage(stageId);
+  if (!stage) return;
+  const item = (stage.checklist || []).find(i => i.id === itemId);
+  if (!item) return;
+  const newText = el.textContent.trim();
+  if (!newText) { el.textContent = item.text; return; }
+  if (newText !== item.text) {
+    item.text = newText;
+    saveData(); renderKanban();
   }
-  return `
-    <div class="k-card-task" onclick="event.stopPropagation()">
-      <input type="checkbox" onchange="toggleCardTask('${safeN}','${next.id}')" />
-      <span class="k-card-task-text" contenteditable="true" spellcheck="false"
-            onblur="commitTaskTextOnCard('${safeN}','${next.id}',this)"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(next.text)}</span>
-    </div>`;
 }
 function addTaskOnCard(safeN) {
   const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
