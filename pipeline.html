@@ -3553,6 +3553,13 @@ function closeSyncSettings() {
 // ─────────────────────────────────────────────
 //  Attendee-based auto-grouping helpers
 // ─────────────────────────────────────────────
+// Free-mail and bulk-org domains we can't safely cluster by — too noisy.
+const NON_COMPANY_DOMAINS = new Set([
+  'gmail.com','yahoo.com','outlook.com','hotmail.com','icloud.com',
+  'me.com','mac.com','aol.com','protonmail.com','live.com','msn.com'
+]);
+function isCompanyDomain(d) { return !!d && !NON_COMPANY_DOMAINS.has(d.toLowerCase()); }
+
 function externalAttendeesOf(c) {
   const out = new Set();
   if (c.primaryEmail) out.add(c.primaryEmail);
@@ -3561,11 +3568,34 @@ function externalAttendeesOf(c) {
   }
   return out;
 }
+function domainsOf(c) {
+  const out = new Set();
+  const add = e => {
+    const d = (e.split('@')[1] || '').toLowerCase();
+    if (isCompanyDomain(d)) out.add(d);
+  };
+  if (c.primaryEmail) add(c.primaryEmail);
+  if (c.domain && isCompanyDomain(c.domain)) out.add(c.domain.toLowerCase());
+  if (c.meetingAttendees) {
+    Object.values(c.meetingAttendees).forEach(arr => arr.forEach(add));
+  }
+  return out;
+}
 function findCompanyByAttendees(emails) {
   if (!emails || !emails.length) return null;
+  // Pass 1: exact attendee email match — most reliable, even with rare typos
   for (const c of companies) {
     const known = externalAttendeesOf(c);
     if (emails.some(e => known.has(e))) return c;
+  }
+  // Pass 2: company-domain match — catches new people from the same prospect
+  const evDomains = emails
+    .map(e => (e.split('@')[1] || '').toLowerCase())
+    .filter(isCompanyDomain);
+  if (!evDomains.length) return null;
+  for (const c of companies) {
+    const known = domainsOf(c);
+    if (evDomains.some(d => known.has(d))) return c;
   }
   return null;
 }
