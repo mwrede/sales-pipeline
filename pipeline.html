@@ -846,6 +846,9 @@
   .k-card-btn.dead-btn:hover {
     background: #fef2f2; color: var(--red); border-color: #fecaca;
   }
+  .k-card-btn.hmmm-btn:hover {
+    background: #fffbeb; color: #b45309; border-color: #fde68a;
+  }
   .k-card-head {
     display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
   }
@@ -2992,7 +2995,7 @@ function renderKanban() {
   const board = document.getElementById('kanban-board');
   if (!board) return;
   companies.forEach(ensureCompanyStage);
-  const visible = companies.filter(c => !c.dead);
+  const visible = companies.filter(c => !c.dead && !c.hmmm);
   const html = stages.map((stage, idx) => {
     let stageCompanies = sortStageCompanies(visible.filter(c => c.stageId === stage.id), stage);
     const safeId = stage.id.replace(/'/g,"\\'");
@@ -3043,6 +3046,9 @@ function renderKanban() {
             <button class="k-card-btn dead-btn"
                     onclick="event.stopPropagation();markDead('${safeN}')"
                     title="Mark this opportunity dead">× Dead</button>
+            <button class="k-card-btn hmmm-btn"
+                    onclick="event.stopPropagation();markHmmm('${safeN}')"
+                    title="Park as uncertain — moves to Hmmm pile">🤔 Hmmm</button>
           </div>
         </div>`;
     }).join('');
@@ -3072,11 +3078,38 @@ function renderKanban() {
           ${cardsHTML || '<div style="color:#cbd5e1;font-size:12px;padding:8px;text-align:center;">Drop cards here</div>'}
         </div>
         <button class="kc-add" onclick="openNewOppModalForStage('${safeId}')">+ Add opportunity</button>
+      ${renderColumnHmmmSection(stage)}
       ${renderColumnDeadSection(stage)}
       </div>`;
   }).join('');
   board.innerHTML = html;
   renderMetrics();
+}
+
+function renderColumnHmmmSection(stage) {
+  const items = companies.filter(c => c.hmmm && !c.dead && c.stageId === stage.id);
+  if (!items.length) return '';
+  const open = !!hmmmOpenByStage[stage.id];
+  const safeId = stage.id.replace(/'/g,"\\'");
+  const cards = items.map(c => {
+    const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `
+      <div class="d-card">
+        <span class="d-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
+        <button class="d-card-restore" onclick="restoreFromHmmm('${safeN}')">Restore</button>
+      </div>`;
+  }).join('');
+  return `
+    <div class="kc-dead">
+      <button class="kc-dead-toggle" onclick="toggleColumnHmmm('${safeId}')">
+        <span class="kc-dead-toggle-left">
+          <span>🤔 Hmmm</span>
+          <span class="kc-dead-count">${items.length}</span>
+        </span>
+        <span>${open ? '▾' : '▸'}</span>
+      </button>
+      ${open ? `<div class="kc-dead-list">${cards}</div>` : ''}
+    </div>`;
 }
 
 function renderColumnDeadSection(stage) {
@@ -3154,15 +3187,17 @@ function dateInSelectedMonth(d) {
   return d.substring(0, 7) === selectedMonth;
 }
 function renderMetrics() {
-  const sals = companies.filter(c => !c.dead && /AE Discovery|S1|S2/i.test((findStage(c.stageId) || {}).label || ''))
+  const active = c => !c.dead && !c.hmmm;
+  const sals = companies.filter(active)
+    .filter(c => /AE Discovery|S1|S2/i.test((findStage(c.stageId) || {}).label || ''))
     .filter(c => (c.meetings || []).some(d => dateInSelectedMonth(d)))
     .length;
   let meetings = 0;
   companies.forEach(c => {
-    if (c.dead) return;
+    if (!active(c)) return;
     (c.meetings || []).forEach(d => { if (dateInSelectedMonth(d)) meetings++; });
   });
-  const opps = companies.filter(c => !c.dead && (c.meetings || []).some(d => dateInSelectedMonth(d))).length;
+  const opps = companies.filter(active).filter(c => (c.meetings || []).some(d => dateInSelectedMonth(d))).length;
   const e1 = document.getElementById('metric-sals');
   const e2 = document.getElementById('metric-meetings');
   const e3 = document.getElementById('metric-opps');
@@ -3171,10 +3206,15 @@ function renderMetrics() {
   if (e3) e3.textContent = opps;
 }
 
-// ── Per-column dead piles ──
+// ── Per-column Dead + Hmmm piles ──
 const deadOpenByStage = {}; // stageId -> bool
+const hmmmOpenByStage = {}; // stageId -> bool
 function toggleColumnDead(stageId) {
   deadOpenByStage[stageId] = !deadOpenByStage[stageId];
+  renderKanban();
+}
+function toggleColumnHmmm(stageId) {
+  hmmmOpenByStage[stageId] = !hmmmOpenByStage[stageId];
   renderKanban();
 }
 function markDead(name) {
@@ -3182,6 +3222,7 @@ function markDead(name) {
   const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.dead = true;
+  c.hmmm = false; // mutually exclusive
   saveData(); renderKanban(); renderMetrics();
   if (openCardName === c.name) closeCardModal();
 }
@@ -3190,6 +3231,22 @@ function restoreFromDead(name) {
   const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.dead = false;
+  saveData(); renderKanban(); renderMetrics();
+}
+function markHmmm(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  c.hmmm = true;
+  c.dead = false; // mutually exclusive
+  saveData(); renderKanban(); renderMetrics();
+  if (openCardName === c.name) closeCardModal();
+}
+function restoreFromHmmm(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  c.hmmm = false;
   saveData(); renderKanban(); renderMetrics();
 }
 
