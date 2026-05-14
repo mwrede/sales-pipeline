@@ -859,6 +859,32 @@
     background: var(--green-bg);
   }
 
+  /* Next-due task strip at the top of each card */
+  .k-card-task {
+    display: flex; align-items: center; gap: 7px;
+    margin-bottom: 8px; padding: 6px 8px; border-radius: 7px;
+    background: #f8fafc; border: 1px dashed #e2e8f0;
+  }
+  .k-card-task input[type="checkbox"] {
+    width: 13px; height: 13px; cursor: pointer; flex-shrink: 0;
+    accent-color: var(--green-dot); margin: 0;
+  }
+  .k-card-task-text {
+    flex: 1; min-width: 0;
+    font-size: 11px; font-weight: 600; color: var(--text);
+    padding: 2px 4px; border-radius: 4px; cursor: text;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .k-card-task-text:hover { background: #fff; }
+  .k-card-task-text:focus { outline: 2px solid #3b82f6; background: #fff; }
+  .k-card-task-empty {
+    flex: 1; font-size: 11px; color: #94a3b8; font-style: italic;
+  }
+
+  #task-toggle-btn[data-on="1"] {
+    background: var(--green-bg); color: var(--green); border-color: var(--green-border);
+  }
+
   /* Card action buttons */
   .k-card-actions {
     display: flex; gap: 6px; margin-top: 8px;
@@ -1455,6 +1481,7 @@
                oninput="setColumnWidth(this.value)" />
         <span class="cwc-val" id="col-width-val">300</span>
       </div>
+      <button id="task-toggle-btn" onclick="toggleCardTasksDisplay()" title="Show or hide the next-due task at the top of every card"></button>
       <button onclick="openNewOppModal('','')">+ New Opportunity</button>
       <button onclick="addStage()">+ Add Column</button>
     </div>
@@ -1779,6 +1806,7 @@ const GCAL_COLORS = [
 ];
 let syncColors = []; // colorIds to include when syncing — per user
 let selectedMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+let showCardTasks = true; // global toggle: show next-due task at the top of every card
 
 function defaultStagesClone() {
   return JSON.parse(JSON.stringify(DEFAULT_STAGES));
@@ -2927,6 +2955,7 @@ function selectUser(name) {
   // Kanban only (timeline view removed)
   setView('kanban');
   restoreColumnWidth();
+  restoreCardTasksPref();
   renderMetrics();
   setCloudStatus('idle');
   refreshFromCloud();
@@ -3171,6 +3200,7 @@ function renderKanban() {
       const email = primaryEmailForCompany(c);
       const age = daysSinceFirstMeeting(c);
       const isS1Stage = stage.id === s1StageId();
+      const nextTask = showCardTasks ? firstDueTask(c, stage) : null;
       const cardCls = ['k-card', c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '', isS1Stage ? 'is-s1' : '']
         .filter(Boolean).join(' ');
       return `
@@ -3181,6 +3211,12 @@ function renderKanban() {
              ondragleave="kCardDragLeaveCard(event)"
              ondrop="kCardDropOnCard(event,'${safeN}')"
              onclick="openCardModal('${safeN}')">
+          ${nextTask ? `<div class="k-card-task" onclick="event.stopPropagation()">
+            <input type="checkbox" onchange="toggleCardTask('${safeN}','${nextTask.id}')" />
+            <span class="k-card-task-text" contenteditable="true" spellcheck="false"
+                  onblur="commitTaskTextOnCard('${safeN}','${nextTask.id}',this)"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(nextTask.text)}</span>
+          </div>` : (showCardTasks && stage.checklist && stage.checklist.length ? `<div class="k-card-task" onclick="event.stopPropagation()"><span class="k-card-task-empty">✓ All tasks done</span></div>` : '')}
           <div class="k-card-head">
             <div class="k-card-logo">${logo}</div>
             <div class="k-card-name">${escapeHTML(c.name)}</div>
@@ -3545,6 +3581,56 @@ function restoreFromHmmm(name) {
   if (!c) return;
   c.hmmm = false;
   saveData(); renderKanban(); renderMetrics();
+}
+
+// ── Next-due task strip on cards ──
+function firstDueTask(c, stage) {
+  if (!stage || !stage.checklist || !stage.checklist.length) return null;
+  const state = (c.checklistState && c.checklistState[stage.id]) || {};
+  return stage.checklist.find(it => !state[it.id]) || null;
+}
+function toggleCardTask(safeN, itemId) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const stage = findStage(c.stageId);
+  if (!stage) return;
+  c.checklistState = c.checklistState || {};
+  c.checklistState[stage.id] = c.checklistState[stage.id] || {};
+  c.checklistState[stage.id][itemId] = !c.checklistState[stage.id][itemId];
+  saveData(); renderKanban();
+}
+function commitTaskTextOnCard(safeN, itemId, el) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const stage = findStage(c.stageId);
+  if (!stage) return;
+  const item = stage.checklist.find(i => i.id === itemId);
+  if (!item) return;
+  const newText = el.textContent.trim();
+  if (!newText) { el.textContent = item.text; return; }
+  if (newText !== item.text) {
+    item.text = newText;
+    saveData(); renderKanban();
+  }
+}
+function toggleCardTasksDisplay() {
+  showCardTasks = !showCardTasks;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_show_card_tasks`, showCardTasks ? '1' : '0');
+  updateTaskToggleBtn();
+  renderKanban();
+}
+function restoreCardTasksPref() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_show_card_tasks`) : null;
+  showCardTasks = (saved === null) ? true : (saved === '1');
+  updateTaskToggleBtn();
+}
+function updateTaskToggleBtn() {
+  const btn = document.getElementById('task-toggle-btn');
+  if (!btn) return;
+  btn.dataset.on = showCardTasks ? '1' : '0';
+  btn.textContent = showCardTasks ? '✓ Tasks on cards' : 'Tasks on cards';
 }
 
 // ── Per-card actions: Likely S1 + Flip to S1 ──
