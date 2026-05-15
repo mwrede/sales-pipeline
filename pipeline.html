@@ -974,6 +974,16 @@
   #task-toggle-btn[data-on="1"] {
     background: var(--green-bg); color: var(--green); border-color: var(--green-border);
   }
+  #ae-toggle-btn[data-on="1"] {
+    background: #eff6ff; color: #1e40af; border-color: #bfdbfe;
+  }
+  .ae-filter {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 11px; font-size: 12px; font-weight: 600;
+    color: var(--text); font-family: inherit; cursor: pointer;
+  }
+  .ae-filter:focus { outline: none; border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
 
   /* Snapshot banner */
   .snapshot-banner {
@@ -1235,6 +1245,45 @@
   .card-modal-footer button.danger:hover { background: #fef2f2; }
 
   /* ── Meetings view ── */
+  .mv-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .mv-metrics {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px; margin-bottom: 20px;
+  }
+  .mv-metric {
+    background: #fff; border: 1px solid var(--border); border-radius: 11px;
+    padding: 12px 14px; --metric-color: #94a3b8; position: relative; overflow: hidden;
+  }
+  .mv-metric::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0;
+    background: var(--metric-color);
+  }
+  .mv-metric-label {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .mv-metric-value {
+    font-size: 24px; font-weight: 800; color: var(--text);
+    margin-top: 4px; letter-spacing: -0.02em; line-height: 1.1;
+  }
+  .mv-metric-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  /* Not-attended state on a meeting card */
+  .mv-card.not-attended {
+    opacity: 0.55;
+    background: repeating-linear-gradient(135deg, #fff, #fff 5px, #fafbfc 5px, #fafbfc 10px);
+  }
+  .mv-card.not-attended .mv-card-name { text-decoration: line-through; }
+  .mv-card-na-toggle {
+    background: none; border: 1px solid var(--border); border-radius: 5px;
+    padding: 2px 7px; font-size: 9px; font-weight: 700; color: var(--muted);
+    cursor: pointer; font-family: inherit; margin-top: 5px;
+  }
+  .mv-card-na-toggle:hover { background: #f8fafc; color: var(--text); }
+  .mv-card-na-toggle.active {
+    background: #fef2f2; color: var(--red); border-color: #fecaca;
+  }
+
   .mv-head {
     display: flex; align-items: flex-start; justify-content: space-between;
     gap: 16px; margin-bottom: 18px;
@@ -1755,6 +1804,8 @@
                oninput="setColumnWidth(this.value)" />
         <span class="cwc-val" id="col-width-val">300</span>
       </div>
+      <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
+      <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
       <button id="task-toggle-btn" onclick="toggleCardTasksDisplay()" title="Show or hide the next-due task at the top of every card"></button>
       <button onclick="openSnapshotPanel()" title="Save the current state, or load a past snapshot">📸 Snapshots</button>
       <button onclick="openNewOppModal('','')">+ New Opportunity</button>
@@ -1785,10 +1836,15 @@
   <div class="mv-head">
     <div>
       <div class="tv-eyebrow">MEETINGS</div>
-      <h2>All meetings, bucketed by week</h2>
-      <p>Every meeting on every live opp. Click any card to open its opportunity.</p>
+      <h2>All meetings</h2>
+      <p>Click any card to open its opportunity. Click "Not attended" to mark a meeting as a no-show.</p>
+    </div>
+    <div class="mv-controls">
+      <label class="mp-label" for="mv-month">Month</label>
+      <select id="mv-month" class="month-picker" onchange="onMeetingsMonthChange(this.value)"></select>
     </div>
   </div>
+  <div class="mv-metrics" id="meetings-metrics"></div>
   <div class="mv-board" id="meetings-view-body"></div>
 </div>
 
@@ -2192,6 +2248,9 @@ const GCAL_COLORS = [
 let syncColors = []; // colorIds to include when syncing — per user
 let selectedMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
 let showCardTasks = true; // global toggle: show next-due task at the top of every card
+let showAEOnCards = true; // global toggle: show "AE: ___" pill on each tile
+let selectedAEFilter = ''; // '' = all AEs, 'unassigned', or an AE id from AES
+let selectedMeetingsMonth = 'all'; // 'all' or 'YYYY-MM' — filters the Meetings view
 
 function defaultStagesClone() {
   return JSON.parse(JSON.stringify(DEFAULT_STAGES));
@@ -3386,6 +3445,10 @@ function selectUser(name) {
   setView('kanban');
   restoreColumnWidth();
   restoreCardTasksPref();
+  restoreAEOnCardsPref();
+  restoreAEFilter();
+  const savedMeetingsMonth = localStorage.getItem(`pipeline_v2_${name}_meetings_month`);
+  selectedMeetingsMonth = savedMeetingsMonth || 'all';
   renderMetrics();
   setCloudStatus('idle');
   refreshFromCloud();
@@ -3615,7 +3678,12 @@ function renderKanban() {
   const board = document.getElementById('kanban-board');
   if (!board) return;
   companies.forEach(ensureCompanyStage);
-  const visible = companies.filter(c => !c.dead && !c.hmmm);
+  let visible = companies.filter(c => !c.dead && !c.hmmm);
+  if (selectedAEFilter === 'unassigned') {
+    visible = visible.filter(c => !c.ae);
+  } else if (selectedAEFilter) {
+    visible = visible.filter(c => c.ae === selectedAEFilter);
+  }
   const html = stages.map((stage, idx) => {
     let stageCompanies = sortStageCompanies(visible.filter(c => c.stageId === stage.id), stage);
     const safeId = stage.id.replace(/'/g,"\\'");
@@ -3652,7 +3720,7 @@ function renderKanban() {
             <div class="k-card-name">${escapeHTML(c.name)}</div>
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
-          ${c.ae && aeLabel(c.ae) ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span></div>` : ''}
+          ${showAEOnCards && c.ae && aeLabel(c.ae) ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span></div>` : ''}
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
@@ -3964,8 +4032,46 @@ async function confirmDeleteSnapshot(id, name) {
   }
 }
 
-// ── Meetings view (every meeting bucketed by week) ──
+// ── Meetings view (every meeting, optionally filtered by month) ──
+function populateMeetingsMonthPicker() {
+  const sel = document.getElementById('mv-month');
+  if (!sel) return;
+  // Build month options from the data range, plus 'all'
+  const monthsSet = new Set();
+  companies.forEach(c => (c.meetings || []).forEach(d => {
+    if (d && d.length >= 7) monthsSet.add(d.substring(0, 7));
+  }));
+  const months = Array.from(monthsSet).sort().reverse();
+  const opts = ['<option value="all">All months</option>']
+    .concat(months.map(m => {
+      const d = new Date(m + '-01');
+      const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      return `<option value="${m}" ${m===selectedMeetingsMonth?'selected':''}>${label}</option>`;
+    }));
+  sel.innerHTML = opts.join('');
+  sel.value = selectedMeetingsMonth || 'all';
+}
+function onMeetingsMonthChange(v) {
+  selectedMeetingsMonth = v || 'all';
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_meetings_month`, selectedMeetingsMonth);
+  renderMeetingsView();
+}
+function isNotAttended(c, date) {
+  return Array.isArray(c.notAttendedDates) && c.notAttendedDates.includes(date);
+}
+function toggleMeetingAttended(safeN, date) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  c.notAttendedDates = Array.isArray(c.notAttendedDates) ? c.notAttendedDates.slice() : [];
+  const i = c.notAttendedDates.indexOf(date);
+  if (i >= 0) c.notAttendedDates.splice(i, 1);
+  else c.notAttendedDates.push(date);
+  saveData(); renderMeetingsView();
+}
+
 function renderMeetingsView() {
+  populateMeetingsMonthPicker();
   const body = document.getElementById('meetings-view-body');
   if (!body) return;
   // Flatten every meeting across all live opps
@@ -3973,13 +4079,18 @@ function renderMeetingsView() {
   companies.forEach(c => {
     if (c.dead || c.hmmm) return;
     (c.meetings || []).forEach(date => {
+      // Month filter
+      if (selectedMeetingsMonth !== 'all' && date.substring(0, 7) !== selectedMeetingsMonth) return;
       items.push({
         date,
         company: c,
+        notAttended: isNotAttended(c, date),
         attendees: (c.meetingAttendees && c.meetingAttendees[date]) || []
       });
     });
   });
+  // Render metric tiles for the visible set
+  renderMeetingsMetrics(items);
   // Week boundaries (Monday-anchored)
   const today = new Date(); today.setHours(0,0,0,0);
   const startOfWeek = new Date(today);
@@ -4032,7 +4143,7 @@ function renderMeetingCard(it) {
   const stageColor = stage ? colorHex(stage.color) : '#94a3b8';
   const aeName = c.ae && aeLabel(c.ae) ? aeLabel(c.ae) : '';
   return `
-    <div class="mv-card" onclick="openCardModal('${safeN}')">
+    <div class="mv-card ${it.notAttended?'not-attended':''}" onclick="openCardModal('${safeN}')">
       <div class="mv-card-date">${day}</div>
       <div class="mv-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</div>
       ${primary ? `<div class="mv-card-email" title="${escapeHTML(primary)}">${escapeHTML(primary)}</div>` : ''}
@@ -4040,7 +4151,40 @@ function renderMeetingCard(it) {
         ${stage ? `<span class="mv-card-stage"><span class="mv-card-stage-dot" style="background:${stageColor}"></span>${escapeHTML(stage.label)}</span>` : ''}
         ${aeName ? `<span class="k-card-ae-pill">AE: ${escapeHTML(aeName)}</span>` : ''}
       </div>
+      <button class="mv-card-na-toggle ${it.notAttended?'active':''}"
+              onclick="event.stopPropagation();toggleMeetingAttended('${safeN}','${it.date}')"
+              title="Toggle whether this meeting was attended">
+        ${it.notAttended ? '✓ Not attended' : 'Mark not attended'}
+      </button>
     </div>`;
+}
+
+function renderMeetingsMetrics(items) {
+  const el = document.getElementById('meetings-metrics');
+  if (!el) return;
+  // Attended meetings drive the counts (not-attended are excluded)
+  const attended = items.filter(it => !it.notAttended);
+  const total = attended.length;
+  const naCount = items.filter(it => it.notAttended).length;
+  // Per stage counts (each meeting attributed to its opp's current stage)
+  const byStage = {};
+  attended.forEach(it => {
+    const sid = it.company.stageId || '';
+    byStage[sid] = (byStage[sid] || 0) + 1;
+  });
+  const uniqueOpps = new Set(attended.map(it => it.company.name)).size;
+  const tiles = [
+    { label: 'Total Meetings', value: total, color: '#0f172a', sub: naCount ? `${naCount} marked not attended` : '' },
+    { label: 'Unique Opps',    value: uniqueOpps, color: '#3b82f6', sub: 'with at least one meeting' }
+  ].concat(stages.map(s => ({
+    label: s.label, value: byStage[s.id] || 0, color: colorHex(s.color)
+  })));
+  el.innerHTML = tiles.map(t => `
+    <div class="mv-metric" style="--metric-color:${t.color}">
+      <div class="mv-metric-label">${escapeHTML(t.label)}</div>
+      <div class="mv-metric-value">${t.value}</div>
+      ${t.sub ? `<div class="mv-metric-sub">${escapeHTML(t.sub)}</div>` : ''}
+    </div>`).join('');
 }
 
 // ── Timeline view (company-grouped, dots colored by stage) ──
@@ -4475,6 +4619,42 @@ function updateTaskToggleBtn() {
   if (!btn) return;
   btn.dataset.on = showCardTasks ? '1' : '0';
   btn.textContent = showCardTasks ? '✓ Tasks on cards' : 'Tasks on cards';
+}
+
+// AE on cards + AE filter
+function toggleAEOnCards() {
+  showAEOnCards = !showAEOnCards;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_show_ae`, showAEOnCards ? '1' : '0');
+  updateAEToggleBtn();
+  renderKanban();
+}
+function restoreAEOnCardsPref() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_show_ae`) : null;
+  showAEOnCards = (saved === null) ? true : (saved === '1');
+  updateAEToggleBtn();
+}
+function updateAEToggleBtn() {
+  const btn = document.getElementById('ae-toggle-btn');
+  if (!btn) return;
+  btn.dataset.on = showAEOnCards ? '1' : '0';
+  btn.textContent = showAEOnCards ? '✓ AE on cards' : 'AE on cards';
+}
+function setAEFilter(v) {
+  selectedAEFilter = v;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_ae_filter`, v);
+  renderKanban();
+}
+function populateAEFilter() {
+  const sel = document.getElementById('ae-filter');
+  if (!sel) return;
+  sel.innerHTML = ['<option value="">All AEs</option>', '<option value="unassigned">— Unassigned —</option>']
+    .concat(AES.map(ae => `<option value="${ae.id}">${escapeHTML(ae.label)}</option>`)).join('');
+  sel.value = selectedAEFilter || '';
+}
+function restoreAEFilter() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_ae_filter`) : null;
+  selectedAEFilter = saved || '';
+  populateAEFilter();
 }
 
 // ── Per-card actions: Likely S1 + Flip to S1 ──
