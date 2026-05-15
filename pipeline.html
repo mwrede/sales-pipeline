@@ -1032,6 +1032,12 @@
     cursor: pointer; font-family: inherit;
   }
   .reset-btn:hover { background: #fee2e2; border-color: #fca5a5; }
+  .tidy-btn {
+    background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;
+    border-radius: 8px; padding: 7px 13px; font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  .tidy-btn:hover { background: #dbeafe; border-color: #93c5fd; }
 
   /* Card action buttons */
   .k-card-actions {
@@ -1227,6 +1233,72 @@
     font-family: inherit;
   }
   .card-modal-footer button.danger:hover { background: #fef2f2; }
+
+  /* ── Meetings view ── */
+  .mv-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; margin-bottom: 18px;
+  }
+  .mv-head h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+  .mv-head p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .mv-board {
+    display: flex; gap: 14px; align-items: stretch;
+    overflow-x: auto; padding-bottom: 16px;
+    min-height: calc(100vh - 280px);
+  }
+  .mv-col {
+    flex: 0 0 320px; width: 320px;
+    background: #f8fafc; border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px;
+    height: calc(100vh - 280px);
+    display: flex; flex-direction: column;
+    position: relative;
+    --mv-color: #94a3b8;
+  }
+  .mv-col::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: var(--mv-color); border-radius: 12px 12px 0 0;
+  }
+  .mv-col-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 6px 10px 6px;
+    font-size: 13px; font-weight: 700; color: var(--text);
+  }
+  .mv-col-count {
+    background: var(--mv-color); color: #fff; font-size: 11px; font-weight: 700;
+    border-radius: 999px; padding: 2px 9px;
+  }
+  .mv-col-body {
+    flex: 1; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .mv-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; cursor: pointer;
+    transition: box-shadow 0.12s, border-color 0.12s, transform 0.12s;
+    border-left: 3px solid var(--mv-color);
+  }
+  .mv-card:hover { border-color: #c7d2e0; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    transform: translateY(-1px); }
+  .mv-card-date {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .mv-card-name {
+    font-size: 12px; font-weight: 600; color: var(--text); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mv-card-email {
+    font-size: 10px; color: var(--muted); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mv-card-stage {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+    font-size: 10px; font-weight: 600; color: var(--muted);
+  }
+  .mv-card-stage-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .mv-empty { padding: 24px 8px; text-align: center;
+    font-size: 11px; color: #94a3b8; font-style: italic; }
 
   /* ── Timeline view ── */
   .tv-head {
@@ -1467,6 +1539,18 @@
   .u-event-dismiss:hover { color: var(--red); }
 
   /* ── Card modal: notes + meetings ── */
+  .cm-ae-select {
+    width: 100%; background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500;
+    color: var(--text); font-family: inherit; cursor: pointer;
+  }
+  .cm-ae-select:focus { outline: none; border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+  .k-card-ae-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;
+    border-radius: 999px; padding: 1px 7px; font-size: 10px; font-weight: 700;
+  }
   .cm-notes {
     width: 100%; border: 1px solid var(--border); border-radius: 8px;
     padding: 10px 12px; font-family: inherit; font-size: 13px; color: var(--text);
@@ -1606,6 +1690,7 @@
   <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
     <div class="view-toggle" id="view-toggle">
       <button id="view-kanban-btn" class="active" onclick="setView('kanban')">Kanban</button>
+      <button id="view-meetings-btn" onclick="setView('meetings')">Meetings</button>
       <button id="view-timeline-btn" onclick="setView('timeline')">Timeline</button>
     </div>
     <div class="user-indicator">
@@ -1695,6 +1780,18 @@
 
 </div>
 
+<!-- Meetings View -->
+<div id="meetings-view" style="display:none;">
+  <div class="mv-head">
+    <div>
+      <div class="tv-eyebrow">MEETINGS</div>
+      <h2>All meetings, bucketed by week</h2>
+      <p>Every meeting on every live opp. Click any card to open its opportunity.</p>
+    </div>
+  </div>
+  <div class="mv-board" id="meetings-view-body"></div>
+</div>
+
 <!-- Timeline View (existing) -->
 <div id="timeline-view" style="display:none">
   <div class="tv-head">
@@ -1741,7 +1838,10 @@
       </div>
     </div>
     <div class="card-modal-footer" style="justify-content:space-between;">
-      <button class="reset-btn" onclick="startFromScratch()" title="Delete every opportunity, meeting, attendee, parent-name. Stages reset to defaults. Snapshots are kept.">🔄 Start from scratch</button>
+      <div style="display:flex;gap:8px;">
+        <button class="reset-btn" onclick="startFromScratch()" title="Delete every opportunity, meeting, attendee, parent-name. Stages reset to defaults. Snapshots are kept.">🔄 Start from scratch</button>
+        <button class="tidy-btn" onclick="tidyUpOpps()" title="Dedupe duplicate meetings and merge opportunities that share an external attendee.">🧹 Tidy up</button>
+      </div>
       <button onclick="closeSnapshotPanel()" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;">Done</button>
     </div>
   </div>
@@ -1787,7 +1887,10 @@
       <button class="card-modal-close" onclick="closeCardModal()">×</button>
     </div>
     <div class="card-modal-body">
-      <div class="card-modal-section-label">Notes</div>
+      <div class="card-modal-section-label">AE on the account</div>
+      <select id="cm-ae" class="cm-ae-select" onchange="commitCardAE(this.value)"></select>
+
+      <div class="card-modal-section-label" style="margin-top:16px;">Notes</div>
       <textarea id="cm-notes" class="cm-notes" rows="3"
         placeholder="Add notes about this opportunity…"
         onblur="commitCardNotes(this)"></textarea>
@@ -2797,19 +2900,9 @@ function processEvents(events) {
     if (!ev.attendees.length) { unmatched.push(ev); return; }
     const existing = findCompanyByAttendees(ev.attendees);
     if (existing) {
-      // If this event's color routes to an EARLIER stage than the existing
-      // match (e.g. Tangerine event but the existing opp is already in S1),
-      // don't quietly attach + hide it. Treat it as a fresh opp in its own
-      // earlier stage — that's a new touchpoint with the same prospect.
-      const target = stageForColor(ev.colorId);
-      if (target) {
-        const targetIdx = stages.findIndex(s => s.id === target.id);
-        const existIdx  = stages.findIndex(s => s.id === existing.stageId);
-        if (targetIdx >= 0 && existIdx >= 0 && targetIdx < existIdx) {
-          unmatched.push(ev);
-          return;
-        }
-      }
+      // One opp per domain — every event for the same prospect attaches to
+      // their single card, regardless of the event's color. Stage promotion
+      // is still forward-only based on most-recent color.
       const wasParked = existing.dead || existing.hmmm;
       if (!existing.calendarMeetings || !existing.calendarMeetings.includes(ev.date)) {
         attachEventToCompany(existing, ev);
@@ -2846,22 +2939,27 @@ function processEvents(events) {
     if (target.id === s1StageId()) opp.s1 = true;
   });
 
-  // Cluster unmatched events by (shared attendee email, same color). Different
-  // colors stay in separate clusters even if they share attendees — that way
-  // a Tangerine intro and a Banana AE call with the same prospect produce
-  // two distinct cards (one in SDR Discovery, one in AE Discovery) instead
-  // of being merged into a single AE card that hides the SDR meeting.
-  const clusters = []; // [{emails:Set, color:string, events:[]}]
+  // Cluster unmatched events by shared attendee email (one opp per prospect).
+  // Domain match also collapses people from the same company into one card.
+  const clusters = []; // [{emails:Set, domains:Set, events:[]}]
   unmatched.forEach(ev => {
+    const evDomains = ev.attendees
+      .map(e => (e.split('@')[1] || '').toLowerCase())
+      .filter(isCompanyDomain);
     const cluster = clusters.find(c =>
-      c.color === ev.colorId &&
-      ev.attendees.some(e => c.emails.has(e))
+      ev.attendees.some(e => c.emails.has(e)) ||
+      evDomains.some(d => c.domains.has(d))
     );
     if (cluster) {
       ev.attendees.forEach(e => cluster.emails.add(e));
+      evDomains.forEach(d => cluster.domains.add(d));
       cluster.events.push(ev);
     } else {
-      clusters.push({ emails: new Set(ev.attendees), color: ev.colorId, events: [ev] });
+      clusters.push({
+        emails: new Set(ev.attendees),
+        domains: new Set(evDomains),
+        events: [ev]
+      });
     }
   });
 
@@ -3410,13 +3508,18 @@ function setView(v) {
   currentView = v;
   const kanbanBtn = document.getElementById('view-kanban-btn');
   const timelineBtn = document.getElementById('view-timeline-btn');
+  const meetingsBtn = document.getElementById('view-meetings-btn');
   if (kanbanBtn) kanbanBtn.classList.toggle('active', v === 'kanban');
   if (timelineBtn) timelineBtn.classList.toggle('active', v === 'timeline');
+  if (meetingsBtn) meetingsBtn.classList.toggle('active', v === 'meetings');
   const kb = document.getElementById('kanban');
   if (kb) kb.classList.toggle('active', v === 'kanban');
   const tv = document.getElementById('timeline-view');
   if (tv) tv.style.display = v === 'timeline' ? '' : 'none';
+  const mv = document.getElementById('meetings-view');
+  if (mv) mv.style.display = v === 'meetings' ? '' : 'none';
   if (v === 'kanban') renderKanban();
+  else if (v === 'meetings') renderMeetingsView();
   else { renderTimelineV2(); }
 }
 
@@ -3492,6 +3595,7 @@ function renderKanban() {
             <div class="k-card-name">${escapeHTML(c.name)}</div>
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
+          ${c.ae && USERS[c.ae] ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(USERS[c.ae].label)}</span></div>` : ''}
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
@@ -3801,6 +3905,85 @@ async function confirmDeleteSnapshot(id, name) {
   } catch (e) {
     alert('Delete failed: ' + e.message);
   }
+}
+
+// ── Meetings view (every meeting bucketed by week) ──
+function renderMeetingsView() {
+  const body = document.getElementById('meetings-view-body');
+  if (!body) return;
+  // Flatten every meeting across all live opps
+  const items = [];
+  companies.forEach(c => {
+    if (c.dead || c.hmmm) return;
+    (c.meetings || []).forEach(date => {
+      items.push({
+        date,
+        company: c,
+        attendees: (c.meetingAttendees && c.meetingAttendees[date]) || []
+      });
+    });
+  });
+  // Week boundaries (Monday-anchored)
+  const today = new Date(); today.setHours(0,0,0,0);
+  const startOfWeek = new Date(today);
+  const dow = today.getDay(); // 0 Sun..6 Sat
+  startOfWeek.setDate(today.getDate() + (dow === 0 ? -6 : 1 - dow));
+  const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6);
+  const endOfNextWeek = new Date(endOfWeek); endOfNextWeek.setDate(endOfWeek.getDate() + 7);
+  const buckets = { past: [], thisWeek: [], nextWeek: [], later: [] };
+  items.forEach(it => {
+    const d = new Date(it.date);
+    if (d < startOfWeek) buckets.past.push(it);
+    else if (d <= endOfWeek) buckets.thisWeek.push(it);
+    else if (d <= endOfNextWeek) buckets.nextWeek.push(it);
+    else buckets.later.push(it);
+  });
+  // Past = newest first; everything else = chronological
+  buckets.past.sort((a, b) => b.date.localeCompare(a.date));
+  buckets.thisWeek.sort((a, b) => a.date.localeCompare(b.date));
+  buckets.nextWeek.sort((a, b) => a.date.localeCompare(b.date));
+  buckets.later.sort((a, b) => a.date.localeCompare(b.date));
+
+  const cols = [
+    { label: 'Past',      items: buckets.past,     color: '#94a3b8' },
+    { label: 'This Week', items: buckets.thisWeek, color: '#22c55e' },
+    { label: 'Next Week', items: buckets.nextWeek, color: '#3b82f6' },
+    { label: 'Later',     items: buckets.later,    color: '#a855f7' }
+  ];
+  body.innerHTML = cols.map(col => `
+    <div class="mv-col" style="--mv-color:${col.color}">
+      <div class="mv-col-head">
+        <span>${col.label}</span>
+        <span class="mv-col-count">${col.items.length}</span>
+      </div>
+      <div class="mv-col-body">
+        ${col.items.length ? col.items.map(renderMeetingCard).join('') : '<div class="mv-empty">No meetings.</div>'}
+      </div>
+    </div>`).join('');
+}
+function renderMeetingCard(it) {
+  const c = it.company;
+  const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const d = new Date(it.date);
+  const day = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const attsExt = (it.attendees || []).filter(e => {
+    const dom = (e.split('@')[1] || '').toLowerCase();
+    return dom && !NON_COMPANY_DOMAINS.has(dom);
+  });
+  const primary = attsExt[0] || c.primaryEmail || '';
+  const stage = findStage(c.stageId);
+  const stageColor = stage ? colorHex(stage.color) : '#94a3b8';
+  const aeName = c.ae && USERS[c.ae] ? USERS[c.ae].label : '';
+  return `
+    <div class="mv-card" onclick="openCardModal('${safeN}')">
+      <div class="mv-card-date">${day}</div>
+      <div class="mv-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</div>
+      ${primary ? `<div class="mv-card-email" title="${escapeHTML(primary)}">${escapeHTML(primary)}</div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+        ${stage ? `<span class="mv-card-stage"><span class="mv-card-stage-dot" style="background:${stageColor}"></span>${escapeHTML(stage.label)}</span>` : ''}
+        ${aeName ? `<span class="k-card-ae-pill">AE: ${escapeHTML(aeName)}</span>` : ''}
+      </div>
+    </div>`;
 }
 
 // ── Timeline view (company-grouped, dots colored by stage) ──
@@ -4395,18 +4578,12 @@ function kCardDropOnCard(e, targetName) {
   draggingCardName = null;
 }
 
-function mergeCards(sourceName, targetName) {
-  const src = companies.find(c => c.name === sourceName);
-  const tgt = companies.find(c => c.name === targetName);
-  if (!src || !tgt) return;
-  if (!confirm(`Merge "${src.name}" into "${tgt.name}"?\n\nThis combines meetings, attendees, notes, and checklist progress into "${tgt.name}" and removes "${src.name}".`)) return;
-
+function mergeIntoTarget(src, tgt) {
   // Meetings + calendar-source flags
   const meetings = new Set([...(tgt.meetings || []), ...(src.meetings || [])]);
   tgt.meetings = Array.from(meetings).sort();
   const cal = new Set([...(tgt.calendarMeetings || []), ...(src.calendarMeetings || [])]);
   tgt.calendarMeetings = Array.from(cal);
-
   // Attendees per date
   if (src.meetingAttendees) {
     tgt.meetingAttendees = tgt.meetingAttendees || {};
@@ -4415,22 +4592,19 @@ function mergeCards(sourceName, targetName) {
       tgt.meetingAttendees[d] = Array.from(merged);
     });
   }
-
-  // Notes: append source notes if any, separated by a blank line
+  // Notes: append source notes if any
   if (src.notes && src.notes.trim()) {
     tgt.notes = tgt.notes && tgt.notes.trim()
       ? `${tgt.notes}\n\n— from ${src.name} —\n${src.notes}`
       : src.notes;
   }
-
-  // Primary email: keep target's, fall back to source's
+  // Primary email + domain: keep target's, fall back to source's
   if (!tgt.primaryEmail && src.primaryEmail) tgt.primaryEmail = src.primaryEmail;
   if (!tgt.domain && src.domain) tgt.domain = src.domain;
-
-  // Flags merge with OR
+  // Flags merge with OR (dead/hmmm cleared if either side was live)
   tgt.s1 = !!(tgt.s1 || src.s1);
   tgt.likelyS1 = !!(tgt.likelyS1 || src.likelyS1);
-
+  if (!src.dead && !src.hmmm) { tgt.dead = false; tgt.hmmm = false; }
   // Checklist state — target wins on conflict
   if (src.checklistState) {
     tgt.checklistState = tgt.checklistState || {};
@@ -4443,12 +4617,78 @@ function mergeCards(sourceName, targetName) {
       });
     });
   }
-
   // Remove source
   companies = companies.filter(c => c !== src);
-  if (openCardName === src.name) closeCardModal();
+}
 
+function mergeCards(sourceName, targetName) {
+  const src = companies.find(c => c.name === sourceName);
+  const tgt = companies.find(c => c.name === targetName);
+  if (!src || !tgt) return;
+  if (!confirm(`Merge "${src.name}" into "${tgt.name}"?\n\nThis combines meetings, attendees, notes, and checklist progress into "${tgt.name}" and removes "${src.name}".`)) return;
+  mergeIntoTarget(src, tgt);
+  if (openCardName === src.name) closeCardModal();
   saveData(); renderKanban(); renderMetrics();
+}
+
+async function tidyUpOpps() {
+  if (inSnapshotMode()) { alert('Exit snapshot view first.'); return; }
+  if (!currentUser) return;
+  if (!confirm(`Tidy up ${USERS[currentUser]?.label || currentUser}'s pipeline?\n\n• Remove duplicate meetings within each card\n• Merge opportunities that share an external attendee email\n\nNotes, checklist progress, flags are preserved. Take a snapshot first if you want a rollback option.`)) return;
+
+  // 1. Dedupe within each opp
+  companies.forEach(c => {
+    if (Array.isArray(c.meetings)) c.meetings = Array.from(new Set(c.meetings)).sort();
+    if (Array.isArray(c.calendarMeetings)) c.calendarMeetings = Array.from(new Set(c.calendarMeetings));
+    if (c.meetingAttendees) {
+      Object.keys(c.meetingAttendees).forEach(d => {
+        c.meetingAttendees[d] = Array.from(new Set(c.meetingAttendees[d] || []));
+      });
+    }
+  });
+
+  // 2. Merge opps that share an exact external attendee email. Target =
+  // furthest along the funnel (highest stage index); ties broken by most
+  // recent meeting date.
+  let mergeCount = 0;
+  let pass = 0;
+  while (pass++ < 50) {
+    let didMerge = false;
+    outer: for (let i = 0; i < companies.length; i++) {
+      const a = companies[i];
+      const aEmails = externalAttendeesOf(a);
+      if (!aEmails.size) continue;
+      const aDomains = domainsOf(a);
+      for (let j = i + 1; j < companies.length; j++) {
+        const b = companies[j];
+        const bEmails = externalAttendeesOf(b);
+        const bDomains = domainsOf(b);
+        const sharesEmail  = bEmails.size && [...aEmails].some(e => bEmails.has(e));
+        const sharesDomain = bDomains.size && [...aDomains].some(d => bDomains.has(d));
+        if (!sharesEmail && !sharesDomain) continue;
+        const aIdx = stages.findIndex(s => s.id === a.stageId);
+        const bIdx = stages.findIndex(s => s.id === b.stageId);
+        let target, source;
+        if (aIdx > bIdx) { target = a; source = b; }
+        else if (bIdx > aIdx) { target = b; source = a; }
+        else {
+          const aLast = (a.meetings && a.meetings[a.meetings.length-1]) || '';
+          const bLast = (b.meetings && b.meetings[b.meetings.length-1]) || '';
+          if (aLast >= bLast) { target = a; source = b; }
+          else { target = b; source = a; }
+        }
+        mergeIntoTarget(source, target);
+        mergeCount++;
+        didMerge = true;
+        break outer; // restart scan since indices shifted
+      }
+    }
+    if (!didMerge) break;
+  }
+
+  saveData(); renderKanban(); renderTimelineV2(); renderMetrics();
+  closeSnapshotPanel();
+  alert(`Tidied up. Merged ${mergeCount} duplicate opportunit${mergeCount===1?'y':'ies'}. Remaining cards: ${companies.length}.`);
 }
 function kColDragOver(e, stageId) {
   if (draggingCardName == null && draggingStageId == null && draggingUnassignedIdx == null) return;
@@ -4538,6 +4778,20 @@ function renderModalNotes() {
   const c = companies.find(x => x.name === openCardName);
   if (!c) return;
   document.getElementById('cm-notes').value = c.notes || '';
+  // AE selector
+  const sel = document.getElementById('cm-ae');
+  if (sel) {
+    const opts = ['<option value="">— Unassigned —</option>']
+      .concat(Object.entries(USERS).map(([id, u]) =>
+        `<option value="${id}" ${c.ae===id?'selected':''}>${escapeHTML(u.label)}</option>`));
+    sel.innerHTML = opts.join('');
+  }
+}
+function commitCardAE(aeId) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  c.ae = aeId || '';
+  saveData(); renderKanban();
 }
 function commitCardNotes(el) {
   const c = companies.find(x => x.name === openCardName);
