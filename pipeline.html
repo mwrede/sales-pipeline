@@ -3050,27 +3050,17 @@ function processEvents(events) {
     if (target.id === s1StageId()) opp.s1 = true;
   });
 
-  // Cluster unmatched events by shared attendee email (one opp per prospect).
-  // Domain match also collapses people from the same company into one card.
-  const clusters = []; // [{emails:Set, domains:Set, events:[]}]
+  // Cluster unmatched events by shared attendee email only. Two prospects
+  // at the same company stay as separate opps unless they actually share
+  // an attendee on the meeting.
+  const clusters = []; // [{emails:Set, events:[]}]
   unmatched.forEach(ev => {
-    const evDomains = ev.attendees
-      .map(e => (e.split('@')[1] || '').toLowerCase())
-      .filter(isCompanyDomain);
-    const cluster = clusters.find(c =>
-      ev.attendees.some(e => c.emails.has(e)) ||
-      evDomains.some(d => c.domains.has(d))
-    );
+    const cluster = clusters.find(c => ev.attendees.some(e => c.emails.has(e)));
     if (cluster) {
       ev.attendees.forEach(e => cluster.emails.add(e));
-      evDomains.forEach(d => cluster.domains.add(d));
       cluster.events.push(ev);
     } else {
-      clusters.push({
-        emails: new Set(ev.attendees),
-        domains: new Set(evDomains),
-        events: [ev]
-      });
+      clusters.push({ emails: new Set(ev.attendees), events: [ev] });
     }
   });
 
@@ -4895,14 +4885,12 @@ async function tidyUpOpps() {
       const a = companies[i];
       const aEmails = externalAttendeesOf(a);
       if (!aEmails.size) continue;
-      const aDomains = domainsOf(a);
       for (let j = i + 1; j < companies.length; j++) {
         const b = companies[j];
         const bEmails = externalAttendeesOf(b);
-        const bDomains = domainsOf(b);
-        const sharesEmail  = bEmails.size && [...aEmails].some(e => bEmails.has(e));
-        const sharesDomain = bDomains.size && [...aDomains].some(d => bDomains.has(d));
-        if (!sharesEmail && !sharesDomain) continue;
+        if (!bEmails.size) continue;
+        const sharesEmail = [...aEmails].some(e => bEmails.has(e));
+        if (!sharesEmail) continue;
         const aIdx = stages.findIndex(s => s.id === a.stageId);
         const bIdx = stages.findIndex(s => s.id === b.stageId);
         let target, source;
@@ -5301,33 +5289,20 @@ function domainsOf(c) {
 }
 function findCompanyByAttendees(emails) {
   if (!emails || !emails.length) return null;
-  // Prefer live opps first, but fall back to dead/hmmm so a new meeting
-  // can auto-revive a parked deal rather than spawning a duplicate.
+  // Exact attendee email match only — different prospects at the same
+  // company (e.g. two people at acme.com on separate deals) stay as
+  // separate opportunities.
+  // Prefer live opps first, fall back to dead/hmmm so a new meeting can
+  // auto-revive a parked deal rather than spawning a duplicate.
   const live = companies.filter(c => !c.dead && !c.hmmm);
   const parked = companies.filter(c => c.dead || c.hmmm);
-  // Pass 1: exact attendee email match against live opps
   for (const c of live) {
     const known = externalAttendeesOf(c);
     if (emails.some(e => known.has(e))) return c;
   }
-  // Pass 1b: exact attendee email match against dead/hmmm opps
   for (const c of parked) {
     const known = externalAttendeesOf(c);
     if (emails.some(e => known.has(e))) return c;
-  }
-  // Pass 2: company-domain match against live opps
-  const evDomains = emails
-    .map(e => (e.split('@')[1] || '').toLowerCase())
-    .filter(isCompanyDomain);
-  if (!evDomains.length) return null;
-  for (const c of live) {
-    const known = domainsOf(c);
-    if (evDomains.some(d => known.has(d))) return c;
-  }
-  // Pass 2b: domain match against dead/hmmm opps
-  for (const c of parked) {
-    const known = domainsOf(c);
-    if (evDomains.some(d => known.has(d))) return c;
   }
   return null;
 }
