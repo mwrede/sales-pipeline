@@ -3654,10 +3654,9 @@ function lastMeetingDate(c) {
 }
 function sortStageCompanies(arr, stage) {
   return [...arr].sort((a, b) => {
-    if (stage.sortByLikelyS1) {
-      const av = a.likelyS1 ? 1 : 0, bv = b.likelyS1 ? 1 : 0;
-      if (av !== bv) return bv - av;
-    }
+    // Likely-S1 always floats to the top of every column
+    const av = a.likelyS1 ? 1 : 0, bv = b.likelyS1 ? 1 : 0;
+    if (av !== bv) return bv - av;
     const da = lastMeetingDate(a), db = lastMeetingDate(b);
     if (da !== db) return db.localeCompare(da); // most recent first
     return (a.name || '').localeCompare(b.name || '');
