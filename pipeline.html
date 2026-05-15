@@ -745,6 +745,45 @@
     width: 14px; height: 14px; border-radius: 50%; background: var(--text);
     cursor: grab; border: none;
   }
+  .tile-size-control {
+    display: flex; align-items: center; gap: 4px;
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 3px 8px;
+  }
+  .tile-size-btn {
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    width: 22px; height: 22px; border-radius: 5px; font-size: 14px;
+    font-weight: 700; color: var(--muted); padding: 0;
+  }
+  .tile-size-btn:hover { background: #f1f5f9; color: var(--text); }
+  .tile-size-btn:active { transform: scale(0.92); }
+
+  /* Tile-size presets — apply on #kanban (which doesn't get innerHTML'd) */
+  #kanban.tile-small .k-card { padding: 6px 9px; }
+  #kanban.tile-small .k-card-name { font-size: 12px; }
+  #kanban.tile-small .k-card-email { font-size: 10px; }
+  #kanban.tile-small .k-card-age { font-size: 9px; }
+  #kanban.tile-small .k-card-meta { font-size: 10px; }
+  #kanban.tile-small .k-card-logo { width: 18px; height: 18px; font-size: 9px; }
+  #kanban.tile-small .k-card-tasks { padding: 5px 6px; }
+  #kanban.tile-small .k-card-task-item-text { font-size: 10px; }
+  #kanban.tile-small .k-card-tasks-head { font-size: 9px; padding: 3px 3px; }
+  #kanban.tile-small .k-card-actions { padding-top: 5px; gap: 4px; }
+  #kanban.tile-small .k-card-btn { padding: 3px 7px; font-size: 10px; }
+  #kanban.tile-small .k-card-task-group-label { font-size: 9px; padding: 3px 3px; }
+
+  #kanban.tile-large .k-card { padding: 14px 16px; }
+  #kanban.tile-large .k-card-name { font-size: 15px; }
+  #kanban.tile-large .k-card-email { font-size: 13px; }
+  #kanban.tile-large .k-card-age { font-size: 12px; }
+  #kanban.tile-large .k-card-meta { font-size: 13px; }
+  #kanban.tile-large .k-card-logo { width: 28px; height: 28px; font-size: 12px; }
+  #kanban.tile-large .k-card-tasks { padding: 10px 12px; }
+  #kanban.tile-large .k-card-task-item-text { font-size: 13px; }
+  #kanban.tile-large .k-card-tasks-head { font-size: 12px; padding: 6px 4px; }
+  #kanban.tile-large .k-card-actions { padding-top: 10px; gap: 8px; }
+  #kanban.tile-large .k-card-btn { padding: 6px 12px; font-size: 13px; }
+  #kanban.tile-large .k-card-task-group-label { font-size: 12px; padding: 6px 5px; }
   .kanban-board {
     display: flex; gap: 14px; overflow-x: auto; padding-bottom: 16px;
     align-items: stretch;
@@ -1803,6 +1842,12 @@
         <input type="range" id="col-width-slider" min="280" max="900" step="10" value="300"
                oninput="setColumnWidth(this.value)" />
         <span class="cwc-val" id="col-width-val">300</span>
+      </div>
+      <div class="tile-size-control" title="Make tiles smaller or larger">
+        <span class="cwc-label">Tile</span>
+        <button class="tile-size-btn" onclick="changeTileSize(-1)">−</button>
+        <span class="cwc-val" id="tile-size-val">M</span>
+        <button class="tile-size-btn" onclick="changeTileSize(1)">+</button>
       </div>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
@@ -3434,6 +3479,7 @@ function selectUser(name) {
   // Kanban only (timeline view removed)
   setView('kanban');
   restoreColumnWidth();
+  restoreTileSize();
   restoreCardTasksPref();
   restoreAEOnCardsPref();
   restoreAEFilter();
@@ -4315,6 +4361,28 @@ function setColumnWidth(px) {
 function restoreColumnWidth() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_width`) : null;
   setColumnWidth(saved || 300);
+}
+
+// Tile size — 3 presets toggled by ± buttons in the kanban toolbar
+const TILE_SIZES = ['small', 'medium', 'large'];
+const TILE_LABELS = { small: 'S', medium: 'M', large: 'L' };
+let tileSizeIdx = 1;
+function changeTileSize(delta) {
+  tileSizeIdx = Math.max(0, Math.min(TILE_SIZES.length - 1, tileSizeIdx + delta));
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_tile_size`, TILE_SIZES[tileSizeIdx]);
+  applyTileSize();
+}
+function applyTileSize() {
+  const root = document.getElementById('kanban');
+  if (root) TILE_SIZES.forEach(s => root.classList.toggle(`tile-${s}`, s === TILE_SIZES[tileSizeIdx]));
+  const lbl = document.getElementById('tile-size-val');
+  if (lbl) lbl.textContent = TILE_LABELS[TILE_SIZES[tileSizeIdx]];
+}
+function restoreTileSize() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_tile_size`) : null;
+  const idx = TILE_SIZES.indexOf(saved);
+  tileSizeIdx = idx >= 0 ? idx : 1;
+  applyTileSize();
 }
 
 // ── Month picker + metrics ──
