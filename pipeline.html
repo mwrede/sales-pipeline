@@ -2070,6 +2070,50 @@ function setCloudStatus(s) {
 // ─────────────────────────────────────────────
 //  Users
 // ─────────────────────────────────────────────
+// AEs detected by their Roboflow email on any meeting. First matching
+// attendee email wins, in this list order.
+const AES = [
+  { id: 'kevin_brown',  label: 'Kevin Brown',
+    emails: ['kevin@roboflow.com', 'kevin.brown@roboflow.com'] },
+  { id: 'derek_pallin', label: 'Derek Pallin',
+    emails: ['derek@roboflow.com', 'derek.pallin@roboflow.com'] },
+  { id: 'matthew_king', label: 'Matthew King',
+    emails: ['matt@roboflow.com', 'matthew@roboflow.com',
+             'matt.king@roboflow.com', 'matthew.king@roboflow.com'] },
+  { id: 'salo_levy',    label: 'Salo Levy',
+    emails: ['salo@roboflow.com', 'salo.levy@roboflow.com'] },
+  { id: 'will_strenk',  label: 'Will Strenk',
+    emails: ['will@roboflow.com', 'will.strenk@roboflow.com'] },
+  { id: 'nick_toland',  label: 'Nick Toland',
+    emails: ['nick@roboflow.com', 'nick.toland@roboflow.com'] },
+  { id: 'dan_allen',    label: 'Dan Allen',
+    emails: ['dan@roboflow.com', 'dan.allen@roboflow.com',
+             'daniel@roboflow.com', 'daniel.allen@roboflow.com'] },
+];
+function aeLabel(id) {
+  const ae = AES.find(a => a.id === id);
+  return ae ? ae.label : null;
+}
+function detectAEFromAttendees(emails) {
+  if (!emails || !emails.length) return null;
+  const lower = emails.map(e => (e || '').toLowerCase());
+  for (const ae of AES) {
+    if (ae.emails.some(em => lower.includes(em))) return ae.id;
+  }
+  return null;
+}
+function detectAEFromCompany(c) {
+  const set = new Set();
+  if (Array.isArray(c.roboflowAttendees)) {
+    c.roboflowAttendees.forEach(e => set.add(e));
+  }
+  if (c.primaryEmail) set.add(c.primaryEmail);
+  if (c.meetingAttendees) {
+    Object.values(c.meetingAttendees).forEach(arr => (arr || []).forEach(e => set.add(e)));
+  }
+  return detectAEFromAttendees([...set]);
+}
+
 const USERS = {
   michael:  { label: 'Michael',  init: 'M', avatarBg: '#eff6ff', avatarColor: '#1d4ed8', calColorId: '10' },
   sylvie:   { label: 'Sylvie',   init: 'S', avatarBg: '#fdf4ff', avatarColor: '#7e22ce', calColorId: '10' },
@@ -2870,12 +2914,15 @@ function processEvents(events) {
   const allEvents = events.map(ev => {
     const dateRaw = ev.start?.date || ev.start?.dateTime || '';
     const date = dateRaw.substring(0, 10);
-    const externalAttendees = (ev.attendees || [])
+    const allEmails = (ev.attendees || [])
       .map(a => a.email || '')
-      .filter(e => e && e !== calendarEmail && !e.endsWith('@roboflow.com') && e.includes('@'));
+      .filter(e => e && e !== calendarEmail && e.includes('@'));
+    const externalAttendees = allEmails.filter(e => !e.endsWith('@roboflow.com'));
+    const internalAttendees = allEmails.filter(e => e.endsWith('@roboflow.com'));
     const externalDomain = externalAttendees.map(e => e.split('@')[1]).find(Boolean) || '';
     return { id: ev.id, title: ev.summary || '(no title)', date, colorId: ev.colorId,
-             domainHint: externalDomain, attendees: externalAttendees };
+             domainHint: externalDomain, attendees: externalAttendees,
+             internalAttendees };
   }).filter(ev => ev.date >= new Date(Date.now() - 90*24*60*60*1000).toISOString().substring(0,10));
 
   pendingMatches = [];
@@ -2911,6 +2958,11 @@ function processEvents(events) {
         if (wasParked) { existing.dead = false; existing.hmmm = false; }
       } else if (ev.attendees.length && !existing.primaryEmail) {
         existing.primaryEmail = ev.attendees[0];
+      }
+      // Auto-detect AE from the Roboflow attendee on this event (if any)
+      if (!existing.ae) {
+        const ae = detectAEFromAttendees(ev.internalAttendees || []);
+        if (ae) existing.ae = ae;
       }
       if (ev.colorId) {
         const cur = stagePromote.get(existing);
@@ -2990,11 +3042,16 @@ function processEvents(events) {
     // Route by the most recent event color (computed above as routedStage)
     const stageId = (routedStage && routedStage.id) || (stages[0] && stages[0].id) || 's_sdr';
     const isS1 = !!(routedStage && routedStage.id === s1StageId());
+    // Auto-detect AE from any Roboflow attendee across the cluster's events
+    const allInternal = [];
+    cl.events.forEach(ev => (ev.internalAttendees || []).forEach(e => allInternal.push(e)));
+    const detectedAE = detectAEFromAttendees(allInternal);
     const c = {
       name: finalName, domain, init,
       meetings: [], s1: isS1, stageId, checklistState: {},
       meetingAttendees: {}, calendarMeetings: [],
-      primaryEmail, notes: ''
+      primaryEmail, notes: '',
+      ae: detectedAE || ''
     };
     companies.push(c);
     cl.events.forEach(ev => attachEventToCompany(c, ev));
@@ -3595,7 +3652,7 @@ function renderKanban() {
             <div class="k-card-name">${escapeHTML(c.name)}</div>
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
-          ${c.ae && USERS[c.ae] ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(USERS[c.ae].label)}</span></div>` : ''}
+          ${c.ae && aeLabel(c.ae) ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span></div>` : ''}
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
@@ -3973,7 +4030,7 @@ function renderMeetingCard(it) {
   const primary = attsExt[0] || c.primaryEmail || '';
   const stage = findStage(c.stageId);
   const stageColor = stage ? colorHex(stage.color) : '#94a3b8';
-  const aeName = c.ae && USERS[c.ae] ? USERS[c.ae].label : '';
+  const aeName = c.ae && aeLabel(c.ae) ? aeLabel(c.ae) : '';
   return `
     <div class="mv-card" onclick="openCardModal('${safeN}')">
       <div class="mv-card-date">${day}</div>
@@ -4686,9 +4743,11 @@ async function tidyUpOpps() {
     if (!didMerge) break;
   }
 
+  // Auto-detect AE on any card that doesn't already have one
+  const aeAssigned = rescanAllAEs();
   saveData(); renderKanban(); renderTimelineV2(); renderMetrics();
   closeSnapshotPanel();
-  alert(`Tidied up. Merged ${mergeCount} duplicate opportunit${mergeCount===1?'y':'ies'}. Remaining cards: ${companies.length}.`);
+  alert(`Tidied up. Merged ${mergeCount} duplicate opportunit${mergeCount===1?'y':'ies'}. Auto-tagged ${aeAssigned} AE${aeAssigned===1?'':'s'}. Remaining cards: ${companies.length}.`);
 }
 function kColDragOver(e, stageId) {
   if (draggingCardName == null && draggingStageId == null && draggingUnassignedIdx == null) return;
@@ -4778,12 +4837,13 @@ function renderModalNotes() {
   const c = companies.find(x => x.name === openCardName);
   if (!c) return;
   document.getElementById('cm-notes').value = c.notes || '';
-  // AE selector
+  // AE selector — pulls from the Roboflow AE roster (detected by email on
+  // attendees, or set manually here).
   const sel = document.getElementById('cm-ae');
   if (sel) {
     const opts = ['<option value="">— Unassigned —</option>']
-      .concat(Object.entries(USERS).map(([id, u]) =>
-        `<option value="${id}" ${c.ae===id?'selected':''}>${escapeHTML(u.label)}</option>`));
+      .concat(AES.map(ae =>
+        `<option value="${ae.id}" ${c.ae===ae.id?'selected':''}>${escapeHTML(ae.label)}</option>`));
     sel.innerHTML = opts.join('');
   }
 }
@@ -4792,6 +4852,17 @@ function commitCardAE(aeId) {
   if (!c) return;
   c.ae = aeId || '';
   saveData(); renderKanban();
+}
+function rescanAllAEs() {
+  // Walk every live opp and assign an AE label if any meeting attendee
+  // matches a known Roboflow AE email. Existing manual assignments stick.
+  let n = 0;
+  companies.forEach(c => {
+    if (c.ae && aeLabel(c.ae)) return; // already set to a real AE
+    const detected = detectAEFromCompany(c);
+    if (detected) { c.ae = detected; n++; }
+  });
+  return n;
 }
 function commitCardNotes(el) {
   const c = companies.find(x => x.name === openCardName);
@@ -5103,6 +5174,10 @@ function attachEventToCompany(c, ev) {
     const merged = new Set([...(c.meetingAttendees[ev.date] || []), ...ev.attendees]);
     c.meetingAttendees[ev.date] = Array.from(merged);
     if (!c.primaryEmail) c.primaryEmail = ev.attendees[0];
+  }
+  // Track Roboflow attendees so we can auto-detect / re-detect the AE later
+  if (ev.internalAttendees && ev.internalAttendees.length) {
+    c.roboflowAttendees = Array.from(new Set([...(c.roboflowAttendees || []), ...ev.internalAttendees]));
   }
   ensureCompanyStage(c);
 }
