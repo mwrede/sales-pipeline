@@ -3766,9 +3766,9 @@ function renderKanban() {
             <button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
                     onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
                     title="Mark as likely to progress to S1">⭐ ${c.likelyS1 ? 'Likely S1 ✓' : 'Likely S1'}</button>
-            <button class="k-card-btn ${isS1Stage || c.s1 ? 's1-active' : ''}"
+            <button class="k-card-btn ${isS1Stage ? 's1-active' : ''}"
                     onclick="event.stopPropagation();toggleS1Flip('${safeN}')"
-                    title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}">${isS1Stage || c.s1 ? '✓ S1' : '→ S1'}</button>
+                    title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}">${isS1Stage ? '✓ S1' : '→ S1'}</button>
             <button class="k-card-btn dead-btn"
                     onclick="event.stopPropagation();markDead('${safeN}')"
                     title="Mark this opportunity dead">× Dead</button>
@@ -5060,7 +5060,7 @@ function openCardModal(name) {
   const email = primaryEmailForCompany(c);
   const meetingsStr = `${c.meetings ? c.meetings.length : 0} meeting${(c.meetings && c.meetings.length===1)?'':'s'}`;
   document.getElementById('cm-meetings').textContent = email ? `${meetingsStr} · ${email}` : meetingsStr;
-  document.getElementById('cm-s1').innerHTML = c.s1 ? '<span class="k-card-pill s1">S1</span>' : '';
+  document.getElementById('cm-s1').innerHTML = (c.stageId === s1StageId()) ? '<span class="k-card-pill s1">S1</span>' : '';
 
   renderCardModalStageSelect();
   renderChecklist();
