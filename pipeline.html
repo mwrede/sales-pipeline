@@ -2423,7 +2423,14 @@ function pctNum(dateStr) {
   const s = new Date(p.start), span = new Date(p.end) - s;
   return (new Date(dateStr) - s) / span * 100;
 }
-function fmtDate(d) { return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric' }); }
+function fmtDate(d) {
+  // Parse YYYY-MM-DD as local-midnight so the displayed day matches the
+  // stored date regardless of the user's timezone.
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)) {
+    return parseLocalDate(d).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+  return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
 function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
 
 // ─────────────────────────────────────────────
@@ -4133,7 +4140,7 @@ function populateMeetingsMonthPicker() {
   const months = Array.from(monthsSet).sort().reverse();
   const opts = ['<option value="all">All months</option>']
     .concat(months.map(m => {
-      const d = new Date(m + '-01');
+      const d = parseLocalDate(m + '-01');
       const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
       return `<option value="${m}" ${m===selectedMeetingsMonth?'selected':''}>${label}</option>`;
     }));
@@ -4240,7 +4247,7 @@ function renderMeetingsView() {
   const todayYM = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
   body.innerHTML = sortedMonths.length
     ? sortedMonths.map((ym, i) => {
-        const d = new Date(ym + '-01');
+        const d = parseLocalDate(ym + '-01');
         const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
         const m = byMonth.get(ym);
         const isCurrent = ym === todayYM;
@@ -4273,10 +4280,18 @@ function toggleMeetingsNA(ym) {
   meetingsNAExpand.set(ym, !meetingsNAExpand.get(ym));
   renderMeetingsView();
 }
+// Parse a "YYYY-MM-DD" or "YYYY-MM" string as a LOCAL date — avoids
+// timezone drift where new Date("2026-05-01") (UTC midnight) gets
+// rendered as "Apr 30" in browsers west of UTC.
+function parseLocalDate(s) {
+  const [y, m, d] = (s || '').split('-').map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1);
+}
+
 function renderMeetingCard(it) {
   const c = it.company;
   const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  const d = new Date(it.date);
+  const d = parseLocalDate(it.date);
   const day = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const attsExt = (it.attendees || []).filter(e => {
     const dom = (e.split('@')[1] || '').toLowerCase();
@@ -4373,14 +4388,15 @@ function renderTimelineV2() {
   active.forEach(c => (c.meetings || []).forEach(d => allDates.push(d)));
   allDates.sort();
   const today = new Date();
-  const todayIso = today.toISOString().substring(0, 10);
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   const startStr = allDates[0];
   const endStr = (allDates[allDates.length - 1] > todayIso) ? allDates[allDates.length - 1] : todayIso;
-  // Pad by 5 days each side
-  const startD = new Date(startStr); startD.setDate(startD.getDate() - 5);
-  const endD = new Date(endStr); endD.setDate(endD.getDate() + 5);
+  // Pad by 5 days each side. Parse as LOCAL midnight so the displayed
+  // tick labels match the stored dates exactly.
+  const startD = parseLocalDate(startStr); startD.setDate(startD.getDate() - 5);
+  const endD = parseLocalDate(endStr); endD.setDate(endD.getDate() + 5);
   const spanMs = endD - startD;
-  const pct = dateStr => ((new Date(dateStr) - startD) / spanMs * 100);
+  const pct = dateStr => ((parseLocalDate(dateStr) - startD) / spanMs * 100);
 
   // Axis ticks every ~7 days (or wider if range is large)
   const days = Math.ceil(spanMs / 86400000);
@@ -4389,15 +4405,17 @@ function renderTimelineV2() {
   for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + tickDays)) {
     ticks.push(new Date(d));
   }
+  // Local-time YYYY-MM-DD so axis labels match stored dates exactly
+  const toLocalIso = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
   axisEl.innerHTML = ticks.map(t => {
-    const ds = t.toISOString().substring(0, 10);
+    const ds = toLocalIso(t);
     const label = `${t.getMonth() + 1}/${t.getDate()}`;
     return `<span class="tv-tick" style="left:${pct(ds).toFixed(2)}%">${label}</span>`;
   }).join('');
 
   // Gridlines for the body — vertical at every tick + today line
   const gridlinesHTML = ticks.map(t => {
-    const ds = t.toISOString().substring(0, 10);
+    const ds = toLocalIso(t);
     const major = t.getDate() <= 7; // first tick of a month is "major"
     return `<div class="tv-grid-line ${major?'major':''}" style="left:${pct(ds).toFixed(2)}%"></div>`;
   }).join('') + `<div class="tv-today" style="left:${pct(todayIso).toFixed(2)}%"></div>`;
