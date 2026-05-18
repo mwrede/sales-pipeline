@@ -1322,6 +1322,28 @@
   .mv-card-na-toggle.active {
     background: #fef2f2; color: var(--red); border-color: #fecaca;
   }
+  .mv-card-sources {
+    display: flex; gap: 4px; margin-top: 6px;
+  }
+  .mv-source-btn {
+    background: none; border: 1px solid var(--border); border-radius: 5px;
+    padding: 3px 6px; font-size: 9px; font-weight: 600;
+    color: var(--muted); cursor: pointer; font-family: inherit;
+    flex: 1; text-align: center;
+    white-space: nowrap; overflow: hidden;
+  }
+  .mv-source-btn:hover { background: #f8fafc; color: var(--text); }
+  .mv-source-btn.active {
+    background: #eff6ff; color: #1e40af; border-color: #bfdbfe;
+  }
+  .mv-card-booking-details {
+    font-size: 10px; color: var(--muted); margin-top: 4px;
+    font-style: italic; cursor: pointer;
+    background: #f8fafc; border: 1px dashed var(--border); border-radius: 4px;
+    padding: 3px 6px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mv-card-booking-details:hover { background: #fff; }
 
   .mv-head {
     display: flex; align-items: flex-start; justify-content: space-between;
@@ -4113,65 +4135,98 @@ function toggleMeetingAttended(safeN, date) {
   else c.notAttendedDates.push(date);
   saveData(); renderMeetingsView();
 }
+function setMeetingSource(safeN, date, source) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  c.bookingInfo = c.bookingInfo || {};
+  c.bookingInfo[date] = c.bookingInfo[date] || {};
+  const cur = c.bookingInfo[date].details || '';
+  let details = cur;
+  if (source === 'linkedin') {
+    const v = prompt('Paste the LinkedIn message text that booked this meeting:', cur);
+    if (v === null) return; // cancelled
+    details = v;
+  } else if (source === 'cold_call') {
+    const v = prompt('Paste the Orum call link:', cur);
+    if (v === null) return;
+    details = v;
+  } else if (source === 'email') {
+    // Open Gmail with a search for the contact so the user can find the
+    // booking email quickly, then optionally paste it as a record.
+    const attendees = (c.meetingAttendees && c.meetingAttendees[date]) || [];
+    const contact = attendees[0] || c.primaryEmail || '';
+    if (contact) {
+      window.open(`https://mail.google.com/mail/u/0/#search/${encodeURIComponent(contact)}`, '_blank');
+    }
+    const v = prompt('Paste the email subject + link or body that booked this meeting (optional — Gmail is opening in a new tab):', cur);
+    if (v === null) return;
+    details = v;
+  } else {
+    return;
+  }
+  c.bookingInfo[date].source = source;
+  c.bookingInfo[date].details = details;
+  saveData(); renderMeetingsView();
+}
+function clearMeetingSource(safeN, date) {
+  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  if (c.bookingInfo && c.bookingInfo[date]) delete c.bookingInfo[date];
+  saveData(); renderMeetingsView();
+}
 
 function renderMeetingsView() {
   populateMeetingsMonthPicker();
   const body = document.getElementById('meetings-view-body');
   if (!body) return;
-  // Flatten every meeting across all live opps
+  // Every meeting, including ones on dead/hmmm cards
   const items = [];
   companies.forEach(c => {
-    if (c.dead || c.hmmm) return;
     (c.meetings || []).forEach(date => {
-      // Month filter
       if (selectedMeetingsMonth !== 'all' && date.substring(0, 7) !== selectedMeetingsMonth) return;
       items.push({
         date,
         company: c,
         notAttended: isNotAttended(c, date),
-        attendees: (c.meetingAttendees && c.meetingAttendees[date]) || []
+        attendees: (c.meetingAttendees && c.meetingAttendees[date]) || [],
+        booking: (c.bookingInfo && c.bookingInfo[date]) || {}
       });
     });
   });
-  // Render metric tiles for the visible set
   renderMeetingsMetrics(items);
-  // Week boundaries (Monday-anchored)
-  const today = new Date(); today.setHours(0,0,0,0);
-  const startOfWeek = new Date(today);
-  const dow = today.getDay(); // 0 Sun..6 Sat
-  startOfWeek.setDate(today.getDate() + (dow === 0 ? -6 : 1 - dow));
-  const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6);
-  const endOfNextWeek = new Date(endOfWeek); endOfNextWeek.setDate(endOfWeek.getDate() + 7);
-  const buckets = { past: [], thisWeek: [], nextWeek: [], later: [] };
+  // Bucket every meeting by its YYYY-MM month
+  const byMonth = new Map();
   items.forEach(it => {
-    const d = new Date(it.date);
-    if (d < startOfWeek) buckets.past.push(it);
-    else if (d <= endOfWeek) buckets.thisWeek.push(it);
-    else if (d <= endOfNextWeek) buckets.nextWeek.push(it);
-    else buckets.later.push(it);
+    const ym = it.date.substring(0, 7);
+    if (!byMonth.has(ym)) byMonth.set(ym, []);
+    byMonth.get(ym).push(it);
   });
-  // Past = newest first; everything else = chronological
-  buckets.past.sort((a, b) => b.date.localeCompare(a.date));
-  buckets.thisWeek.sort((a, b) => a.date.localeCompare(b.date));
-  buckets.nextWeek.sort((a, b) => a.date.localeCompare(b.date));
-  buckets.later.sort((a, b) => a.date.localeCompare(b.date));
-
-  const cols = [
-    { label: 'Past',      items: buckets.past,     color: '#94a3b8' },
-    { label: 'This Week', items: buckets.thisWeek, color: '#22c55e' },
-    { label: 'Next Week', items: buckets.nextWeek, color: '#3b82f6' },
-    { label: 'Later',     items: buckets.later,    color: '#a855f7' }
-  ];
-  body.innerHTML = cols.map(col => `
-    <div class="mv-col" style="--mv-color:${col.color}">
-      <div class="mv-col-head">
-        <span>${col.label}</span>
-        <span class="mv-col-count">${col.items.length}</span>
-      </div>
-      <div class="mv-col-body">
-        ${col.items.length ? col.items.map(renderMeetingCard).join('') : '<div class="mv-empty">No meetings.</div>'}
-      </div>
-    </div>`).join('');
+  for (const arr of byMonth.values()) arr.sort((a, b) => a.date.localeCompare(b.date));
+  // Most recent month first, then back through time
+  const sortedMonths = Array.from(byMonth.keys()).sort().reverse();
+  const COLORS = ['#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#8b5cf6', '#94a3b8'];
+  const todayYM = new Date().toISOString().substring(0, 7);
+  body.innerHTML = sortedMonths.length
+    ? sortedMonths.map((ym, i) => {
+        const d = new Date(ym + '-01');
+        const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        const colItems = byMonth.get(ym);
+        const isCurrent = ym === todayYM;
+        const color = isCurrent ? '#22c55e' : COLORS[(i + 1) % COLORS.length];
+        return `
+          <div class="mv-col" style="--mv-color:${color}">
+            <div class="mv-col-head">
+              <span>${escapeHTML(label)}${isCurrent ? ' · this month' : ''}</span>
+              <span class="mv-col-count">${colItems.length}</span>
+            </div>
+            <div class="mv-col-body">
+              ${colItems.map(renderMeetingCard).join('')}
+            </div>
+          </div>`;
+      }).join('')
+    : '<div class="mv-empty" style="margin:40px auto;">No meetings logged yet.</div>';
 }
 function renderMeetingCard(it) {
   const c = it.company;
@@ -4195,6 +4250,21 @@ function renderMeetingCard(it) {
         ${stage ? `<span class="mv-card-stage"><span class="mv-card-stage-dot" style="background:${stageColor}"></span>${escapeHTML(stage.label)}</span>` : ''}
         ${aeName ? `<span class="k-card-ae-pill">AE: ${escapeHTML(aeName)}</span>` : ''}
       </div>
+      <div class="mv-card-sources" onclick="event.stopPropagation()">
+        <button class="mv-source-btn ${it.booking && it.booking.source==='email'?'active':''}"
+                onclick="event.stopPropagation();setMeetingSource('${safeN}','${it.date}','email')"
+                title="Booked via email — opens Gmail search for this contact">📩 Email</button>
+        <button class="mv-source-btn ${it.booking && it.booking.source==='linkedin'?'active':''}"
+                onclick="event.stopPropagation();setMeetingSource('${safeN}','${it.date}','linkedin')"
+                title="Booked via LinkedIn — paste the message text">💬 LinkedIn</button>
+        <button class="mv-source-btn ${it.booking && it.booking.source==='cold_call'?'active':''}"
+                onclick="event.stopPropagation();setMeetingSource('${safeN}','${it.date}','cold_call')"
+                title="Booked via cold call — paste the Orum link">📞 Cold call</button>
+      </div>
+      ${it.booking && it.booking.details ? `
+        <div class="mv-card-booking-details" onclick="event.stopPropagation();setMeetingSource('${safeN}','${it.date}','${it.booking.source||''}')"
+             title="${escapeHTML(it.booking.details)}\n\nClick to edit">${escapeHTML(it.booking.details.substring(0, 80))}${it.booking.details.length > 80 ? '…' : ''}</div>
+      ` : ''}
       <button class="mv-card-na-toggle ${it.notAttended?'active':''}"
               onclick="event.stopPropagation();toggleMeetingAttended('${safeN}','${it.date}')"
               title="Toggle whether this meeting was attended">
