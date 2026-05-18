@@ -1344,6 +1344,27 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .mv-card-booking-details:hover { background: #fff; }
+  /* Not-attended footer per month column */
+  .mv-na-footer {
+    margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 8px;
+  }
+  .mv-na-toggle {
+    width: 100%; background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 8px; border-radius: 6px; font-family: inherit;
+    font-size: 11px; font-weight: 600; color: var(--muted);
+  }
+  .mv-na-toggle:hover { background: #eef2f7; color: var(--text); }
+  .mv-na-count {
+    background: #e2e8f0; color: var(--muted); font-size: 10px; font-weight: 700;
+    border-radius: 999px; padding: 1px 7px;
+  }
+  .mv-na-list {
+    display: flex; flex-direction: column; gap: 6px; margin-top: 6px;
+  }
+  .mv-card-meeting-color {
+    font-size: 9px; font-weight: 700;
+  }
 
   .mv-head {
     display: flex; align-items: flex-start; justify-content: space-between;
@@ -4200,37 +4221,57 @@ function renderMeetingsView() {
     });
   });
   renderMeetingsMetrics(items);
-  // Bucket every meeting by its YYYY-MM month
-  const byMonth = new Map();
+  // Bucket every meeting by its YYYY-MM month and split out not-attended ones
+  // so they live in a collapsible footer rather than cluttering the main list.
+  const byMonth = new Map(); // ym → { live: [], notAttended: [] }
   items.forEach(it => {
     const ym = it.date.substring(0, 7);
-    if (!byMonth.has(ym)) byMonth.set(ym, []);
-    byMonth.get(ym).push(it);
+    if (!byMonth.has(ym)) byMonth.set(ym, { live: [], notAttended: [] });
+    (it.notAttended ? byMonth.get(ym).notAttended : byMonth.get(ym).live).push(it);
   });
-  for (const arr of byMonth.values()) arr.sort((a, b) => a.date.localeCompare(b.date));
+  for (const m of byMonth.values()) {
+    m.live.sort((a, b) => a.date.localeCompare(b.date));
+    m.notAttended.sort((a, b) => a.date.localeCompare(b.date));
+  }
   // Most recent month first, then back through time
   const sortedMonths = Array.from(byMonth.keys()).sort().reverse();
   const COLORS = ['#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#8b5cf6', '#94a3b8'];
-  const todayYM = new Date().toISOString().substring(0, 7);
+  const _now = new Date();
+  const todayYM = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
   body.innerHTML = sortedMonths.length
     ? sortedMonths.map((ym, i) => {
         const d = new Date(ym + '-01');
         const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-        const colItems = byMonth.get(ym);
+        const m = byMonth.get(ym);
         const isCurrent = ym === todayYM;
         const color = isCurrent ? '#22c55e' : COLORS[(i + 1) % COLORS.length];
+        const naOpen = !!meetingsNAExpand.get(ym);
         return `
           <div class="mv-col" style="--mv-color:${color}">
             <div class="mv-col-head">
               <span>${escapeHTML(label)}${isCurrent ? ' · this month' : ''}</span>
-              <span class="mv-col-count">${colItems.length}</span>
+              <span class="mv-col-count">${m.live.length}</span>
             </div>
             <div class="mv-col-body">
-              ${colItems.map(renderMeetingCard).join('')}
+              ${m.live.length ? m.live.map(renderMeetingCard).join('') : '<div class="mv-empty">No attended meetings.</div>'}
             </div>
+            ${m.notAttended.length ? `
+              <div class="mv-na-footer">
+                <button class="mv-na-toggle" onclick="toggleMeetingsNA('${ym}')">
+                  <span>🚫 Not attended</span>
+                  <span class="mv-na-count">${m.notAttended.length}</span>
+                  <span style="margin-left:auto;">${naOpen ? '▾' : '▸'}</span>
+                </button>
+                ${naOpen ? `<div class="mv-na-list">${m.notAttended.map(renderMeetingCard).join('')}</div>` : ''}
+              </div>` : ''}
           </div>`;
       }).join('')
     : '<div class="mv-empty" style="margin:40px auto;">No meetings logged yet.</div>';
+}
+const meetingsNAExpand = new Map(); // ym → bool
+function toggleMeetingsNA(ym) {
+  meetingsNAExpand.set(ym, !meetingsNAExpand.get(ym));
+  renderMeetingsView();
 }
 function renderMeetingCard(it) {
   const c = it.company;
