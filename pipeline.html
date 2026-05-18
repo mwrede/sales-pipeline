@@ -2882,17 +2882,25 @@ function connectCalendar() {
   tokenClient.requestAccessToken();
 }
 
-// Silent re-auth — no consent prompt; falls back gracefully on failure
+// Silent re-auth — must be truly silent (no popup). Fails gracefully if
+// the user's Google session has expired; in that case the Connect button
+// stays available for a one-click manual re-auth.
 function silentSync() {
   if (!tokenClient) { _autoSyncOnReady = true; return; }
-  tokenClient.requestAccessToken({ prompt: '' });
+  tokenClient.requestAccessToken({ prompt: 'none' });
 }
 
 async function handleToken(resp) {
   if (resp.error) {
-    // Silent auth failed — just restore the connect button quietly
+    // Silent auth failed (most likely the Google session expired or the
+    // user has never connected on this browser). Keep the Connect button
+    // visible and let them click it to grant access.
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
-    if (!calendarEmail) setCalStatus('', 'Not connected');
+    if (calendarEmail) {
+      setCalStatus('', `Sign in to refresh ${calendarEmail}`);
+    } else {
+      setCalStatus('', 'Not connected');
+    }
     return;
   }
   accessToken = resp.access_token;
@@ -3495,8 +3503,9 @@ function selectUser(name) {
     calendarEmail = savedEmail;
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> ${savedEmail}`;
     const sb2 = document.getElementById('sync-btn'); if (sb2) sb2.style.display = 'block';
-    setCalStatus('', `Previously connected · click Sync to refresh`);
-    // Attempt silent re-auth so sync is ready without user action
+    setCalStatus('syncing', 'Re-authorizing & syncing…');
+    // Auto-sync on user select — silent re-auth fetches a fresh token
+    // without a popup as long as your Google session is still valid.
     silentSync();
   } else {
     document.getElementById('cal-btn').innerHTML = '<span class="gcal-icon"></span> Connect Google Calendar';
