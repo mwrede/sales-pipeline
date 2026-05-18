@@ -3513,8 +3513,10 @@ function selectUser(name) {
   restoreCardTasksPref();
   restoreAEOnCardsPref();
   restoreAEFilter();
-  const savedMeetingsMonth = localStorage.getItem(`pipeline_v2_${name}_meetings_month`);
-  selectedMeetingsMonth = savedMeetingsMonth || 'all';
+  // Always default the Meetings view to "All months" on user select so the
+  // user sees every month right away. They can still narrow with the picker.
+  selectedMeetingsMonth = 'all';
+  try { localStorage.removeItem(`pipeline_v2_${name}_meetings_month`); } catch(_) {}
   renderMetrics();
   setCloudStatus('idle');
   refreshFromCloud();
@@ -4186,9 +4188,11 @@ function renderMeetingsView() {
   companies.forEach(c => {
     (c.meetings || []).forEach(date => {
       if (selectedMeetingsMonth !== 'all' && date.substring(0, 7) !== selectedMeetingsMonth) return;
+      const colorId = (c.meetingColors && c.meetingColors[date]) || null;
       items.push({
         date,
         company: c,
+        colorId,
         notAttended: isNotAttended(c, date),
         attendees: (c.meetingAttendees && c.meetingAttendees[date]) || [],
         booking: (c.bookingInfo && c.bookingInfo[date]) || {}
@@ -4241,9 +4245,16 @@ function renderMeetingCard(it) {
   const stage = findStage(c.stageId);
   const stageColor = stage ? colorHex(stage.color) : '#94a3b8';
   const aeName = c.ae && aeLabel(c.ae) ? aeLabel(c.ae) : '';
+  // Color each meeting by its OWN calendar color when available, falling
+  // back to the opp's current stage color for legacy meetings that pre-date
+  // per-meeting color tracking.
+  const meetingColor = it.colorId ? colorHex(it.colorId) : stageColor;
+  const meetingColorObj = it.colorId ? GCAL_COLORS.find(g => g.id === it.colorId) : null;
+  const meetingColorName = meetingColorObj ? meetingColorObj.name : null;
   return `
-    <div class="mv-card ${it.notAttended?'not-attended':''}" onclick="openCardModal('${safeN}')">
-      <div class="mv-card-date">${day}</div>
+    <div class="mv-card ${it.notAttended?'not-attended':''}" onclick="openCardModal('${safeN}')"
+         style="--mv-color:${meetingColor}">
+      <div class="mv-card-date">${day}${meetingColorName ? ` · <span class="mv-card-meeting-color" style="color:${meetingColor};">● ${escapeHTML(meetingColorName)}</span>` : ''}</div>
       <div class="mv-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</div>
       ${primary ? `<div class="mv-card-email" title="${escapeHTML(primary)}">${escapeHTML(primary)}</div>` : ''}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
@@ -5479,6 +5490,13 @@ function attachEventToCompany(c, ev) {
   // Track Roboflow attendees so we can auto-detect / re-detect the AE later
   if (ev.internalAttendees && ev.internalAttendees.length) {
     c.roboflowAttendees = Array.from(new Set([...(c.roboflowAttendees || []), ...ev.internalAttendees]));
+  }
+  // Remember the calendar color each meeting was tagged with so the
+  // Meetings view can show its own dot per meeting (not just the opp's
+  // current stage color).
+  if (ev.colorId) {
+    c.meetingColors = c.meetingColors || {};
+    c.meetingColors[ev.date] = ev.colorId;
   }
   ensureCompanyStage(c);
 }
