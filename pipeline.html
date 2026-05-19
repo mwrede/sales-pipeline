@@ -1937,6 +1937,7 @@
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
       <button id="task-toggle-btn" onclick="toggleCardTasksDisplay()" title="Show or hide the next-due task at the top of every card"></button>
+      <button id="kanban-weekly-btn" onclick="toggleKanbanS1Tracker()" title="Show or hide the weekly S1 tracker (expected vs actual)">📊 S1 Tracker</button>
       <button onclick="openSnapshotPanel()" title="Save the current state, or load a past snapshot">📸 Snapshots</button>
       <button onclick="openNewOppModal('','')">+ New Opportunity</button>
       <button onclick="addStage()">+ Add Column</button>
@@ -1948,6 +1949,8 @@
     <span>Viewing snapshot <strong id="sb-name"></strong> from <span id="sb-when"></span>. Changes won't be saved.</span>
     <button onclick="exitSnapshot()">← Back to live</button>
   </div>
+
+  <div id="kanban-weekly-panel" class="weekly-s1-panel" style="display:none;"></div>
 
   <div class="kanban-board" id="kanban-board"></div>
 
@@ -2384,6 +2387,7 @@ let showAEOnCards = true; // global toggle: show "AE: ___" pill on each tile
 let selectedAEFilter = ''; // '' = all AEs, 'unassigned', or an AE id from AES
 let selectedMeetingsMonth = 'all'; // 'all' or 'YYYY-MM' — filters the Meetings view
 let meetingsWeeklyMode = false; // when true, Meetings view shows only this-week meetings + S1 tracker
+let kanbanS1TrackerVisible = false; // when true, the S1 tracker panel shows on the Kanban view
 let weeklyS1Tracker = {}; // { 'YYYY-MM-DD' (Monday of week): { expected: number, actual: number } }
 
 function defaultStagesClone() {
@@ -3587,6 +3591,7 @@ function selectUser(name) {
   restoreCardTasksPref();
   restoreAEOnCardsPref();
   restoreAEFilter();
+  restoreKanbanS1TrackerPref();
   // Always default the Meetings view to "All months" on user select so the
   // user sees every month right away. They can still narrow with the picker.
   selectedMeetingsMonth = 'all';
@@ -4222,6 +4227,24 @@ function toggleMeetingsWeeklyMode() {
   meetingsWeeklyMode = !meetingsWeeklyMode;
   renderMeetingsView();
 }
+function toggleKanbanS1Tracker() {
+  kanbanS1TrackerVisible = !kanbanS1TrackerVisible;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_kanban_s1_tracker`, kanbanS1TrackerVisible ? '1' : '0');
+  updateKanbanS1TrackerBtn();
+  renderWeeklyS1TrackerPanel('kanban-weekly-panel', kanbanS1TrackerVisible);
+}
+function updateKanbanS1TrackerBtn() {
+  const btn = document.getElementById('kanban-weekly-btn');
+  if (!btn) return;
+  btn.classList.toggle('active', kanbanS1TrackerVisible);
+  btn.textContent = kanbanS1TrackerVisible ? '✓ S1 Tracker' : '📊 S1 Tracker';
+}
+function restoreKanbanS1TrackerPref() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_kanban_s1_tracker`) : null;
+  kanbanS1TrackerVisible = saved === '1';
+  updateKanbanS1TrackerBtn();
+  renderWeeklyS1TrackerPanel('kanban-weekly-panel', kanbanS1TrackerVisible);
+}
 function setWeeklyExpected(key, val) {
   weeklyS1Tracker[key] = weeklyS1Tracker[key] || {};
   weeklyS1Tracker[key].expected = parseInt(val, 10) || 0;
@@ -4238,10 +4261,12 @@ function setWeeklyActual(key, val) {
   if (cell) cell.textContent = weeklyS1Tracker[key].actual || '—';
 }
 
-function renderWeeklyS1TrackerPanel() {
-  const panel = document.getElementById('weekly-s1-panel');
+function renderWeeklyS1TrackerPanel(panelId, visible) {
+  // Backward-compat: if called with no args, default to the meetings panel
+  if (panelId === undefined) { panelId = 'weekly-s1-panel'; visible = meetingsWeeklyMode; }
+  const panel = document.getElementById(panelId);
   if (!panel) return;
-  if (!meetingsWeeklyMode) { panel.style.display = 'none'; return; }
+  if (!visible) { panel.style.display = 'none'; return; }
   panel.style.display = '';
   // Show last 4 weeks + current + next 1 week
   const thisMonday = mondayOfDate(new Date());
