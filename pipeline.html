@@ -653,8 +653,15 @@
     border-radius: 8px; font-family: inherit; }
   .us-tab.active { background: var(--text); color: #fff; }
   .us-tab:not(.active):hover { background: #f1f5f9; color: var(--text); }
-  .overview-content { display: flex; flex-direction: column; gap: 18px;
+  .overview-content { display: flex; flex-direction: column; gap: 32px;
     text-align: left; }
+  .ov-group { display: flex; flex-direction: column; gap: 14px; }
+  .ov-group-title {
+    font-size: 18px; font-weight: 800; letter-spacing: -0.01em;
+    color: var(--text); padding-bottom: 4px;
+    border-bottom: 2px solid var(--text);
+    display: inline-block; align-self: flex-start;
+  }
   .overview-loading { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
   .ov-top {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -3701,13 +3708,14 @@ function computeOverviewHTML(rows) {
     const s2Id  = (stages.find(s => /^\s*S2\s*$/i.test(s.label || '')) || {}).id;
 
     let meetings = 0, week = 0, month = 0, s1ThisMonth = 0;
+    let sdrCount = 0, aeCount = 0, s1Count = 0, s2Count = 0;
     (data.companies || []).forEach(c => {
       if (c.dead || c.hmmm || c.old) return;
       totalOpps++;
-      if (c.stageId === sdrId) totalSDR++;
-      else if (c.stageId === aeId) totalAE++;
-      else if (c.stageId === s1Id) totalS1++;
-      else if (c.stageId === s2Id) totalS2++;
+      if (c.stageId === sdrId) { totalSDR++; sdrCount++; }
+      else if (c.stageId === aeId) { totalAE++; aeCount++; }
+      else if (c.stageId === s1Id) { totalS1++; s1Count++; }
+      else if (c.stageId === s2Id) { totalS2++; s2Count++; }
       (c.meetings || []).forEach(d => {
         meetings++;
         if (d >= wkStartStr && d <= wkEndStr) week++;
@@ -3722,89 +3730,114 @@ function computeOverviewHTML(rows) {
     totalMeetings += meetings;
     totalWeek += week;
     totalMonth += month;
-    perUser.push({ uid, ...u, meetings, week, month, s1ThisMonth });
+    perUser.push({ uid, ...u, meetings, week, month, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count });
   });
 
   // Sort perUser by month meetings desc, then by total desc
   perUser.sort((a, b) => b.month - a.month || b.meetings - a.meetings);
 
-  const num = (n, color) => `<td class="num ${n===0?'zero':''}" ${color?`style="color:${color}"`:''}>${n}</td>`;
+  const num = (n) => `<td class="num ${n===0?'zero':''}">${n}</td>`;
+  const nameCell = (p) => `
+    <td>
+      <div class="ov-row-name">
+        <span class="ov-avatar" style="background:${p.avatarBg};color:${p.avatarColor}">${escapeHTML(p.init)}</span>
+        ${escapeHTML(p.label)}
+      </div>
+    </td>`;
 
-  const userRows = perUser.map(p => `
-    <tr>
-      <td>
-        <div class="ov-row-name">
-          <span class="ov-avatar" style="background:${p.avatarBg};color:${p.avatarColor}">${escapeHTML(p.init)}</span>
-          ${escapeHTML(p.label)}
-        </div>
-      </td>
-      ${num(p.week)}
-      ${num(p.month)}
-      ${num(p.s1ThisMonth)}
-      ${num(p.meetings)}
-    </tr>`).join('');
+  // Meetings table: sort by this-month meetings desc
+  const meetingsRows = [...perUser]
+    .sort((a, b) => b.month - a.month || b.meetings - a.meetings)
+    .map(p => `<tr>${nameCell(p)}${num(p.week)}${num(p.month)}${num(p.meetings)}</tr>`).join('');
+
+  // Opportunities table: sort by S1s-this-month desc, then total
+  const oppsRows = [...perUser]
+    .sort((a, b) => b.s1ThisMonth - a.s1ThisMonth ||
+                    (b.sdrCount + b.aeCount + b.s1Count + b.s2Count) -
+                    (a.sdrCount + a.aeCount + a.s1Count + a.s2Count))
+    .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${num(p.s1Count)}${num(p.s2Count)}${num(p.s1ThisMonth)}</tr>`).join('');
 
   return `
-    <div class="ov-top">
-      <div class="ov-card" style="--ov-color:#22c55e">
-        <div class="ov-card-label">Meetings This Week</div>
-        <div class="ov-card-value">${totalWeek}</div>
-        <div class="ov-card-sub">${wkStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${wkEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+    <div class="ov-group">
+      <h2 class="ov-group-title">📅 Meetings</h2>
+      <div class="ov-top">
+        <div class="ov-card" style="--ov-color:#22c55e">
+          <div class="ov-card-label">This Week</div>
+          <div class="ov-card-value">${totalWeek}</div>
+          <div class="ov-card-sub">${wkStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${wkEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+        </div>
+        <div class="ov-card" style="--ov-color:#3b82f6">
+          <div class="ov-card-label">This Month</div>
+          <div class="ov-card-value">${totalMonth}</div>
+          <div class="ov-card-sub">${monthLabel}</div>
+        </div>
+        <div class="ov-card" style="--ov-color:#0f172a">
+          <div class="ov-card-label">All Time</div>
+          <div class="ov-card-value">${totalMeetings}</div>
+          <div class="ov-card-sub">across every teammate</div>
+        </div>
       </div>
-      <div class="ov-card" style="--ov-color:#3b82f6">
-        <div class="ov-card-label">Meetings This Month</div>
-        <div class="ov-card-value">${totalMonth}</div>
-        <div class="ov-card-sub">${monthLabel}</div>
-      </div>
-      <div class="ov-card" style="--ov-color:#0f172a">
-        <div class="ov-card-label">Total Meetings</div>
-        <div class="ov-card-value">${totalMeetings}</div>
-        <div class="ov-card-sub">all time, all teammates</div>
-      </div>
-      <div class="ov-card" style="--ov-color:#${'94a3b8'.toUpperCase()}">
-        <div class="ov-card-label">Total Opportunities</div>
-        <div class="ov-card-value">${totalOpps}</div>
-        <div class="ov-card-sub">live + parked</div>
-      </div>
-    </div>
-
-    <div class="ov-top">
-      <div class="ov-card" style="--ov-color:#f5511d">
-        <div class="ov-card-label">SDR Discovery</div>
-        <div class="ov-card-value">${totalSDR}</div>
-        <div class="ov-card-sub">opps in stage</div>
-      </div>
-      <div class="ov-card" style="--ov-color:#f6c026">
-        <div class="ov-card-label">AE Discovery</div>
-        <div class="ov-card-value">${totalAE}</div>
-        <div class="ov-card-sub">opps in stage</div>
-      </div>
-      <div class="ov-card" style="--ov-color:#33b679">
-        <div class="ov-card-label">S1</div>
-        <div class="ov-card-value">${totalS1}</div>
-        <div class="ov-card-sub">opps in stage</div>
-      </div>
-      <div class="ov-card" style="--ov-color:#0b8043">
-        <div class="ov-card-label">S2</div>
-        <div class="ov-card-value">${totalS2}</div>
-        <div class="ov-card-sub">opps in stage</div>
+      <div class="ov-section">
+        <h3>Per teammate — ${escapeHTML(monthLabel)}</h3>
+        <table class="ov-table">
+          <thead>
+            <tr>
+              <th>Person</th>
+              <th class="num">This Week</th>
+              <th class="num">This Month</th>
+              <th class="num">All Time</th>
+            </tr>
+          </thead>
+          <tbody>${meetingsRows}</tbody>
+        </table>
       </div>
     </div>
 
-    <div class="ov-section">
-      <h3>Per teammate — ${escapeHTML(monthLabel)}</h3>
-      <table class="ov-table">
-        <thead>
-          <tr>
-            <th>Person</th>
-            <th class="num">This Week</th>
-            <th class="num">This Month</th>
-            <th class="num">S1s This Month</th>
-            <th class="num">All-Time Meetings</th>
-          </tr>
-        </thead>
-        <tbody>${userRows}</tbody>
-      </table>
+    <div class="ov-group">
+      <h2 class="ov-group-title">🗂 Opportunities</h2>
+      <div class="ov-top">
+        <div class="ov-card" style="--ov-color:#94a3b8">
+          <div class="ov-card-label">Live Total</div>
+          <div class="ov-card-value">${totalOpps}</div>
+          <div class="ov-card-sub">excluding dead / hmmm / old</div>
+        </div>
+        <div class="ov-card" style="--ov-color:#f5511d">
+          <div class="ov-card-label">SDR Discovery</div>
+          <div class="ov-card-value">${totalSDR}</div>
+          <div class="ov-card-sub">opps in stage</div>
+        </div>
+        <div class="ov-card" style="--ov-color:#f6c026">
+          <div class="ov-card-label">AE Discovery</div>
+          <div class="ov-card-value">${totalAE}</div>
+          <div class="ov-card-sub">opps in stage</div>
+        </div>
+        <div class="ov-card" style="--ov-color:#33b679">
+          <div class="ov-card-label">S1</div>
+          <div class="ov-card-value">${totalS1}</div>
+          <div class="ov-card-sub">opps in stage</div>
+        </div>
+        <div class="ov-card" style="--ov-color:#0b8043">
+          <div class="ov-card-label">S2</div>
+          <div class="ov-card-value">${totalS2}</div>
+          <div class="ov-card-sub">opps in stage</div>
+        </div>
+      </div>
+      <div class="ov-section">
+        <h3>Per teammate — opps in each stage</h3>
+        <table class="ov-table">
+          <thead>
+            <tr>
+              <th>Person</th>
+              <th class="num">SDR</th>
+              <th class="num">AE</th>
+              <th class="num">S1</th>
+              <th class="num">S2</th>
+              <th class="num">S1s This Month</th>
+            </tr>
+          </thead>
+          <tbody>${oppsRows}</tbody>
+        </table>
+      </div>
     </div>
   `;
 }
