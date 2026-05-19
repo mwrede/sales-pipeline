@@ -1365,6 +1365,48 @@
   .mv-card-meeting-color {
     font-size: 9px; font-weight: 700;
   }
+  /* Weekly pipeline button + S1 tracker */
+  .mv-weekly-btn {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 13px; font-size: 12px; font-weight: 600;
+    color: var(--text); font-family: inherit; cursor: pointer;
+    margin-bottom: 4px;
+  }
+  .mv-weekly-btn:hover { background: #f8fafc; border-color: #c7d2e0; }
+  .mv-weekly-btn.active {
+    background: var(--text); color: #fff; border-color: var(--text);
+  }
+  .weekly-s1-panel {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; margin-bottom: 20px;
+  }
+  .wkt-head { display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 12px; }
+  .wkt-head h3 { font-size: 16px; font-weight: 700; }
+  .wkt-table { display: grid; gap: 4px; }
+  .wkt-row {
+    display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px;
+    align-items: center; padding: 8px 10px; border-radius: 7px;
+  }
+  .wkt-row-head {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border); border-radius: 0; padding-bottom: 8px;
+  }
+  .wkt-row.wkt-current { background: var(--green-bg); }
+  .wkt-week-col { display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text); }
+  .wkt-pill {
+    font-size: 10px; font-weight: 700; background: var(--green-dot); color: #fff;
+    padding: 1px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .wkt-input {
+    width: 80px; padding: 6px 10px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 7px; font-family: inherit;
+    color: var(--text); text-align: center;
+  }
+  .wkt-input:focus { outline: none; border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
 
   .mv-head {
     display: flex; align-items: flex-start; justify-content: space-between;
@@ -1928,11 +1970,13 @@
       <p>Click any card to open its opportunity. Click "Not attended" to mark a meeting as a no-show.</p>
     </div>
     <div class="mv-controls">
+      <button id="mv-weekly-btn" class="mv-weekly-btn" onclick="toggleMeetingsWeeklyMode()" title="Show only this week's meetings + Expected vs Actual S1s tracker">📊 Weekly pipeline</button>
       <label class="mp-label" for="mv-month">Month</label>
       <select id="mv-month" class="month-picker" onchange="onMeetingsMonthChange(this.value)"></select>
     </div>
   </div>
   <div class="mv-metrics" id="meetings-metrics"></div>
+  <div id="weekly-s1-panel" class="weekly-s1-panel" style="display:none;"></div>
   <div class="mv-board" id="meetings-view-body"></div>
 </div>
 
@@ -2339,6 +2383,8 @@ let showCardTasks = true; // global toggle: show next-due task at the top of eve
 let showAEOnCards = true; // global toggle: show "AE: ___" pill on each tile
 let selectedAEFilter = ''; // '' = all AEs, 'unassigned', or an AE id from AES
 let selectedMeetingsMonth = 'all'; // 'all' or 'YYYY-MM' — filters the Meetings view
+let meetingsWeeklyMode = false; // when true, Meetings view shows only this-week meetings + S1 tracker
+let weeklyS1Tracker = {}; // { 'YYYY-MM-DD' (Monday of week): { expected: number, actual: number } }
 
 function defaultStagesClone() {
   return JSON.parse(JSON.stringify(DEFAULT_STAGES));
@@ -4152,6 +4198,99 @@ function onMeetingsMonthChange(v) {
   if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_meetings_month`, selectedMeetingsMonth);
   renderMeetingsView();
 }
+
+// Weekly pipeline mode + S1 tracker helpers
+function mondayOfDate(d) {
+  const x = new Date(d);
+  const day = x.getDay();
+  const offset = day === 0 ? -6 : 1 - day; // Monday is start of week
+  x.setDate(x.getDate() + offset);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function _ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function weekKeyForDate(d) { return _ymd(mondayOfDate(d)); }
+function fmtWeekRange(weekKey) {
+  const start = parseLocalDate(weekKey);
+  const end = new Date(start); end.setDate(start.getDate() + 6);
+  const fmt = x => x.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+function toggleMeetingsWeeklyMode() {
+  meetingsWeeklyMode = !meetingsWeeklyMode;
+  renderMeetingsView();
+}
+function setWeeklyExpected(key, val) {
+  weeklyS1Tracker[key] = weeklyS1Tracker[key] || {};
+  weeklyS1Tracker[key].expected = parseInt(val, 10) || 0;
+  saveData();
+  // Refresh just the summary cell (no full render needed)
+  const cell = document.querySelector(`[data-week="${key}"] .wkt-expected-display`);
+  if (cell) cell.textContent = weeklyS1Tracker[key].expected || '—';
+}
+function setWeeklyActual(key, val) {
+  weeklyS1Tracker[key] = weeklyS1Tracker[key] || {};
+  weeklyS1Tracker[key].actual = parseInt(val, 10) || 0;
+  saveData();
+  const cell = document.querySelector(`[data-week="${key}"] .wkt-actual-display`);
+  if (cell) cell.textContent = weeklyS1Tracker[key].actual || '—';
+}
+
+function renderWeeklyS1TrackerPanel() {
+  const panel = document.getElementById('weekly-s1-panel');
+  if (!panel) return;
+  if (!meetingsWeeklyMode) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  // Show last 4 weeks + current + next 1 week
+  const thisMonday = mondayOfDate(new Date());
+  const rows = [];
+  for (let i = 4; i >= -1; i--) {
+    const m = new Date(thisMonday); m.setDate(thisMonday.getDate() - i * 7);
+    rows.push(_ymd(m));
+  }
+  const today = _ymd(new Date());
+  const thisWeekKey = _ymd(thisMonday);
+  panel.innerHTML = `
+    <div class="wkt-head">
+      <div>
+        <div class="tv-eyebrow">WEEKLY S1 TRACKER</div>
+        <h3>Expected vs Actual S1s, week over week</h3>
+      </div>
+    </div>
+    <div class="wkt-table">
+      <div class="wkt-row wkt-row-head">
+        <div class="wkt-week-col">Week</div>
+        <div class="wkt-col">Expected S1s</div>
+        <div class="wkt-col">Actual S1s</div>
+      </div>
+      ${rows.map(k => {
+        const row = weeklyS1Tracker[k] || {};
+        const isCurrent = k === thisWeekKey;
+        const range = fmtWeekRange(k);
+        return `
+          <div class="wkt-row ${isCurrent?'wkt-current':''}" data-week="${k}">
+            <div class="wkt-week-col">
+              <strong>${escapeHTML(range)}</strong>
+              ${isCurrent ? '<span class="wkt-pill">this week</span>' : ''}
+            </div>
+            <div class="wkt-col">
+              <input type="number" min="0" step="1" class="wkt-input"
+                     value="${row.expected != null ? row.expected : ''}"
+                     onblur="setWeeklyExpected('${k}', this.value)"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" />
+            </div>
+            <div class="wkt-col">
+              <input type="number" min="0" step="1" class="wkt-input"
+                     value="${row.actual != null ? row.actual : ''}"
+                     onblur="setWeeklyActual('${k}', this.value)"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" />
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
 function isNotAttended(c, date) {
   return Array.isArray(c.notAttendedDates) && c.notAttendedDates.includes(date);
 }
@@ -4211,11 +4350,24 @@ function renderMeetingsView() {
   populateMeetingsMonthPicker();
   const body = document.getElementById('meetings-view-body');
   if (!body) return;
+  // Update weekly button state
+  const wkBtn = document.getElementById('mv-weekly-btn');
+  if (wkBtn) wkBtn.classList.toggle('active', meetingsWeeklyMode);
+  // Render the S1 tracker panel when in weekly mode
+  renderWeeklyS1TrackerPanel();
+  // Weekly-mode date window: Monday → Sunday containing today
+  let wkStartStr = null, wkEndStr = null;
+  if (meetingsWeeklyMode) {
+    const wkStart = mondayOfDate(new Date());
+    const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 6);
+    wkStartStr = _ymd(wkStart); wkEndStr = _ymd(wkEnd);
+  }
   // Every meeting, including ones on dead/hmmm cards
   const items = [];
   companies.forEach(c => {
     (c.meetings || []).forEach(date => {
       if (selectedMeetingsMonth !== 'all' && date.substring(0, 7) !== selectedMeetingsMonth) return;
+      if (meetingsWeeklyMode && (date < wkStartStr || date > wkEndStr)) return;
       const colorId = (c.meetingColors && c.meetingColors[date]) || null;
       items.push({
         date,
@@ -5567,7 +5719,8 @@ function buildCloudBlob() {
     parentNames: PARENT_NAMES,
     groupNames,
     dismissedEvents: [...dismissedCalEvents],
-    stages
+    stages,
+    weeklyS1Tracker
   };
 }
 function applyCloudBlob(b) {
@@ -5579,6 +5732,7 @@ function applyCloudBlob(b) {
   if (b.groupNames) Object.assign(groupNames, b.groupNames);
   if (Array.isArray(b.dismissedEvents)) dismissedCalEvents = new Set(b.dismissedEvents);
   if (Array.isArray(b.stages) && b.stages.length) stages = b.stages;
+  weeklyS1Tracker = (b.weeklyS1Tracker && typeof b.weeklyS1Tracker === 'object') ? b.weeklyS1Tracker : {};
   const migrated = migrateLegacyStages();
   companies.forEach(ensureCompanyStage);
   return migrated;
