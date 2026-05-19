@@ -736,10 +736,28 @@
     text-align: center; font-variant-numeric: tabular-nums;
     font-size: 13px; font-weight: 700;
     border-radius: 0;
+    white-space: nowrap;
   }
   .tg-exp { color: var(--muted); }
   .tg-sep { color: #cbd5e1; margin: 0 4px; font-weight: 500; }
   .tg-act { color: var(--text); }
+  .tg-input {
+    width: 38px; padding: 3px 5px; font-size: 12px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid transparent; border-radius: 5px;
+    background: transparent; font-family: inherit;
+    text-align: center; color: var(--text);
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .tg-input::-webkit-outer-spin-button,
+  .tg-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .tg-input { -moz-appearance: textfield; }
+  .tg-input:hover { background: rgba(0,0,0,0.04); }
+  .tg-input:focus { outline: none; border-color: #93c5fd; background: #fff;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.18); }
+  .tg-exp-input { color: var(--muted); }
+  .tg-cell.tg-hit  .tg-act-input { color: #047857; }
+  .tg-cell.tg-miss .tg-act-input { color: var(--red); }
   .tg-cell.tg-hit  { background: #ecfdf5; }
   .tg-cell.tg-hit  .tg-act { color: #047857; }
   .tg-cell.tg-miss { background: #fef2f2; }
@@ -3722,6 +3740,61 @@ function setLoginTab(name) {
   else if (name === 'targets') renderTargets();
 }
 
+// Save an Expected/Actual cell directly into that user's blob in Supabase.
+// Refetches the target user's data on each save so we don't blow away
+// concurrent edits to other fields. Updates the cell's color class in place.
+async function onTargetInputBlur(input) {
+  const userId = input.dataset.user;
+  const wk = input.dataset.week;
+  const field = input.dataset.field; // 'expected' | 'actual'
+  const raw = input.value.trim();
+  const num = raw === '' ? null : Math.max(0, parseInt(raw, 10));
+  const valToStore = (raw === '' || isNaN(num)) ? null : num;
+  input.style.borderColor = ''; // reset any error state
+  try {
+    const getR = await fetch(`${SUPABASE_URL}/rest/v1/pipeline_blob?user_id=eq.${encodeURIComponent(userId)}&select=data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!getR.ok) throw new Error(`fetch ${getR.status}`);
+    const rows = await getR.json();
+    if (!rows.length) throw new Error(`no blob for ${userId}`);
+    const data = rows[0].data || {};
+    data.weeklyS1Tracker = (data.weeklyS1Tracker && typeof data.weeklyS1Tracker === 'object') ? data.weeklyS1Tracker : {};
+    data.weeklyS1Tracker[wk] = data.weeklyS1Tracker[wk] || {};
+    if (valToStore == null) delete data.weeklyS1Tracker[wk][field];
+    else data.weeklyS1Tracker[wk][field] = valToStore;
+    // Clean up an entirely-empty week entry
+    if (data.weeklyS1Tracker[wk].expected == null && data.weeklyS1Tracker[wk].actual == null) {
+      delete data.weeklyS1Tracker[wk];
+    }
+    const patchR = await fetch(`${SUPABASE_URL}/rest/v1/pipeline_blob?user_id=eq.${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ data, updated_at: new Date().toISOString() })
+    });
+    if (!patchR.ok) throw new Error(`patch ${patchR.status}`);
+    // Update the cell's color class in place
+    const td = input.closest('td');
+    if (td) {
+      const e = td.querySelector('.tg-exp-input').value.trim();
+      const a = td.querySelector('.tg-act-input').value.trim();
+      td.classList.remove('tg-hit', 'tg-miss', 'tg-empty');
+      if (e !== '' && a !== '') {
+        td.classList.add(parseInt(a, 10) >= parseInt(e, 10) ? 'tg-hit' : 'tg-miss');
+      } else if (e === '' && a === '') {
+        td.classList.add('tg-empty');
+      }
+    }
+  } catch (err) {
+    console.warn('Target save failed', err);
+    input.style.borderColor = 'var(--red)';
+  }
+}
+
 async function renderTargets() {
   const el = document.getElementById('targets-content');
   if (!el) return;
@@ -3781,16 +3854,25 @@ function computeTargetsHTML(rows) {
     return '<div class="overview-loading">No users found.</div>';
   }
 
-  const cell = (e, a) => {
-    if (e == null && a == null) return '<td class="tg-cell tg-empty">—</td>';
-    const ev = e == null ? '–' : e;
-    const av = a == null ? '–' : a;
+  const cellHtml = (uid, wk, e, a) => {
     let cls = 'tg-cell';
-    if (e != null && a != null) {
-      if (a >= e) cls += ' tg-hit';
-      else cls += ' tg-miss';
-    }
-    return `<td class="${cls}"><span class="tg-exp">${ev}</span><span class="tg-sep">/</span><span class="tg-act">${av}</span></td>`;
+    if (e != null && a != null) cls += a >= e ? ' tg-hit' : ' tg-miss';
+    else if (e == null && a == null) cls += ' tg-empty';
+    return `<td class="${cls}">
+      <input type="number" min="0" step="1" class="tg-input tg-exp-input"
+             value="${e == null ? '' : e}"
+             data-user="${uid}" data-week="${wk}" data-field="expected"
+             placeholder="—"
+             onblur="onTargetInputBlur(this)"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" />
+      <span class="tg-sep">/</span>
+      <input type="number" min="0" step="1" class="tg-input tg-act-input"
+             value="${a == null ? '' : a}"
+             data-user="${uid}" data-week="${wk}" data-field="actual"
+             placeholder="—"
+             onblur="onTargetInputBlur(this)"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" />
+    </td>`;
   };
 
   // Header row: week labels
@@ -3814,7 +3896,7 @@ function computeTargetsHTML(rows) {
           ${escapeHTML(p.label)}
         </div>
       </td>
-      ${p.weekly.map(w => cell(w.e, w.a)).join('')}
+      ${p.weekly.map(w => cellHtml(p.uid, w.wk, w.e, w.a)).join('')}
       <td class="tg-cell tg-total"><span class="tg-exp">${p.totalExp}</span><span class="tg-sep">/</span><span class="tg-act">${p.totalAct}</span></td>
     </tr>`).join('');
 
