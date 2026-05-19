@@ -640,8 +640,10 @@
   /* ── User selection screen ── */
   #user-select-screen {
     position: fixed; inset: 0; background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 0;
     z-index: 2000;
+    overflow-y: auto;
   }
   .user-sel-wrap {
     text-align: center; margin: 0 auto;
