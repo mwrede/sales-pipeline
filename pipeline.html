@@ -721,6 +721,38 @@
     font-size: 11px; font-weight: 700; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
   }
+  /* Expected vs Actual targets table */
+  .tg-table { min-width: 720px; }
+  .tg-table th, .tg-table td { padding: 10px 12px; }
+  .tg-week-th {
+    text-align: center;
+  }
+  .tg-week-th.tg-current { background: #ecfdf5; }
+  .tg-week-label { font-size: 11px; font-weight: 700; color: var(--text);
+    text-transform: uppercase; letter-spacing: 0.04em; }
+  .tg-week-sub { font-size: 10px; color: var(--muted); margin-top: 2px;
+    font-weight: 500; text-transform: none; letter-spacing: 0; }
+  .tg-cell {
+    text-align: center; font-variant-numeric: tabular-nums;
+    font-size: 13px; font-weight: 700;
+    border-radius: 0;
+  }
+  .tg-exp { color: var(--muted); }
+  .tg-sep { color: #cbd5e1; margin: 0 4px; font-weight: 500; }
+  .tg-act { color: var(--text); }
+  .tg-cell.tg-hit  { background: #ecfdf5; }
+  .tg-cell.tg-hit  .tg-act { color: #047857; }
+  .tg-cell.tg-miss { background: #fef2f2; }
+  .tg-cell.tg-miss .tg-act { color: var(--red); }
+  .tg-cell.tg-empty { color: #cbd5e1; font-weight: 500; }
+  .tg-cell.tg-total { background: #f8fafc; }
+  .tg-legend-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    vertical-align: middle; margin: 0 4px 0 8px;
+  }
+  .tg-hit-dot   { background: #047857; }
+  .tg-miss-dot  { background: var(--red); }
+  .tg-empty-dot { background: #cbd5e1; }
   .user-cards { display: flex; gap: 20px; justify-content: center; }
   .user-card {
     background: white; border: 1.5px solid var(--border); border-radius: 18px;
@@ -1884,12 +1916,19 @@
     <h1 class="user-sel-title">Sales Pipeline</h1>
     <div class="us-tabs">
       <button id="us-tab-overview" class="us-tab active" onclick="setLoginTab('overview')">📊 Overview</button>
+      <button id="us-tab-targets" class="us-tab" onclick="setLoginTab('targets')">🎯 Expected vs Actual</button>
       <button id="us-tab-users" class="us-tab" onclick="setLoginTab('users')">👤 Pick user</button>
     </div>
 
     <div id="login-tab-overview" class="login-tab-content">
       <div id="overview-content" class="overview-content">
         <div class="overview-loading">Loading team overview…</div>
+      </div>
+    </div>
+
+    <div id="login-tab-targets" class="login-tab-content" style="display:none;">
+      <div id="targets-content" class="overview-content">
+        <div class="overview-loading">Loading expected vs actual…</div>
       </div>
     </div>
 
@@ -3671,14 +3710,137 @@ function dropToCreate(e) {
 //  Login-screen Overview tab
 // ─────────────────────────────────────────────
 function setLoginTab(name) {
-  const tabs = { overview: 'us-tab-overview', users: 'us-tab-users' };
+  const tabs = { overview: 'us-tab-overview', targets: 'us-tab-targets', users: 'us-tab-users' };
   Object.entries(tabs).forEach(([k, id]) => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('active', k === name);
   });
   document.getElementById('login-tab-overview').style.display = name === 'overview' ? '' : 'none';
+  document.getElementById('login-tab-targets').style.display  = name === 'targets'  ? '' : 'none';
   document.getElementById('login-tab-users').style.display    = name === 'users'    ? '' : 'none';
   if (name === 'overview') renderOverview();
+  else if (name === 'targets') renderTargets();
+}
+
+async function renderTargets() {
+  const el = document.getElementById('targets-content');
+  if (!el) return;
+  el.innerHTML = '<div class="overview-loading">Loading expected vs actual…</div>';
+  if (!cloudReady()) {
+    el.innerHTML = '<div class="overview-loading">Cloud sync isn\'t configured.</div>';
+    return;
+  }
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/pipeline_blob?select=user_id,data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const rows = await r.json();
+    el.innerHTML = computeTargetsHTML(rows);
+  } catch (e) {
+    el.innerHTML = `<div class="overview-loading">Couldn't load targets: ${escapeHTML(e.message)}</div>`;
+  }
+}
+
+function computeTargetsHTML(rows) {
+  // Build the last 6 weeks (incl. this week)
+  const thisMonday = mondayOfDate(new Date());
+  const weeks = [];
+  for (let i = 0; i < 6; i++) {
+    const m = new Date(thisMonday); m.setDate(thisMonday.getDate() - i * 7);
+    weeks.push(_ymd(m));
+  }
+  const thisWeekKey = weeks[0];
+
+  // Per user: pull tracker
+  const perUser = rows.map(row => {
+    const uid = row.user_id;
+    const u = USERS[uid] || { label: uid, init: uid.substring(0,1).toUpperCase(), avatarBg:'#f1f5f9', avatarColor:'#475569' };
+    const tracker = (row.data && row.data.weeklyS1Tracker) || {};
+    let totalExp = 0, totalAct = 0, weeksLogged = 0;
+    const weekly = weeks.map(wk => {
+      const r = tracker[wk] || {};
+      const e = r.expected != null ? Number(r.expected) : null;
+      const a = r.actual   != null ? Number(r.actual)   : null;
+      if (e != null) totalExp += e;
+      if (a != null) totalAct += a;
+      if (e != null || a != null) weeksLogged++;
+      return { wk, e, a };
+    });
+    return { uid, ...u, weekly, totalExp, totalAct, weeksLogged };
+  });
+
+  // Sort by current-week actual desc, then total actual desc
+  perUser.sort((a, b) => {
+    const aw = (a.weekly[0] && a.weekly[0].a) || 0;
+    const bw = (b.weekly[0] && b.weekly[0].a) || 0;
+    return bw - aw || b.totalAct - a.totalAct;
+  });
+
+  if (!perUser.length) {
+    return '<div class="overview-loading">No users found.</div>';
+  }
+
+  const cell = (e, a) => {
+    if (e == null && a == null) return '<td class="tg-cell tg-empty">—</td>';
+    const ev = e == null ? '–' : e;
+    const av = a == null ? '–' : a;
+    let cls = 'tg-cell';
+    if (e != null && a != null) {
+      if (a >= e) cls += ' tg-hit';
+      else cls += ' tg-miss';
+    }
+    return `<td class="${cls}"><span class="tg-exp">${ev}</span><span class="tg-sep">/</span><span class="tg-act">${av}</span></td>`;
+  };
+
+  // Header row: week labels
+  const weekLabel = wk => {
+    const start = parseLocalDate(wk);
+    const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return fmt(start);
+  };
+  const headerCells = weeks.map((wk, i) => `
+    <th class="tg-week-th ${wk===thisWeekKey?'tg-current':''}">
+      <div class="tg-week-label">${i === 0 ? 'This week' : weekLabel(wk)}</div>
+      <div class="tg-week-sub">${weekLabel(wk)}</div>
+    </th>
+  `).join('');
+
+  const rowsHtml = perUser.map(p => `
+    <tr>
+      <td>
+        <div class="ov-row-name">
+          <span class="ov-avatar" style="background:${p.avatarBg};color:${p.avatarColor}">${escapeHTML(p.init)}</span>
+          ${escapeHTML(p.label)}
+        </div>
+      </td>
+      ${p.weekly.map(w => cell(w.e, w.a)).join('')}
+      <td class="tg-cell tg-total"><span class="tg-exp">${p.totalExp}</span><span class="tg-sep">/</span><span class="tg-act">${p.totalAct}</span></td>
+    </tr>`).join('');
+
+  return `
+    <div class="ov-group">
+      <h2 class="ov-group-title">🎯 Expected vs Actual S1s</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">
+        Each cell reads <strong>expected / actual</strong> for that week.
+        <span class="tg-legend-dot tg-hit-dot"></span> hit or beat target,
+        <span class="tg-legend-dot tg-miss-dot"></span> under target,
+        <span class="tg-legend-dot tg-empty-dot"></span> nothing logged.
+      </p>
+      <div class="ov-section" style="padding:0;overflow-x:auto;">
+        <table class="ov-table tg-table">
+          <thead>
+            <tr>
+              <th>Person</th>
+              ${headerCells}
+              <th class="tg-week-th"><div class="tg-week-label">6-week total</div></th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 async function renderOverview() {
