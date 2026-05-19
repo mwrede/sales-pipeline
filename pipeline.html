@@ -1933,12 +1933,12 @@
   <div class="user-sel-wrap">
     <h1 class="user-sel-title">Sales Pipeline</h1>
     <div class="us-tabs">
-      <button id="us-tab-overview" class="us-tab active" onclick="setLoginTab('overview')">📊 Overview</button>
+      <button id="us-tab-users" class="us-tab active" onclick="setLoginTab('users')">👤 Pick user</button>
+      <button id="us-tab-overview" class="us-tab" onclick="setLoginTab('overview')">📊 Overview</button>
       <button id="us-tab-targets" class="us-tab" onclick="setLoginTab('targets')">🎯 Expected vs Actual</button>
-      <button id="us-tab-users" class="us-tab" onclick="setLoginTab('users')">👤 Pick user</button>
     </div>
 
-    <div id="login-tab-overview" class="login-tab-content">
+    <div id="login-tab-overview" class="login-tab-content" style="display:none;">
       <div id="overview-content" class="overview-content">
         <div class="overview-loading">Loading team overview…</div>
       </div>
@@ -1950,7 +1950,7 @@
       </div>
     </div>
 
-    <div id="login-tab-users" class="login-tab-content" style="display:none;">
+    <div id="login-tab-users" class="login-tab-content">
       <p class="user-sel-sub">Who are you?</p>
       <div class="user-cards">
       <div class="user-card" onclick="selectUser('michael')">
@@ -3114,8 +3114,7 @@ window.addEventListener('load', () => {
   if (IS_CONFIGURED) {
     document.getElementById('setup-banner').classList.add('hidden');
   }
-  // Kick off the overview render on first paint
-  setTimeout(() => { if (document.getElementById('user-select-screen').style.display !== 'none') renderOverview(); }, 50);
+  // Overview / targets render lazily when their tab is clicked.
   // Update button label
   if (IS_CONFIGURED) {
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
