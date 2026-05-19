@@ -2288,8 +2288,21 @@ function aeLabel(id) {
 function detectAEFromAttendees(emails) {
   if (!emails || !emails.length) return null;
   const lower = emails.map(e => (e || '').toLowerCase());
+  // Pass 1: exact email match from the explicit list
   for (const ae of AES) {
     if (ae.emails.some(em => lower.includes(em))) return ae.id;
+  }
+  // Pass 2: any @roboflow.com address whose local-part starts with the AE's
+  // first name + "." — catches forms like matthew.c.king@roboflow.com,
+  // kevin.j.brown@roboflow.com, etc.
+  for (const ae of AES) {
+    const first = ae.label.split(' ')[0].toLowerCase();
+    for (const e of lower) {
+      const [local, dom] = e.split('@');
+      if (dom === 'roboflow.com' && local && (local === first || local.startsWith(first + '.'))) {
+        return ae.id;
+      }
+    }
   }
   return null;
 }
