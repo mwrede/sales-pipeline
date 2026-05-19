@@ -643,9 +643,60 @@
     display: flex; align-items: center; justify-content: center;
     z-index: 2000;
   }
-  .user-sel-wrap { text-align: center; }
+  .user-sel-wrap { text-align: center; max-width: 1100px; margin: 0 auto; }
   .user-sel-title { font-size: 34px; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 8px; }
   .user-sel-sub { color: var(--muted); font-size: 15px; margin-bottom: 40px; }
+  .us-tabs { display: inline-flex; background: #fff; border: 1px solid var(--border);
+    border-radius: 12px; padding: 4px; gap: 2px; margin: 12px 0 24px 0; }
+  .us-tab { background: none; border: none; cursor: pointer;
+    padding: 8px 18px; font-size: 13px; font-weight: 600; color: var(--muted);
+    border-radius: 8px; font-family: inherit; }
+  .us-tab.active { background: var(--text); color: #fff; }
+  .us-tab:not(.active):hover { background: #f1f5f9; color: var(--text); }
+  .overview-content { display: flex; flex-direction: column; gap: 18px;
+    text-align: left; }
+  .overview-loading { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
+  .ov-top {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+  }
+  .ov-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 18px; --ov-color: #3b82f6; position: relative; overflow: hidden;
+  }
+  .ov-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0;
+    background: var(--ov-color);
+  }
+  .ov-card-label { font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em; }
+  .ov-card-value { font-size: 28px; font-weight: 800; color: var(--text);
+    margin-top: 4px; line-height: 1.1; letter-spacing: -0.02em; }
+  .ov-card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .ov-section {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 22px;
+  }
+  .ov-section h3 { font-size: 13px; font-weight: 800; margin-bottom: 12px;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); }
+  .ov-table { width: 100%; border-collapse: collapse; }
+  .ov-table th, .ov-table td {
+    padding: 9px 10px; text-align: left; font-size: 13px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .ov-table tr:last-child td { border-bottom: none; }
+  .ov-table th {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .ov-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .ov-table td.num.zero { color: #cbd5e1; font-weight: 500; }
+  .ov-row-name { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .ov-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
   .user-cards { display: flex; gap: 20px; justify-content: center; }
   .user-card {
     background: white; border: 1.5px solid var(--border); border-radius: 18px;
@@ -1807,8 +1858,20 @@
 <div id="user-select-screen">
   <div class="user-sel-wrap">
     <h1 class="user-sel-title">Sales Pipeline</h1>
-    <p class="user-sel-sub">Who are you?</p>
-    <div class="user-cards">
+    <div class="us-tabs">
+      <button id="us-tab-overview" class="us-tab active" onclick="setLoginTab('overview')">📊 Overview</button>
+      <button id="us-tab-users" class="us-tab" onclick="setLoginTab('users')">👤 Pick user</button>
+    </div>
+
+    <div id="login-tab-overview" class="login-tab-content">
+      <div id="overview-content" class="overview-content">
+        <div class="overview-loading">Loading team overview…</div>
+      </div>
+    </div>
+
+    <div id="login-tab-users" class="login-tab-content" style="display:none;">
+      <p class="user-sel-sub">Who are you?</p>
+      <div class="user-cards">
       <div class="user-card" onclick="selectUser('michael')">
         <div class="user-avatar" style="background:#eff6ff;color:#1d4ed8">M</div>
         <div class="user-card-name">Michael</div>
@@ -1833,6 +1896,7 @@
         <div class="user-avatar" style="background:#fffbeb;color:#b45309">C</div>
         <div class="user-card-name">Charlie</div>
       </div>
+    </div>
     </div>
   </div>
 </div>
@@ -2969,6 +3033,8 @@ window.addEventListener('load', () => {
   if (IS_CONFIGURED) {
     document.getElementById('setup-banner').classList.add('hidden');
   }
+  // Kick off the overview render on first paint
+  setTimeout(() => { if (document.getElementById('user-select-screen').style.display !== 'none') renderOverview(); }, 50);
   // Update button label
   if (IS_CONFIGURED) {
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
@@ -3577,6 +3643,172 @@ function dropToCreate(e) {
 // ─────────────────────────────────────────────
 //  User selection
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+//  Login-screen Overview tab
+// ─────────────────────────────────────────────
+function setLoginTab(name) {
+  const tabs = { overview: 'us-tab-overview', users: 'us-tab-users' };
+  Object.entries(tabs).forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', k === name);
+  });
+  document.getElementById('login-tab-overview').style.display = name === 'overview' ? '' : 'none';
+  document.getElementById('login-tab-users').style.display    = name === 'users'    ? '' : 'none';
+  if (name === 'overview') renderOverview();
+}
+
+async function renderOverview() {
+  const el = document.getElementById('overview-content');
+  if (!el) return;
+  el.innerHTML = '<div class="overview-loading">Loading team overview…</div>';
+  if (!cloudReady()) {
+    el.innerHTML = '<div class="overview-loading">Cloud sync isn\'t configured.</div>';
+    return;
+  }
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/pipeline_blob?select=user_id,data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const rows = await r.json();
+    el.innerHTML = computeOverviewHTML(rows);
+  } catch (e) {
+    el.innerHTML = `<div class="overview-loading">Couldn't load overview: ${escapeHTML(e.message)}</div>`;
+  }
+}
+
+function computeOverviewHTML(rows) {
+  const now = new Date();
+  const wkStart = mondayOfDate(now);
+  const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 6);
+  const wkStartStr = _ymd(wkStart);
+  const wkEndStr = _ymd(wkEnd);
+  const monStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+  let totalMeetings = 0, totalWeek = 0, totalMonth = 0;
+  let totalSDR = 0, totalAE = 0, totalS1 = 0, totalS2 = 0, totalOpps = 0;
+  const perUser = []; // [{ user, label, avatarBg, avatarColor, init, meetings, week, month, s1ThisMonth }]
+
+  rows.forEach(row => {
+    const uid = row.user_id;
+    const u = USERS[uid] || { label: uid, init: uid.substring(0,1).toUpperCase(), avatarBg:'#f1f5f9', avatarColor:'#475569' };
+    const data = row.data || {};
+    const stages = data.stages || [];
+    const sdrId = (stages.find(s => /SDR Discovery/i.test(s.label || '')) || {}).id;
+    const aeId  = (stages.find(s => /AE Discovery/i.test(s.label || '')) || {}).id;
+    const s1Id  = (stages.find(s => /^\s*S1\s*$/i.test(s.label || '')) || {}).id;
+    const s2Id  = (stages.find(s => /^\s*S2\s*$/i.test(s.label || '')) || {}).id;
+
+    let meetings = 0, week = 0, month = 0, s1ThisMonth = 0;
+    (data.companies || []).forEach(c => {
+      if (c.dead || c.hmmm || c.old) return;
+      totalOpps++;
+      if (c.stageId === sdrId) totalSDR++;
+      else if (c.stageId === aeId) totalAE++;
+      else if (c.stageId === s1Id) totalS1++;
+      else if (c.stageId === s2Id) totalS2++;
+      (c.meetings || []).forEach(d => {
+        meetings++;
+        if (d >= wkStartStr && d <= wkEndStr) week++;
+        if (d.substring(0,7) === monStr) month++;
+      });
+      // S1 this month attributed by final-meeting month
+      if (c.stageId === s1Id) {
+        const last = [...(c.meetings || [])].sort().pop();
+        if (last && last.substring(0,7) === monStr) s1ThisMonth++;
+      }
+    });
+    totalMeetings += meetings;
+    totalWeek += week;
+    totalMonth += month;
+    perUser.push({ uid, ...u, meetings, week, month, s1ThisMonth });
+  });
+
+  // Sort perUser by month meetings desc, then by total desc
+  perUser.sort((a, b) => b.month - a.month || b.meetings - a.meetings);
+
+  const num = (n, color) => `<td class="num ${n===0?'zero':''}" ${color?`style="color:${color}"`:''}>${n}</td>`;
+
+  const userRows = perUser.map(p => `
+    <tr>
+      <td>
+        <div class="ov-row-name">
+          <span class="ov-avatar" style="background:${p.avatarBg};color:${p.avatarColor}">${escapeHTML(p.init)}</span>
+          ${escapeHTML(p.label)}
+        </div>
+      </td>
+      ${num(p.week)}
+      ${num(p.month)}
+      ${num(p.s1ThisMonth)}
+      ${num(p.meetings)}
+    </tr>`).join('');
+
+  return `
+    <div class="ov-top">
+      <div class="ov-card" style="--ov-color:#22c55e">
+        <div class="ov-card-label">Meetings This Week</div>
+        <div class="ov-card-value">${totalWeek}</div>
+        <div class="ov-card-sub">${wkStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${wkEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+      </div>
+      <div class="ov-card" style="--ov-color:#3b82f6">
+        <div class="ov-card-label">Meetings This Month</div>
+        <div class="ov-card-value">${totalMonth}</div>
+        <div class="ov-card-sub">${monthLabel}</div>
+      </div>
+      <div class="ov-card" style="--ov-color:#0f172a">
+        <div class="ov-card-label">Total Meetings</div>
+        <div class="ov-card-value">${totalMeetings}</div>
+        <div class="ov-card-sub">all time, all teammates</div>
+      </div>
+      <div class="ov-card" style="--ov-color:#${'94a3b8'.toUpperCase()}">
+        <div class="ov-card-label">Total Opportunities</div>
+        <div class="ov-card-value">${totalOpps}</div>
+        <div class="ov-card-sub">live + parked</div>
+      </div>
+    </div>
+
+    <div class="ov-top">
+      <div class="ov-card" style="--ov-color:#f5511d">
+        <div class="ov-card-label">SDR Discovery</div>
+        <div class="ov-card-value">${totalSDR}</div>
+        <div class="ov-card-sub">opps in stage</div>
+      </div>
+      <div class="ov-card" style="--ov-color:#f6c026">
+        <div class="ov-card-label">AE Discovery</div>
+        <div class="ov-card-value">${totalAE}</div>
+        <div class="ov-card-sub">opps in stage</div>
+      </div>
+      <div class="ov-card" style="--ov-color:#33b679">
+        <div class="ov-card-label">S1</div>
+        <div class="ov-card-value">${totalS1}</div>
+        <div class="ov-card-sub">opps in stage</div>
+      </div>
+      <div class="ov-card" style="--ov-color:#0b8043">
+        <div class="ov-card-label">S2</div>
+        <div class="ov-card-value">${totalS2}</div>
+        <div class="ov-card-sub">opps in stage</div>
+      </div>
+    </div>
+
+    <div class="ov-section">
+      <h3>Per teammate — ${escapeHTML(monthLabel)}</h3>
+      <table class="ov-table">
+        <thead>
+          <tr>
+            <th>Person</th>
+            <th class="num">This Week</th>
+            <th class="num">This Month</th>
+            <th class="num">S1s This Month</th>
+            <th class="num">All-Time Meetings</th>
+          </tr>
+        </thead>
+        <tbody>${userRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function selectUser(name) {
   currentUser = name;
   const u = USERS[name];
