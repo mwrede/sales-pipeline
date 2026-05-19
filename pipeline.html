@@ -643,64 +643,79 @@
     display: flex; align-items: center; justify-content: center;
     z-index: 2000;
   }
-  .user-sel-wrap { text-align: center; max-width: 1100px; margin: 0 auto; }
-  .user-sel-title { font-size: 34px; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 8px; }
-  .user-sel-sub { color: var(--muted); font-size: 15px; margin-bottom: 40px; }
+  .user-sel-wrap {
+    text-align: center; margin: 0 auto;
+    width: 100%; max-width: 1400px;
+    padding: 0 20px;
+  }
+  .user-sel-title { font-size: 32px; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 6px; }
+  .user-sel-sub { color: var(--muted); font-size: 15px; margin-bottom: 28px; }
   .us-tabs { display: inline-flex; background: #fff; border: 1px solid var(--border);
-    border-radius: 12px; padding: 4px; gap: 2px; margin: 12px 0 24px 0; }
+    border-radius: 12px; padding: 4px; gap: 2px; margin: 8px 0 22px 0; }
   .us-tab { background: none; border: none; cursor: pointer;
     padding: 8px 18px; font-size: 13px; font-weight: 600; color: var(--muted);
     border-radius: 8px; font-family: inherit; }
   .us-tab.active { background: var(--text); color: #fff; }
   .us-tab:not(.active):hover { background: #f1f5f9; color: var(--text); }
-  .overview-content { display: flex; flex-direction: column; gap: 32px;
+  .overview-content { display: flex; flex-direction: column; gap: 26px;
     text-align: left; }
-  .ov-group { display: flex; flex-direction: column; gap: 14px; }
+  .ov-group { display: flex; flex-direction: column; gap: 12px; }
   .ov-group-title {
-    font-size: 18px; font-weight: 800; letter-spacing: -0.01em;
+    font-size: 16px; font-weight: 800; letter-spacing: -0.01em;
     color: var(--text); padding-bottom: 4px;
     border-bottom: 2px solid var(--text);
     display: inline-block; align-self: flex-start;
+    margin-bottom: 2px;
   }
   .overview-loading { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
   .ov-top {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 12px;
+    display: grid; gap: 10px;
+  }
+  .ov-meetings-tiles { grid-template-columns: repeat(3, 1fr); }
+  .ov-opps-tiles { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 1100px) {
+    .ov-opps-tiles { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .ov-meetings-tiles, .ov-opps-tiles { grid-template-columns: repeat(2, 1fr); }
   }
   .ov-card {
-    background: #fff; border: 1px solid var(--border); border-radius: 12px;
-    padding: 14px 18px; --ov-color: #3b82f6; position: relative; overflow: hidden;
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; --ov-color: #3b82f6; position: relative; overflow: hidden;
+    min-height: 80px;
   }
   .ov-card::before {
     content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0;
     background: var(--ov-color);
   }
-  .ov-card-label { font-size: 11px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.06em; }
-  .ov-card-value { font-size: 28px; font-weight: 800; color: var(--text);
+  .ov-card-label { font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ov-card-value { font-size: 24px; font-weight: 800; color: var(--text);
     margin-top: 4px; line-height: 1.1; letter-spacing: -0.02em; }
-  .ov-card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .ov-card-sub { font-size: 10px; color: var(--muted); margin-top: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ov-section {
     background: #fff; border: 1px solid var(--border); border-radius: 12px;
-    padding: 18px 22px;
+    padding: 14px 18px;
   }
-  .ov-section h3 { font-size: 13px; font-weight: 800; margin-bottom: 12px;
-    text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); }
+  .ov-section h3 { font-size: 11px; font-weight: 800; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
   .ov-table { width: 100%; border-collapse: collapse; }
   .ov-table th, .ov-table td {
-    padding: 9px 10px; text-align: left; font-size: 13px;
+    padding: 8px 10px; text-align: left; font-size: 13px;
     border-bottom: 1px solid #f1f5f9;
   }
   .ov-table tr:last-child td { border-bottom: none; }
   .ov-table th {
-    font-size: 11px; font-weight: 700; color: var(--muted);
+    font-size: 10px; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.05em;
   }
   .ov-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
   .ov-table td.num.zero { color: #cbd5e1; font-weight: 500; }
   .ov-row-name { display: flex; align-items: center; gap: 10px; font-weight: 600; }
   .ov-avatar {
-    width: 26px; height: 26px; border-radius: 50%;
+    width: 24px; height: 24px; border-radius: 50%;
     font-size: 11px; font-weight: 700; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
   }
@@ -3760,7 +3775,7 @@ function computeOverviewHTML(rows) {
   return `
     <div class="ov-group">
       <h2 class="ov-group-title">📅 Meetings</h2>
-      <div class="ov-top">
+      <div class="ov-top ov-meetings-tiles">
         <div class="ov-card" style="--ov-color:#22c55e">
           <div class="ov-card-label">This Week</div>
           <div class="ov-card-value">${totalWeek}</div>
@@ -3795,7 +3810,7 @@ function computeOverviewHTML(rows) {
 
     <div class="ov-group">
       <h2 class="ov-group-title">🗂 Opportunities</h2>
-      <div class="ov-top">
+      <div class="ov-top ov-opps-tiles">
         <div class="ov-card" style="--ov-color:#94a3b8">
           <div class="ov-card-label">Live Total</div>
           <div class="ov-card-value">${totalOpps}</div>
