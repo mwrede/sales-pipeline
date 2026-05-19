@@ -1112,6 +1112,9 @@
   .k-card-btn.hmmm-btn:hover {
     background: #fffbeb; color: #b45309; border-color: #fde68a;
   }
+  .k-card-btn.old-btn:hover {
+    background: #f1f5f9; color: #475569; border-color: #cbd5e1;
+  }
   .k-card-head {
     display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
   }
@@ -1937,6 +1940,7 @@
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
       <button id="task-toggle-btn" onclick="toggleCardTasksDisplay()" title="Show or hide the next-due task at the top of every card"></button>
+      <button id="kanban-weekly-pipeline-btn" onclick="toggleKanbanWeeklyPipeline()" title="Filter the board to only S1 opportunities">📊 Weekly Pipeline</button>
       <button id="kanban-weekly-btn" onclick="toggleKanbanS1Tracker()" title="Show or hide the weekly S1 tracker (expected vs actual)">📊 S1 Tracker</button>
       <button onclick="openSnapshotPanel()" title="Save the current state, or load a past snapshot">📸 Snapshots</button>
       <button onclick="openNewOppModal('','')">+ New Opportunity</button>
@@ -2401,6 +2405,7 @@ let selectedAEFilter = ''; // '' = all AEs, 'unassigned', or an AE id from AES
 let selectedMeetingsMonth = 'all'; // 'all' or 'YYYY-MM' — filters the Meetings view
 let meetingsWeeklyMode = false; // when true, Meetings view shows only this-week meetings + S1 tracker
 let kanbanS1TrackerVisible = false; // when true, the S1 tracker panel shows on the Kanban view
+let kanbanWeeklyPipelineMode = false; // when true, kanban shows only S1-stage opps
 let weeklyS1Tracker = {}; // { 'YYYY-MM-DD' (Monday of week): { expected: number, actual: number } }
 
 function defaultStagesClone() {
@@ -3605,6 +3610,7 @@ function selectUser(name) {
   restoreAEOnCardsPref();
   restoreAEFilter();
   restoreKanbanS1TrackerPref();
+  restoreKanbanWeeklyPipelinePref();
   // Always default the Meetings view to "All months" on user select so the
   // user sees every month right away. They can still narrow with the picker.
   selectedMeetingsMonth = 'all';
@@ -3838,13 +3844,20 @@ function renderKanban() {
   const board = document.getElementById('kanban-board');
   if (!board) return;
   companies.forEach(ensureCompanyStage);
-  let visible = companies.filter(c => !c.dead && !c.hmmm);
+  let visible = companies.filter(c => !c.dead && !c.hmmm && !c.old);
   if (selectedAEFilter === 'unassigned') {
     visible = visible.filter(c => !c.ae);
   } else if (selectedAEFilter) {
     visible = visible.filter(c => c.ae === selectedAEFilter);
   }
-  const html = stages.map((stage, idx) => {
+  // Weekly Pipeline mode: show only S1-stage opps
+  const onlyS1 = !!kanbanWeeklyPipelineMode;
+  const s1Id = s1StageId();
+  if (onlyS1 && s1Id) {
+    visible = visible.filter(c => c.stageId === s1Id);
+  }
+  const stagesToRender = onlyS1 && s1Id ? stages.filter(s => s.id === s1Id) : stages;
+  const html = stagesToRender.map((stage, idx) => {
     let stageCompanies = sortStageCompanies(visible.filter(c => c.stageId === stage.id), stage);
     const safeId = stage.id.replace(/'/g,"\\'");
     const stageColor = colorHex(stage.color);
@@ -3900,6 +3913,9 @@ function renderKanban() {
             <button class="k-card-btn hmmm-btn"
                     onclick="event.stopPropagation();markHmmm('${safeN}')"
                     title="Park as uncertain — moves to Hmmm pile">🤔 Hmmm</button>
+            ${isS1Stage ? `<button class="k-card-btn old-btn"
+                    onclick="event.stopPropagation();markOld('${safeN}')"
+                    title="Mark as old — hides like Dead">⏳ Old</button>` : ''}
           </div>
         </div>`;
     }).join('');
@@ -3930,11 +3946,38 @@ function renderKanban() {
         </div>
         <button class="kc-add" onclick="openNewOppModalForStage('${safeId}')">+ Add opportunity</button>
       ${renderColumnHmmmSection(stage)}
+      ${renderColumnOldSection(stage)}
       ${renderColumnDeadSection(stage)}
       </div>`;
   }).join('');
   board.innerHTML = html;
   renderMetrics();
+}
+
+function renderColumnOldSection(stage) {
+  const items = companies.filter(c => c.old && !c.dead && c.stageId === stage.id);
+  if (!items.length) return '';
+  const open = !!oldOpenByStage[stage.id];
+  const safeId = stage.id.replace(/'/g,"\\'");
+  const cards = items.map(c => {
+    const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `
+      <div class="d-card">
+        <span class="d-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
+        <button class="d-card-restore" onclick="restoreFromOld('${safeN}')">Restore</button>
+      </div>`;
+  }).join('');
+  return `
+    <div class="kc-dead">
+      <button class="kc-dead-toggle" onclick="toggleColumnOld('${safeId}')">
+        <span class="kc-dead-toggle-left">
+          <span>⏳ Old</span>
+          <span class="kc-dead-count">${items.length}</span>
+        </span>
+        <span>${open ? '▾' : '▸'}</span>
+      </button>
+      ${open ? `<div class="kc-dead-list">${cards}</div>` : ''}
+    </div>`;
 }
 
 function renderColumnHmmmSection(stage) {
@@ -4245,6 +4288,23 @@ function toggleKanbanS1Tracker() {
   if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_kanban_s1_tracker`, kanbanS1TrackerVisible ? '1' : '0');
   updateKanbanS1TrackerBtn();
   renderWeeklyS1TrackerPanel('kanban-weekly-panel', kanbanS1TrackerVisible);
+}
+function toggleKanbanWeeklyPipeline() {
+  kanbanWeeklyPipelineMode = !kanbanWeeklyPipelineMode;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_kanban_weekly_mode`, kanbanWeeklyPipelineMode ? '1' : '0');
+  updateKanbanWeeklyPipelineBtn();
+  renderKanban();
+}
+function updateKanbanWeeklyPipelineBtn() {
+  const btn = document.getElementById('kanban-weekly-pipeline-btn');
+  if (!btn) return;
+  btn.classList.toggle('active', kanbanWeeklyPipelineMode);
+  btn.textContent = kanbanWeeklyPipelineMode ? '✓ Weekly Pipeline' : '📊 Weekly Pipeline';
+}
+function restoreKanbanWeeklyPipelinePref() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_kanban_weekly_mode`) : null;
+  kanbanWeeklyPipelineMode = saved === '1';
+  updateKanbanWeeklyPipelineBtn();
 }
 function updateKanbanS1TrackerBtn() {
   const btn = document.getElementById('kanban-weekly-btn');
@@ -4761,7 +4821,7 @@ function dateInSelectedMonth(d) {
   return d.substring(0, 7) === selectedMonth;
 }
 function renderMetrics() {
-  const active = c => !c.dead && !c.hmmm;
+  const active = c => !c.dead && !c.hmmm && !c.old;
   const sals = companies.filter(active)
     .filter(c => /AE Discovery|S1|S2/i.test((findStage(c.stageId) || {}).label || ''))
     .filter(c => (c.meetings || []).some(d => dateInSelectedMonth(d)))
@@ -4780,9 +4840,10 @@ function renderMetrics() {
   if (e3) e3.textContent = opps;
 }
 
-// ── Per-column Dead + Hmmm piles ──
+// ── Per-column Dead + Hmmm + Old piles ──
 const deadOpenByStage = {}; // stageId -> bool
 const hmmmOpenByStage = {}; // stageId -> bool
+const oldOpenByStage = {};  // stageId -> bool
 function toggleColumnDead(stageId) {
   deadOpenByStage[stageId] = !deadOpenByStage[stageId];
   renderKanban();
@@ -4791,12 +4852,16 @@ function toggleColumnHmmm(stageId) {
   hmmmOpenByStage[stageId] = !hmmmOpenByStage[stageId];
   renderKanban();
 }
+function toggleColumnOld(stageId) {
+  oldOpenByStage[stageId] = !oldOpenByStage[stageId];
+  renderKanban();
+}
 function markDead(name) {
   const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
   const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.dead = true;
-  c.hmmm = false; // mutually exclusive
+  c.hmmm = false; c.old = false; // mutually exclusive
   saveData(); renderKanban(); renderMetrics();
   if (openCardName === c.name) closeCardModal();
 }
@@ -4812,7 +4877,7 @@ function markHmmm(name) {
   const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.hmmm = true;
-  c.dead = false; // mutually exclusive
+  c.dead = false; c.old = false; // mutually exclusive
   saveData(); renderKanban(); renderMetrics();
   if (openCardName === c.name) closeCardModal();
 }
@@ -4821,6 +4886,22 @@ function restoreFromHmmm(name) {
   const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.hmmm = false;
+  saveData(); renderKanban(); renderMetrics();
+}
+function markOld(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  c.old = true;
+  c.dead = false; c.hmmm = false; // mutually exclusive
+  saveData(); renderKanban(); renderMetrics();
+  if (openCardName === c.name) closeCardModal();
+}
+function restoreFromOld(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  c.old = false;
   saveData(); renderKanban(); renderMetrics();
 }
 
