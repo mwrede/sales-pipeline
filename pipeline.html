@@ -1940,7 +1940,7 @@
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
       <button id="task-toggle-btn" onclick="toggleCardTasksDisplay()" title="Show or hide the next-due task at the top of every card"></button>
-      <button id="kanban-weekly-pipeline-btn" onclick="toggleKanbanWeeklyPipeline()" title="Filter the board to only S1 opportunities">📊 Weekly Pipeline</button>
+      <button id="kanban-weekly-pipeline-btn" onclick="toggleKanbanWeeklyPipeline()" title="Show only opps with a meeting this week (all columns)">📊 Weekly Pipeline</button>
       <button id="kanban-weekly-btn" onclick="toggleKanbanS1Tracker()" title="Show or hide the weekly S1 tracker (expected vs actual)">📊 S1 Tracker</button>
       <button onclick="openSnapshotPanel()" title="Save the current state, or load a past snapshot">📸 Snapshots</button>
       <button onclick="openNewOppModal('','')">+ New Opportunity</button>
@@ -3850,13 +3850,18 @@ function renderKanban() {
   } else if (selectedAEFilter) {
     visible = visible.filter(c => c.ae === selectedAEFilter);
   }
-  // Weekly Pipeline mode: show only S1-stage opps
-  const onlyS1 = !!kanbanWeeklyPipelineMode;
-  const s1Id = s1StageId();
-  if (onlyS1 && s1Id) {
-    visible = visible.filter(c => c.stageId === s1Id);
+  // Weekly Pipeline mode: keep all columns, but only show opps that have
+  // at least one meeting this calendar week (Mon → Sun containing today).
+  if (kanbanWeeklyPipelineMode) {
+    const wkStart = mondayOfDate(new Date());
+    const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 6);
+    const wkStartStr = _ymd(wkStart);
+    const wkEndStr = _ymd(wkEnd);
+    visible = visible.filter(c =>
+      (c.meetings || []).some(d => d >= wkStartStr && d <= wkEndStr)
+    );
   }
-  const stagesToRender = onlyS1 && s1Id ? stages.filter(s => s.id === s1Id) : stages;
+  const stagesToRender = stages;
   const html = stagesToRender.map((stage, idx) => {
     let stageCompanies = sortStageCompanies(visible.filter(c => c.stageId === stage.id), stage);
     const safeId = stage.id.replace(/'/g,"\\'");
