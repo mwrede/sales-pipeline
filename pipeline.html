@@ -3143,16 +3143,14 @@ function connectCalendar() {
     setTimeout(connectCalendar, 600);
     return;
   }
-  tokenClient.requestAccessToken();
+  // Always show the Google account picker so the user explicitly authenticates
+  // each time. Prevents the wrong account from being silently re-used.
+  tokenClient.requestAccessToken({ prompt: 'select_account' });
 }
 
-// Silent re-auth — must be truly silent (no popup). Fails gracefully if
-// the user's Google session has expired; in that case the Connect button
-// stays available for a one-click manual re-auth.
-function silentSync() {
-  if (!tokenClient) { _autoSyncOnReady = true; return; }
-  tokenClient.requestAccessToken({ prompt: 'none' });
-}
+// Kept for backward compat — but now no-ops so we never silently re-auth.
+// The user clicks Connect Google Calendar to start the flow each session.
+function silentSync() { /* explicit-auth-only mode: do nothing */ }
 
 async function handleToken(resp) {
   if (resp.error) {
@@ -3175,8 +3173,7 @@ async function handleToken(resp) {
 
 function resync() {
   if (accessToken) { syncCalendar(); return; }
-  // No live token — try silent re-auth first, then full connect
-  if (tokenClient && calendarEmail) { silentSync(); return; }
+  // No live token — force the user through the Google account picker.
   connectCalendar();
 }
 
@@ -4148,12 +4145,9 @@ function selectUser(name) {
   const savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
   if (savedEmail) {
     calendarEmail = savedEmail;
-    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> ${savedEmail}`;
-    const sb2 = document.getElementById('sync-btn'); if (sb2) sb2.style.display = 'block';
-    setCalStatus('syncing', 'Re-authorizing & syncing…');
-    // Auto-sync on user select — silent re-auth fetches a fresh token
-    // without a popup as long as your Google session is still valid.
-    silentSync();
+    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
+    const sb2 = document.getElementById('sync-btn'); if (sb2) sb2.style.display = 'none';
+    setCalStatus('', `Click Connect to re-authorize ${savedEmail}`);
   } else {
     document.getElementById('cal-btn').innerHTML = '<span class="gcal-icon"></span> Connect Google Calendar';
     const syncBtn = document.getElementById('sync-btn');
