@@ -4786,17 +4786,49 @@ async function startFromScratch() {
 
 async function restoreSnapshot(id, name) {
   if (inSnapshotMode()) { alert('Exit snapshot view first (← Back to live).'); return; }
-  if (!confirm(`Restore "${name.replace(/&apos;/g,"'")}" as your live pipeline?\n\nThis OVERWRITES your current data. A safety snapshot of the current state will be auto-saved first so you can revert.`)) return;
+  const cleanName = name.replace(/&apos;/g, "'");
+  // Pre-load the snapshot so we can show a clear delta in the warning
+  let snap;
+  try { snap = await cloudLoadSnapshot(id); }
+  catch (e) { alert('Could not load snapshot: ' + e.message); return; }
+  if (!snap) { alert('Snapshot not found.'); return; }
+  const currentCount = companies.length;
+  const snapCount = (snap.data && Array.isArray(snap.data.companies)) ? snap.data.companies.length : 0;
+  // First confirm — explicit destructive warning with the delta
+  const ok1 = confirm(
+`⚠️  RESTORE WILL OVERWRITE YOUR LIVE PIPELINE  ⚠️
+
+You are about to replace your current state with the snapshot:
+  "${cleanName}"
+
+Live now    : ${currentCount} card${currentCount===1?'':'s'}
+Snapshot has: ${snapCount} card${snapCount===1?'':'s'}
+
+Every card, note, dead flag, AE tag, checklist progress, and stage you
+have on your live board right now will be replaced by what's in the
+snapshot.
+
+A "Pre-restore" snapshot of your CURRENT state will be auto-saved before
+the overwrite — you can undo this from Snapshots if needed.
+
+Proceed?`
+  );
+  if (!ok1) return;
+  // Second confirm — final gate
+  const ok2 = confirm(
+`Last chance. Replace your live pipeline (${currentCount} cards) with the
+snapshot "${cleanName}" (${snapCount} cards)?
+
+This cannot be undone except by restoring the auto "Pre-restore" snapshot.`
+  );
+  if (!ok2) return;
   try {
     // 1. Auto-save a safety snapshot of the CURRENT state
     const safetyName = 'Pre-restore · ' + new Date().toLocaleString('en-US', {
       month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
     });
     await cloudSaveSnapshot(safetyName);
-    // 2. Load the snapshot we're restoring from
-    const snap = await cloudLoadSnapshot(id);
-    if (!snap) { alert('Snapshot not found.'); return; }
-    // 3. Apply to in-memory state + write back to cloud as the new live
+    // 2. Apply the snapshot to in-memory state + write back to cloud as the new live
     applyCloudBlob(snap.data);
     saveDataLocal();
     setCloudStatus('saving');
@@ -4804,10 +4836,10 @@ async function restoreSnapshot(id, name) {
     // Also rebuild the normalized opps + meetings tables for queryability
     cloudSyncTables(currentUser).catch(e => console.warn('table re-sync failed', e));
     setCloudStatus('idle');
-    // 4. Re-render every view
+    // 3. Re-render every view
     renderKanban(); renderTimelineV2(); renderMetrics();
     closeSnapshotPanel();
-    alert(`Restored. The previous live state was saved as "${safetyName}" so you can revert if needed.`);
+    alert(`Restored. Your previous live state was saved as "${safetyName}" — open Snapshots and Restore it if you want to undo.`);
   } catch (e) {
     console.warn('restore failed', e);
     alert('Restore failed: ' + e.message);
