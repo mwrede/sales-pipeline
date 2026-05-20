@@ -3178,6 +3178,12 @@ function resync() {
 }
 
 async function syncCalendar() {
+  // Belt-and-suspenders rollback: snapshot current state to Supabase
+  // before sync runs. If anything during sync mutates state unexpectedly,
+  // the user can View the "Pre-sync · …" snapshot in the Snapshots panel
+  // to see exactly what they had right before this sync started.
+  await autoSnapshotBeforeSync();
+
   // Sync events colored with any of the user's stage-mapped colors (and
   // having external invitees). Color drives both filtering and routing.
   const stageColors = stages.map(s => s.color).filter(Boolean);
@@ -4602,6 +4608,34 @@ async function cloudLoadSnapshot(id) {
   if (!r.ok) throw new Error(`cloudLoadSnapshot ${r.status}`);
   return (await r.json())[0] || null;
 }
+// Take a "Pre-sync · MM/DD HH:MM" snapshot before sync runs so the user
+// always has a rollback if anything in the upcoming sync mutates state
+// unexpectedly. Trims auto-snapshots to the last 10 so they don't bloat.
+async function autoSnapshotBeforeSync() {
+  if (!cloudReady() || !currentUser) return;
+  try {
+    const now = new Date();
+    const label = now.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+    await cloudSaveSnapshot(`Pre-sync · ${label}`);
+    // Trim — keep newest 10 auto-snapshots only
+    const url = `${SUPABASE_URL}/rest/v1/snapshots?user_id=eq.${encodeURIComponent(currentUser)}&name=like.Pre-sync%25&select=id,created_at&order=created_at.desc`;
+    const r = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+    if (!r.ok) return;
+    const rows = await r.json();
+    if (rows.length <= 10) return;
+    for (const row of rows.slice(10)) {
+      await fetch(`${SUPABASE_URL}/rest/v1/snapshots?id=eq.${encodeURIComponent(row.id)}`, {
+        method: 'DELETE',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+    }
+  } catch (e) {
+    console.warn('Pre-sync snapshot failed (non-fatal)', e);
+  }
+}
+
 async function cloudDeleteSnapshot(id) {
   await fetch(`${SUPABASE_URL}/rest/v1/snapshots?id=eq.${encodeURIComponent(id)}`, {
     method: 'DELETE',
