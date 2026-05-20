@@ -4676,6 +4676,7 @@ async function renderSnapshotList() {
             <div class="snap-row-meta"><strong>${dateStr}</strong> · ${timeStr}${viewing ? ' · currently viewing' : ''}</div>
           </div>
           <button onclick="viewSnapshot('${safeId}')">${viewing ? 'Re-load' : 'View'}</button>
+          <button onclick="restoreSnapshot('${safeId}','${safeName.replace(/'/g,"&apos;")}')" title="Replace your live data with this snapshot">↺ Restore</button>
           <button class="danger" onclick="confirmDeleteSnapshot('${safeId}','${safeName.replace(/'/g,"&apos;")}')">Delete</button>
         </div>`;
     }).join('');
@@ -4781,6 +4782,37 @@ async function startFromScratch() {
 
   renderKanban(); renderTimelineV2(); renderMetrics();
   closeSnapshotPanel();
+}
+
+async function restoreSnapshot(id, name) {
+  if (inSnapshotMode()) { alert('Exit snapshot view first (← Back to live).'); return; }
+  if (!confirm(`Restore "${name.replace(/&apos;/g,"'")}" as your live pipeline?\n\nThis OVERWRITES your current data. A safety snapshot of the current state will be auto-saved first so you can revert.`)) return;
+  try {
+    // 1. Auto-save a safety snapshot of the CURRENT state
+    const safetyName = 'Pre-restore · ' + new Date().toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+    await cloudSaveSnapshot(safetyName);
+    // 2. Load the snapshot we're restoring from
+    const snap = await cloudLoadSnapshot(id);
+    if (!snap) { alert('Snapshot not found.'); return; }
+    // 3. Apply to in-memory state + write back to cloud as the new live
+    applyCloudBlob(snap.data);
+    saveDataLocal();
+    setCloudStatus('saving');
+    await cloudSave(currentUser, buildCloudBlob());
+    // Also rebuild the normalized opps + meetings tables for queryability
+    cloudSyncTables(currentUser).catch(e => console.warn('table re-sync failed', e));
+    setCloudStatus('idle');
+    // 4. Re-render every view
+    renderKanban(); renderTimelineV2(); renderMetrics();
+    closeSnapshotPanel();
+    alert(`Restored. The previous live state was saved as "${safetyName}" so you can revert if needed.`);
+  } catch (e) {
+    console.warn('restore failed', e);
+    alert('Restore failed: ' + e.message);
+    setCloudStatus('error');
+  }
 }
 
 async function confirmDeleteSnapshot(id, name) {
