@@ -3323,12 +3323,13 @@ function processEvents(events) {
       // One opp per domain — every event for the same prospect attaches to
       // their single card, regardless of the event's color. Stage promotion
       // is still forward-only based on most-recent color.
-      const wasParked = existing.dead || existing.hmmm;
       if (!existing.calendarMeetings || !existing.calendarMeetings.includes(ev.date)) {
         attachEventToCompany(existing, ev);
         attached++;
-        // Auto-revive: a new meeting from the same prospect un-flags Dead/Hmmm
-        if (wasParked) { existing.dead = false; existing.hmmm = false; }
+        // Dead / Hmmm / Old flags are sticky — sync never clears them. A
+        // new meeting on a dead opp stays on the dead card (visible in the
+        // per-column Dead pile when expanded). Manual restore is the only
+        // way back to the live board.
       } else if (ev.attendees.length && !existing.primaryEmail) {
         existing.primaryEmail = ev.attendees[0];
       }
