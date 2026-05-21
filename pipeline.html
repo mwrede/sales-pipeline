@@ -2520,14 +2520,44 @@ function detectAEFromCompany(c) {
   return detectAEFromAttendees([...set]);
 }
 
+// Each user has an `emails` allowlist. When the user connects Google
+// Calendar, we check the authenticated Google account email against this
+// list — if it doesn't match, the token is revoked and the connect is
+// refused. This is the safety net that stops a teammate from accidentally
+// pulling somebody else's calendar into the wrong blob.
 const USERS = {
-  michael:  { label: 'Michael',  init: 'M', avatarBg: '#eff6ff', avatarColor: '#1d4ed8', calColorId: '10' },
-  sylvie:   { label: 'Sylvie',   init: 'S', avatarBg: '#fdf4ff', avatarColor: '#7e22ce', calColorId: '10' },
-  davis:    { label: 'Davis',    init: 'D', avatarBg: '#f0fdf4', avatarColor: '#15803d', calColorId: '6'  },
-  grace:    { label: 'Grace',    init: 'G', avatarBg: '#fdf2f8', avatarColor: '#be185d', calColorId: '10' },
-  sabrina:  { label: 'Sabrina',  init: 'S', avatarBg: '#ecfeff', avatarColor: '#0e7490', calColorId: '10' },
-  charlie:  { label: 'Charlie',  init: 'C', avatarBg: '#fffbeb', avatarColor: '#b45309', calColorId: '10' },
+  michael:  { label: 'Michael',  init: 'M', avatarBg: '#eff6ff', avatarColor: '#1d4ed8', calColorId: '10',
+              emails: ['mwrede8@gmail.com', 'michael@roboflow.com'] },
+  sylvie:   { label: 'Sylvie',   init: 'S', avatarBg: '#fdf4ff', avatarColor: '#7e22ce', calColorId: '10',
+              emails: ['sylvie@roboflow.com'] },
+  davis:    { label: 'Davis',    init: 'D', avatarBg: '#f0fdf4', avatarColor: '#15803d', calColorId: '6',
+              emails: ['davis@roboflow.com'] },
+  grace:    { label: 'Grace',    init: 'G', avatarBg: '#fdf2f8', avatarColor: '#be185d', calColorId: '10',
+              emails: ['grace@roboflow.com'] },
+  sabrina:  { label: 'Sabrina',  init: 'S', avatarBg: '#ecfeff', avatarColor: '#0e7490', calColorId: '10',
+              emails: ['sabrina@roboflow.com'] },
+  charlie:  { label: 'Charlie',  init: 'C', avatarBg: '#fffbeb', avatarColor: '#b45309', calColorId: '10',
+              emails: ['charlie@roboflow.com'] },
 };
+
+// Returns true if `email` is in the currently logged-in user's allowlist.
+function isAllowedCalendarEmail(email) {
+  if (!email || !currentUser) return false;
+  const u = USERS[currentUser];
+  if (!u || !Array.isArray(u.emails) || !u.emails.length) return false;
+  const lower = email.toLowerCase().trim();
+  return u.emails.some(e => e.toLowerCase().trim() === lower);
+}
+
+// Best-effort token revoke so re-connecting forces a fresh consent UI
+// rather than silently re-using the rejected account.
+async function revokeGoogleToken(token) {
+  if (!token) return;
+  try {
+    await fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(token),
+      { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+  } catch (_) { /* non-fatal */ }
+}
 let currentUser = null;
 let calendarEmail = '';
 
@@ -3219,6 +3249,65 @@ async function handleToken(resp) {
     return;
   }
   accessToken = resp.access_token;
+  setCalStatus('syncing', 'Verifying Google account…');
+  document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Verifying…`;
+
+  // HARD GUARD: confirm the authenticated Google account matches the
+  // logged-in user before we sync ANYTHING. Stops cross-contamination
+  // (e.g. accidentally connecting Michael's calendar while logged in as
+  // Sylvie). On mismatch we revoke the token, clear state, and bail
+  // before autoSnapshotBeforeSync or any calendar read fires.
+  let signedInEmail = '';
+  try {
+    const infoResp = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',
+      { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (infoResp.ok) {
+      const info = await infoResp.json();
+      signedInEmail = (info.email || '').toLowerCase();
+    }
+  } catch (_) { /* fall through to the missing-email failure below */ }
+
+  if (!signedInEmail) {
+    await revokeGoogleToken(accessToken);
+    accessToken = null;
+    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
+    setCalStatus('error', 'Could not read your Google account email — try again.');
+    alert('Could not verify which Google account you connected. Try again.');
+    return;
+  }
+
+  if (!isAllowedCalendarEmail(signedInEmail)) {
+    const allowed = (USERS[currentUser]?.emails || []).join(', ') || '(no email configured for this user)';
+    const userLabel = USERS[currentUser]?.label || currentUser;
+    // Revoke so the wrong account can't sneak back in via cached consent
+    await revokeGoogleToken(accessToken);
+    accessToken = null;
+    calendarEmail = '';
+    if (currentUser) localStorage.removeItem(`pipeline_v2_${currentUser}_cal_email`);
+    document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
+    setCalStatus('error', `Refused — ${signedInEmail} isn't ${userLabel}'s calendar.`);
+    alert(
+`⚠️ Wrong Google account
+
+You signed in as:
+   ${signedInEmail}
+
+…but you're logged into the pipeline as:
+   ${userLabel}
+
+I disconnected and revoked that token so nothing got pulled into the wrong blob.
+Expected email${USERS[currentUser]?.emails?.length === 1 ? '' : 's'} for ${userLabel}: ${allowed}
+
+Click Connect Google Calendar again and pick the right account.`
+    );
+    return;
+  }
+
+  // Email is valid → cache it and proceed
+  calendarEmail = signedInEmail;
+  if (currentUser) {
+    localStorage.setItem(`pipeline_v2_${currentUser}_cal_email`, calendarEmail);
+  }
   setCalStatus('syncing', 'Fetching calendar events...');
   document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Syncing...`;
   await syncCalendar();
@@ -3260,6 +3349,20 @@ async function syncCalendar() {
       }
     }
     if (!calendarEmail) throw new Error('Could not determine your Google account email');
+
+    // Belt-and-suspenders: even if a stale cached email made it this far,
+    // refuse to read the wrong person's calendar.
+    if (!isAllowedCalendarEmail(calendarEmail)) {
+      const userLabel = USERS[currentUser]?.label || currentUser;
+      await revokeGoogleToken(accessToken);
+      accessToken = null;
+      const bad = calendarEmail;
+      calendarEmail = '';
+      if (currentUser) localStorage.removeItem(`pipeline_v2_${currentUser}_cal_email`);
+      setCalStatus('error', `Refused — ${bad} isn't ${userLabel}'s calendar.`);
+      document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
+      throw new Error(`Refusing to sync — ${bad} isn't an allowed calendar for ${userLabel}.`);
+    }
 
     const calId = encodeURIComponent(calendarEmail);
     const timeMin = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
@@ -4229,7 +4332,14 @@ function selectUser(name) {
   refreshFromCloud();
 
   // Check for previously-connected calendar email
-  const savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
+  let savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
+  // Defensive cleanup: if a cached email isn't in this user's allowlist
+  // (e.g. left over from before the guard existed), drop it on the floor.
+  if (savedEmail && !isAllowedCalendarEmail(savedEmail)) {
+    console.warn('Discarding cached calendar email — not in allowlist:', savedEmail);
+    localStorage.removeItem(`pipeline_v2_${name}_cal_email`);
+    savedEmail = null;
+  }
   if (savedEmail) {
     calendarEmail = savedEmail;
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Connect Google Calendar`;
