@@ -673,7 +673,7 @@
   .ov-top {
     display: grid; gap: 10px;
   }
-  .ov-meetings-tiles { grid-template-columns: repeat(3, 1fr); }
+  .ov-meetings-tiles { grid-template-columns: repeat(4, 1fr); }
   .ov-opps-tiles { grid-template-columns: repeat(5, 1fr); }
   @media (max-width: 1100px) {
     .ov-opps-tiles { grid-template-columns: repeat(3, 1fr); }
@@ -2406,6 +2406,8 @@ async function cloudSyncTables(userId) {
   }));
   const meetings = [];
   companies.forEach(c => {
+    const naSet = new Set(c.notAttendedDates || []);
+    const fuSet = new Set(c.followUpDates || []);
     (c.meetings || []).forEach(date => {
       const atts = (c.meetingAttendees && c.meetingAttendees[date]) || [];
       meetings.push({
@@ -2413,7 +2415,9 @@ async function cloudSyncTables(userId) {
         opportunity_name: c.name,
         date,
         attendees: atts,
-        is_calendar_source: (c.calendarMeetings || []).includes(date)
+        is_calendar_source: (c.calendarMeetings || []).includes(date),
+        not_attended: naSet.has(date),
+        follow_up: fuSet.has(date)
       });
     });
   });
@@ -2424,8 +2428,22 @@ async function cloudSyncTables(userId) {
         { method: 'POST', headers: headersWrite, body: JSON.stringify(opps) });
     }
     if (meetings.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/meetings`,
+      // Try with the new not_attended + follow_up columns. If the table
+      // hasn't been migrated yet PostgREST returns 400/PGRST204 ("could
+      // not find the X column"), in which case we strip those columns
+      // and retry so the rest of the sync still completes.
+      let r = await fetch(`${SUPABASE_URL}/rest/v1/meetings`,
         { method: 'POST', headers: headersWrite, body: JSON.stringify(meetings) });
+      if (!r.ok && (r.status === 400 || r.status === 404)) {
+        const errText = await r.text();
+        if (/not_attended|follow_up|PGRST204|column/i.test(errText)) {
+          console.warn('cloudSyncTables: meetings table missing not_attended/follow_up columns — retrying without. Run the SQL in README to add them so flag history persists in Supabase.', errText);
+          const legacy = meetings.map(({ not_attended, follow_up, ...rest }) => rest);
+          r = await fetch(`${SUPABASE_URL}/rest/v1/meetings`,
+            { method: 'POST', headers: headersWrite, body: JSON.stringify(legacy) });
+        }
+      }
+      if (!r.ok) console.warn('cloudSyncTables: meetings insert failed', r.status, await r.text().catch(() => ''));
     }
   } catch (e) {
     console.warn('cloudSyncTables: insert failed (likely missing tables)', e);
@@ -3993,8 +4011,9 @@ function computeOverviewHTML(rows) {
   const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   let totalMeetings = 0, totalWeek = 0, totalMonth = 0;
+  let totalFollowUps = 0, totalFollowUpsWeek = 0, totalFollowUpsMonth = 0;
   let totalSDR = 0, totalAE = 0, totalS1 = 0, totalS2 = 0, totalOpps = 0;
-  const perUser = []; // [{ user, label, avatarBg, avatarColor, init, meetings, week, month, s1ThisMonth }]
+  const perUser = []; // [{ user, label, avatarBg, avatarColor, init, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth }]
 
   rows.forEach(row => {
     const uid = row.user_id;
@@ -4007,6 +4026,7 @@ function computeOverviewHTML(rows) {
     const s2Id  = (stages.find(s => /^\s*S2\s*$/i.test(s.label || '')) || {}).id;
 
     let meetings = 0, week = 0, month = 0, s1ThisMonth = 0;
+    let followUps = 0, followUpsWeek = 0, followUpsMonth = 0;
     let sdrCount = 0, aeCount = 0, s1Count = 0, s2Count = 0;
     (data.companies || []).forEach(c => {
       if (c.dead || c.hmmm || c.old) return;
@@ -4015,18 +4035,28 @@ function computeOverviewHTML(rows) {
       else if (c.stageId === aeId) { totalAE++; aeCount++; }
       else if (c.stageId === s1Id) { totalS1++; s1Count++; }
       else if (c.stageId === s2Id) { totalS2++; s2Count++; }
-      // Exclude meetings flagged as follow-ups or not-attended from team
-      // overview counts — they shouldn't pad the weekly/monthly totals.
+      // Bucket meetings: attended (countable) vs follow-ups vs not-attended.
+      // Follow-ups and not-attended are excluded from the headline meeting
+      // totals; follow-ups are tracked in their own counters for display.
       const naSet = new Set(c.notAttendedDates || []);
       const fuSet = new Set(c.followUpDates || []);
-      const countable = (c.meetings || []).filter(d => !naSet.has(d) && !fuSet.has(d));
-      countable.forEach(d => {
-        meetings++;
-        if (d >= wkStartStr && d <= wkEndStr) week++;
-        if (d.substring(0,7) === monStr) month++;
+      (c.meetings || []).forEach(d => {
+        if (naSet.has(d)) return; // not-attended: ignored everywhere
+        const inWeek = d >= wkStartStr && d <= wkEndStr;
+        const inMonth = d.substring(0,7) === monStr;
+        if (fuSet.has(d)) {
+          followUps++;
+          if (inWeek) followUpsWeek++;
+          if (inMonth) followUpsMonth++;
+        } else {
+          meetings++;
+          if (inWeek) week++;
+          if (inMonth) month++;
+        }
       });
-      // S1 this month attributed by final-meeting month (countable only)
+      // S1 this month attributed by final-meeting month (countable, non-follow-up)
       if (c.stageId === s1Id) {
+        const countable = (c.meetings || []).filter(d => !naSet.has(d) && !fuSet.has(d));
         const last = [...countable].sort().pop();
         if (last && last.substring(0,7) === monStr) s1ThisMonth++;
       }
@@ -4034,7 +4064,10 @@ function computeOverviewHTML(rows) {
     totalMeetings += meetings;
     totalWeek += week;
     totalMonth += month;
-    perUser.push({ uid, ...u, meetings, week, month, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count });
+    totalFollowUps += followUps;
+    totalFollowUpsWeek += followUpsWeek;
+    totalFollowUpsMonth += followUpsMonth;
+    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count });
   });
 
   // Sort perUser by month meetings desc, then by total desc
@@ -4052,7 +4085,7 @@ function computeOverviewHTML(rows) {
   // Meetings table: sort by this-month meetings desc
   const meetingsRows = [...perUser]
     .sort((a, b) => b.month - a.month || b.meetings - a.meetings)
-    .map(p => `<tr>${nameCell(p)}${num(p.week)}${num(p.month)}${num(p.meetings)}</tr>`).join('');
+    .map(p => `<tr>${nameCell(p)}${num(p.week)}${num(p.month)}${num(p.meetings)}${num(p.followUpsMonth)}${num(p.followUps)}</tr>`).join('');
 
   // Opportunities table: sort by S1s-this-month desc, then total
   const oppsRows = [...perUser]
@@ -4068,17 +4101,22 @@ function computeOverviewHTML(rows) {
         <div class="ov-card" style="--ov-color:#22c55e">
           <div class="ov-card-label">This Week</div>
           <div class="ov-card-value">${totalWeek}</div>
-          <div class="ov-card-sub">${wkStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${wkEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+          <div class="ov-card-sub">${wkStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${wkEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}${totalFollowUpsWeek ? ` · ${totalFollowUpsWeek} follow-up${totalFollowUpsWeek===1?'':'s'}` : ''}</div>
         </div>
         <div class="ov-card" style="--ov-color:#3b82f6">
           <div class="ov-card-label">This Month</div>
           <div class="ov-card-value">${totalMonth}</div>
-          <div class="ov-card-sub">${monthLabel}</div>
+          <div class="ov-card-sub">${monthLabel}${totalFollowUpsMonth ? ` · ${totalFollowUpsMonth} follow-up${totalFollowUpsMonth===1?'':'s'}` : ''}</div>
         </div>
         <div class="ov-card" style="--ov-color:#0f172a">
           <div class="ov-card-label">All Time</div>
           <div class="ov-card-value">${totalMeetings}</div>
-          <div class="ov-card-sub">across every teammate</div>
+          <div class="ov-card-sub">across every teammate${totalFollowUps ? ` · ${totalFollowUps} follow-up${totalFollowUps===1?'':'s'}` : ''}</div>
+        </div>
+        <div class="ov-card" style="--ov-color:#047857">
+          <div class="ov-card-label">🔁 Follow-ups</div>
+          <div class="ov-card-value">${totalFollowUps}</div>
+          <div class="ov-card-sub">excluded from totals · ${totalFollowUpsMonth} this month</div>
         </div>
       </div>
       <div class="ov-section">
@@ -4090,6 +4128,8 @@ function computeOverviewHTML(rows) {
               <th class="num">This Week</th>
               <th class="num">This Month</th>
               <th class="num">All Time</th>
+              <th class="num">Follow-ups (mo)</th>
+              <th class="num">Follow-ups (all)</th>
             </tr>
           </thead>
           <tbody>${meetingsRows}</tbody>
