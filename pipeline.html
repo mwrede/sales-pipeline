@@ -1453,11 +1453,36 @@
   .mv-card-fu-btn {
     background: none; border: 1px solid var(--border); border-radius: 5px;
     padding: 2px 7px; font-size: 9px; font-weight: 700; color: var(--muted);
-    cursor: pointer; font-family: inherit; margin-top: 5px; margin-left: 4px;
+    cursor: pointer; font-family: inherit; margin-top: 5px;
   }
   .mv-card-fu-btn:hover { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+  .mv-card-fu-btn.active {
+    background: #ecfdf5; color: #047857; border-color: #a7f3d0;
+  }
+  .mv-card.follow-up {
+    opacity: 0.7;
+    background: repeating-linear-gradient(135deg, #fff, #fff 5px, #f0fdf4 5px, #f0fdf4 10px);
+  }
   .mv-card-actions {
     display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
+  }
+  /* Follow-up footer per month column — mirrors the not-attended footer */
+  .mv-fu-footer {
+    margin-top: 8px; border-top: 1px dashed #d1fae5; padding-top: 8px;
+  }
+  .mv-fu-toggle {
+    width: 100%; background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 8px; border-radius: 6px; font-family: inherit;
+    font-size: 11px; font-weight: 600; color: #047857;
+  }
+  .mv-fu-toggle:hover { background: #ecfdf5; }
+  .mv-fu-count {
+    background: #d1fae5; color: #047857; font-size: 10px; font-weight: 700;
+    border-radius: 999px; padding: 1px 7px;
+  }
+  .mv-fu-list {
+    display: flex; flex-direction: column; gap: 6px; margin-top: 6px;
   }
   .mv-card-sources {
     display: flex; gap: 4px; margin-top: 6px;
@@ -2128,7 +2153,7 @@
     <div>
       <div class="tv-eyebrow">MEETINGS</div>
       <h2>All meetings</h2>
-      <p>Click any card to open its opportunity. Click "Not attended" to mark a meeting as a no-show.</p>
+      <p>Click any card to open its opportunity. Use "Not attended" for no-shows, or "Follow-up" to hide a follow-up meeting from the stats.</p>
     </div>
     <div class="mv-controls">
       <button id="mv-weekly-btn" class="mv-weekly-btn" onclick="toggleMeetingsWeeklyMode()" title="Show only this week's meetings + Expected vs Actual S1s tracker">📊 Weekly pipeline</button>
@@ -3990,14 +4015,19 @@ function computeOverviewHTML(rows) {
       else if (c.stageId === aeId) { totalAE++; aeCount++; }
       else if (c.stageId === s1Id) { totalS1++; s1Count++; }
       else if (c.stageId === s2Id) { totalS2++; s2Count++; }
-      (c.meetings || []).forEach(d => {
+      // Exclude meetings flagged as follow-ups or not-attended from team
+      // overview counts — they shouldn't pad the weekly/monthly totals.
+      const naSet = new Set(c.notAttendedDates || []);
+      const fuSet = new Set(c.followUpDates || []);
+      const countable = (c.meetings || []).filter(d => !naSet.has(d) && !fuSet.has(d));
+      countable.forEach(d => {
         meetings++;
         if (d >= wkStartStr && d <= wkEndStr) week++;
         if (d.substring(0,7) === monStr) month++;
       });
-      // S1 this month attributed by final-meeting month
+      // S1 this month attributed by final-meeting month (countable only)
       if (c.stageId === s1Id) {
-        const last = [...(c.meetings || [])].sort().pop();
+        const last = [...countable].sort().pop();
         if (last && last.substring(0,7) === monStr) s1ThisMonth++;
       }
     });
@@ -5108,23 +5138,30 @@ function renderMeetingsView() {
         company: c,
         colorId,
         notAttended: isNotAttended(c, date),
+        followUp: isFollowUp(c, date),
         attendees: (c.meetingAttendees && c.meetingAttendees[date]) || [],
         booking: (c.bookingInfo && c.bookingInfo[date]) || {}
       });
     });
   });
   renderMeetingsMetrics(items);
-  // Bucket every meeting by its YYYY-MM month and split out not-attended ones
-  // so they live in a collapsible footer rather than cluttering the main list.
-  const byMonth = new Map(); // ym → { live: [], notAttended: [] }
+  // Bucket every meeting by its YYYY-MM month and split out not-attended +
+  // follow-up ones into collapsible footers so they don't clutter the
+  // main list. Precedence: notAttended > followUp (a single meeting only
+  // appears in one bucket).
+  const byMonth = new Map(); // ym → { live: [], notAttended: [], followUp: [] }
   items.forEach(it => {
     const ym = it.date.substring(0, 7);
-    if (!byMonth.has(ym)) byMonth.set(ym, { live: [], notAttended: [] });
-    (it.notAttended ? byMonth.get(ym).notAttended : byMonth.get(ym).live).push(it);
+    if (!byMonth.has(ym)) byMonth.set(ym, { live: [], notAttended: [], followUp: [] });
+    const bucket = byMonth.get(ym);
+    if (it.notAttended) bucket.notAttended.push(it);
+    else if (it.followUp) bucket.followUp.push(it);
+    else bucket.live.push(it);
   });
   for (const m of byMonth.values()) {
     m.live.sort((a, b) => a.date.localeCompare(b.date));
     m.notAttended.sort((a, b) => a.date.localeCompare(b.date));
+    m.followUp.sort((a, b) => a.date.localeCompare(b.date));
   }
   // Most recent month first, then back through time
   const sortedMonths = Array.from(byMonth.keys()).sort().reverse();
@@ -5139,6 +5176,7 @@ function renderMeetingsView() {
         const isCurrent = ym === todayYM;
         const color = isCurrent ? '#22c55e' : COLORS[(i + 1) % COLORS.length];
         const naOpen = !!meetingsNAExpand.get(ym);
+        const fuOpen = !!meetingsFUExpand.get(ym);
         return `
           <div class="mv-col" style="--mv-color:${color}">
             <div class="mv-col-head">
@@ -5148,6 +5186,15 @@ function renderMeetingsView() {
             <div class="mv-col-body">
               ${m.live.length ? m.live.map(renderMeetingCard).join('') : '<div class="mv-empty">No attended meetings.</div>'}
             </div>
+            ${m.followUp.length ? `
+              <div class="mv-fu-footer">
+                <button class="mv-fu-toggle" onclick="toggleMeetingsFU('${ym}')">
+                  <span>🔁 Follow-ups</span>
+                  <span class="mv-fu-count">${m.followUp.length}</span>
+                  <span style="margin-left:auto;">${fuOpen ? '▾' : '▸'}</span>
+                </button>
+                ${fuOpen ? `<div class="mv-fu-list">${m.followUp.map(renderMeetingCard).join('')}</div>` : ''}
+              </div>` : ''}
             ${m.notAttended.length ? `
               <div class="mv-na-footer">
                 <button class="mv-na-toggle" onclick="toggleMeetingsNA('${ym}')">
@@ -5162,6 +5209,11 @@ function renderMeetingsView() {
     : '<div class="mv-empty" style="margin:40px auto;">No meetings logged yet.</div>';
 }
 const meetingsNAExpand = new Map(); // ym → bool
+const meetingsFUExpand = new Map(); // ym → bool
+function toggleMeetingsFU(ym) {
+  meetingsFUExpand.set(ym, !meetingsFUExpand.get(ym));
+  renderMeetingsView();
+}
 function toggleMeetingsNA(ym) {
   meetingsNAExpand.set(ym, !meetingsNAExpand.get(ym));
   renderMeetingsView();
@@ -5194,7 +5246,7 @@ function renderMeetingCard(it) {
   const meetingColorObj = it.colorId ? GCAL_COLORS.find(g => g.id === it.colorId) : null;
   const meetingColorName = meetingColorObj ? meetingColorObj.name : null;
   return `
-    <div class="mv-card ${it.notAttended?'not-attended':''}" onclick="openCardModal('${safeN}')"
+    <div class="mv-card ${it.notAttended?'not-attended':''} ${it.followUp?'follow-up':''}" onclick="openCardModal('${safeN}')"
          style="--mv-color:${meetingColor}">
       <div class="mv-card-date">${day}${meetingColorName ? ` · <span class="mv-card-meeting-color" style="color:${meetingColor};">● ${escapeHTML(meetingColorName)}</span>` : ''}</div>
       <div class="mv-card-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</div>
@@ -5224,64 +5276,40 @@ function renderMeetingCard(it) {
                 title="Toggle whether this meeting was attended">
           ${it.notAttended ? '✓ Not attended' : 'Mark not attended'}
         </button>
-        <button class="mv-card-fu-btn"
-                onclick="event.stopPropagation();addFollowUpMeeting('${safeN}','${it.date}')"
-                title="Add a follow-up meeting on this opportunity">
-          ➕ Follow-up meeting
+        <button class="mv-card-fu-btn ${it.followUp?'active':''}"
+                onclick="event.stopPropagation();toggleMeetingFollowUp('${safeN}','${it.date}')"
+                title="Mark this as a follow-up — hides it below and excludes it from overview stats">
+          ${it.followUp ? '✓ Follow-up' : '🔁 Follow-up meeting'}
         </button>
       </div>
     </div>`;
 }
 
-// Add a new meeting on the same opportunity. Prompts for a date with
-// +7 days defaulted in YYYY-MM-DD form. Skips silently if the user cancels
-// or the date is unparseable / a duplicate.
-function addFollowUpMeeting(safeN, fromDate) {
+// Follow-up flag: same shape as notAttendedDates. When set, the meeting
+// is moved to a collapsed footer in the Meetings view and excluded from
+// the Meetings metrics tiles AND the login-screen Overview counts.
+function isFollowUp(c, date) {
+  return Array.isArray(c.followUpDates) && c.followUpDates.includes(date);
+}
+function toggleMeetingFollowUp(safeN, date) {
   const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
   const c = companies.find(x => x.name === name);
   if (!c) return;
-  // Default to +7 days from the meeting we're following up on (local time).
-  const base = parseLocalDate(fromDate);
-  if (!isNaN(base.getTime())) base.setDate(base.getDate() + 7);
-  const yyyy = base.getFullYear();
-  const mm = String(base.getMonth() + 1).padStart(2, '0');
-  const dd = String(base.getDate()).padStart(2, '0');
-  const defaultStr = `${yyyy}-${mm}-${dd}`;
-  const raw = prompt(
-    `Add a follow-up meeting for "${c.name}"\n\nDate (YYYY-MM-DD):`,
-    defaultStr
-  );
-  if (raw === null) return;
-  const trimmed = raw.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    alert('Please enter the date as YYYY-MM-DD (e.g. ' + defaultStr + ').');
-    return;
-  }
-  const parsed = parseLocalDate(trimmed);
-  if (isNaN(parsed.getTime())) {
-    alert('That date didn\'t parse. Try YYYY-MM-DD.');
-    return;
-  }
-  if (!Array.isArray(c.meetings)) c.meetings = [];
-  if (c.meetings.includes(trimmed)) {
-    alert('That date is already a meeting on ' + c.name + '.');
-    return;
-  }
-  c.meetings.push(trimmed);
-  c.meetings.sort();
-  saveData();
-  renderMeetingsView();
-  if (typeof renderKanban === 'function') renderKanban();
-  if (typeof renderTimelineV2 === 'function') renderTimelineV2();
+  c.followUpDates = Array.isArray(c.followUpDates) ? c.followUpDates.slice() : [];
+  const i = c.followUpDates.indexOf(date);
+  if (i >= 0) c.followUpDates.splice(i, 1);
+  else c.followUpDates.push(date);
+  saveData(); renderMeetingsView();
 }
 
 function renderMeetingsMetrics(items) {
   const el = document.getElementById('meetings-metrics');
   if (!el) return;
-  // Attended meetings drive the counts (not-attended are excluded)
-  const attended = items.filter(it => !it.notAttended);
+  // Attended meetings drive the counts — not-attended AND follow-up are excluded
+  const attended = items.filter(it => !it.notAttended && !it.followUp);
   const total = attended.length;
   const naCount = items.filter(it => it.notAttended).length;
+  const fuCount = items.filter(it => it.followUp && !it.notAttended).length;
   // Per stage counts (each meeting attributed to its opp's current stage)
   const byStage = {};
   attended.forEach(it => {
@@ -5289,8 +5317,11 @@ function renderMeetingsMetrics(items) {
     byStage[sid] = (byStage[sid] || 0) + 1;
   });
   const uniqueOpps = new Set(attended.map(it => it.company.name)).size;
+  const subParts = [];
+  if (naCount) subParts.push(`${naCount} not attended`);
+  if (fuCount) subParts.push(`${fuCount} follow-up${fuCount===1?'':'s'}`);
   const tiles = [
-    { label: 'Total Meetings', value: total, color: '#0f172a', sub: naCount ? `${naCount} marked not attended` : '' },
+    { label: 'Total Meetings', value: total, color: '#0f172a', sub: subParts.join(' · ') },
     { label: 'Unique Opps',    value: uniqueOpps, color: '#3b82f6', sub: 'with at least one meeting' }
   ].concat(stages.map(s => ({
     label: s.label, value: byStage[s.id] || 0, color: colorHex(s.color)
