@@ -2123,6 +2123,7 @@
     </div>
     <div class="mv-controls">
       <button id="mv-weekly-btn" class="mv-weekly-btn" onclick="toggleMeetingsWeeklyMode()" title="Show only this week's meetings + Expected vs Actual S1s tracker">📊 Weekly pipeline</button>
+      <button onclick="openSnapshotPanel()" title="Save the current state of every meeting + opportunity, or restore a past snapshot">📸 Snapshots</button>
       <label class="mp-label" for="mv-month">Month</label>
       <select id="mv-month" class="month-picker" onchange="onMeetingsMonthChange(this.value)"></select>
     </div>
@@ -4715,6 +4716,7 @@ async function viewSnapshot(id) {
     renderKanban();
     renderTimelineV2();
     renderMetrics();
+    if (typeof renderMeetingsView === 'function') renderMeetingsView();
     closeSnapshotPanel();
   } catch (e) {
     alert('Load failed: ' + e.message);
@@ -4732,6 +4734,7 @@ function exitSnapshot() {
   renderKanban();
   renderTimelineV2();
   renderMetrics();
+  if (typeof renderMeetingsView === 'function') renderMeetingsView();
 }
 
 function showSnapshotBanner() {
@@ -4838,6 +4841,7 @@ This cannot be undone except by restoring the auto "Pre-restore" snapshot.`
     setCloudStatus('idle');
     // 3. Re-render every view
     renderKanban(); renderTimelineV2(); renderMetrics();
+    if (typeof renderMeetingsView === 'function') renderMeetingsView();
     closeSnapshotPanel();
     alert(`Restored. Your previous live state was saved as "${safetyName}" — open Snapshots and Restore it if you want to undo.`);
   } catch (e) {
