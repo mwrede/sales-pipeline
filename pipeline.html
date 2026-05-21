@@ -1450,15 +1450,6 @@
   .mv-card-na-toggle.active {
     background: #fef2f2; color: var(--red); border-color: #fecaca;
   }
-  .mv-card-fu-btn {
-    background: none; border: 1px solid var(--border); border-radius: 5px;
-    padding: 2px 7px; font-size: 9px; font-weight: 700; color: var(--muted);
-    cursor: pointer; font-family: inherit; margin-top: 5px; margin-left: 4px;
-  }
-  .mv-card-fu-btn:hover { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
-  .mv-card-actions {
-    display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
-  }
   .mv-card-sources {
     display: flex; gap: 4px; margin-top: 6px;
   }
@@ -5218,61 +5209,12 @@ function renderMeetingCard(it) {
         <div class="mv-card-booking-details" onclick="event.stopPropagation();setMeetingSource('${safeN}','${it.date}','${it.booking.source||''}')"
              title="${escapeHTML(it.booking.details)}\n\nClick to edit">${escapeHTML(it.booking.details.substring(0, 80))}${it.booking.details.length > 80 ? '…' : ''}</div>
       ` : ''}
-      <div class="mv-card-actions">
-        <button class="mv-card-na-toggle ${it.notAttended?'active':''}"
-                onclick="event.stopPropagation();toggleMeetingAttended('${safeN}','${it.date}')"
-                title="Toggle whether this meeting was attended">
-          ${it.notAttended ? '✓ Not attended' : 'Mark not attended'}
-        </button>
-        <button class="mv-card-fu-btn"
-                onclick="event.stopPropagation();addFollowUpMeeting('${safeN}','${it.date}')"
-                title="Add a follow-up meeting on this opportunity">
-          ➕ Follow-up meeting
-        </button>
-      </div>
+      <button class="mv-card-na-toggle ${it.notAttended?'active':''}"
+              onclick="event.stopPropagation();toggleMeetingAttended('${safeN}','${it.date}')"
+              title="Toggle whether this meeting was attended">
+        ${it.notAttended ? '✓ Not attended' : 'Mark not attended'}
+      </button>
     </div>`;
-}
-
-// Add a new meeting on the same opportunity. Prompts for a date with
-// +7 days defaulted in YYYY-MM-DD form. Skips silently if the user cancels
-// or the date is unparseable / a duplicate.
-function addFollowUpMeeting(safeN, fromDate) {
-  const name = safeN.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
-  const c = companies.find(x => x.name === name);
-  if (!c) return;
-  // Default to +7 days from the meeting we're following up on (local time).
-  const base = parseLocalDate(fromDate);
-  if (!isNaN(base.getTime())) base.setDate(base.getDate() + 7);
-  const yyyy = base.getFullYear();
-  const mm = String(base.getMonth() + 1).padStart(2, '0');
-  const dd = String(base.getDate()).padStart(2, '0');
-  const defaultStr = `${yyyy}-${mm}-${dd}`;
-  const raw = prompt(
-    `Add a follow-up meeting for "${c.name}"\n\nDate (YYYY-MM-DD):`,
-    defaultStr
-  );
-  if (raw === null) return;
-  const trimmed = raw.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    alert('Please enter the date as YYYY-MM-DD (e.g. ' + defaultStr + ').');
-    return;
-  }
-  const parsed = parseLocalDate(trimmed);
-  if (isNaN(parsed.getTime())) {
-    alert('That date didn\'t parse. Try YYYY-MM-DD.');
-    return;
-  }
-  if (!Array.isArray(c.meetings)) c.meetings = [];
-  if (c.meetings.includes(trimmed)) {
-    alert('That date is already a meeting on ' + c.name + '.');
-    return;
-  }
-  c.meetings.push(trimmed);
-  c.meetings.sort();
-  saveData();
-  renderMeetingsView();
-  if (typeof renderKanban === 'function') renderKanban();
-  if (typeof renderTimelineV2 === 'function') renderTimelineV2();
 }
 
 function renderMeetingsMetrics(items) {
