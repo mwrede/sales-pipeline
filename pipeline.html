@@ -3471,7 +3471,7 @@ function processEvents(events) {
     const date = dateRaw.substring(0, 10);
     const allEmails = (ev.attendees || [])
       .map(a => a.email || '')
-      .filter(e => e && e !== calendarEmail && e.includes('@'));
+      .filter(e => e && e !== calendarEmail && e.includes('@') && !isCalendarResourceEmail(e));
     const externalAttendees = allEmails.filter(e => !e.endsWith('@roboflow.com'));
     const internalAttendees = allEmails.filter(e => e.endsWith('@roboflow.com'));
     const externalDomain = externalAttendees.map(e => e.split('@')[1]).find(Boolean) || '';
@@ -6639,11 +6639,25 @@ const NON_COMPANY_DOMAINS = new Set([
 ]);
 function isCompanyDomain(d) { return !!d && !NON_COMPANY_DOMAINS.has(d.toLowerCase()); }
 
+// Google Calendar room / resource invitees come through as attendees on
+// the event with addresses like c_xxx@resource.calendar.google.com or
+// xxx@group.calendar.google.com. They aren't people — they're shared
+// rooms — so they must NEVER be used to match an event to an opp, or one
+// recurring room booking will cross-attach every prospect that uses it.
+function isCalendarResourceEmail(e) {
+  if (!e) return false;
+  const lower = String(e).toLowerCase();
+  return lower.endsWith('@resource.calendar.google.com')
+      || lower.endsWith('@group.calendar.google.com');
+}
+
 function externalAttendeesOf(c) {
   const out = new Set();
-  if (c.primaryEmail) out.add(c.primaryEmail);
+  if (c.primaryEmail && !isCalendarResourceEmail(c.primaryEmail)) out.add(c.primaryEmail);
   if (c.meetingAttendees) {
-    Object.values(c.meetingAttendees).forEach(arr => arr.forEach(e => out.add(e)));
+    Object.values(c.meetingAttendees).forEach(arr => arr.forEach(e => {
+      if (!isCalendarResourceEmail(e)) out.add(e);
+    }));
   }
   return out;
 }
