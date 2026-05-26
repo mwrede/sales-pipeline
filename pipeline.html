@@ -3398,8 +3398,28 @@ async function syncCalendar() {
       .sort((a,b) => b[1] - a[1])
       .map(([cid, n]) => `${(GCAL_COLORS.find(c=>c.id===cid)||{}).name||cid}: ${n}`)
       .join(', ');
+    // Diagnostic: count this-week external-attendee events that were SKIPPED
+    // due to no stage color, so the user can spot uncolored meetings.
+    const _now = new Date();
+    const _mon = new Date(_now); _mon.setDate(_now.getDate() - ((_now.getDay()+6)%7));
+    const _sun = new Date(_mon); _sun.setDate(_mon.getDate() + 6);
+    const wkStartStr = _mon.toISOString().substring(0,10);
+    const wkEndStr   = _sun.toISOString().substring(0,10);
+    const skippedThisWeek = all.filter(ev => {
+      const d = (ev.start?.date || ev.start?.dateTime || '').substring(0,10);
+      if (d < wkStartStr || d > wkEndStr) return false;
+      const hasExternal = ev.attendees && ev.attendees.some(a => a.email !== calendarEmail);
+      return hasExternal && !activeColors.includes(ev.colorId);
+    });
+    if (skippedThisWeek.length) {
+      console.warn(`[sync] ${skippedThisWeek.length} this-week event(s) were skipped because they aren't tagged with a stage color:`,
+        skippedThisWeek.map(ev => `${(ev.start?.date || ev.start?.dateTime || '').substring(0,10)} — ${ev.summary || '(no title)'}`));
+    }
     console.info(`[sync] ${events.length}/${all.length} events kept. By color: ${colorSummary || '(none)'}`);
-    setCalStatus('connected', `${events.length}/${all.length} synced · ${colorSummary || 'no color-matched events'} · ${now}`);
+    const skipSuffix = skippedThisWeek.length
+      ? ` · ⚠️ ${skippedThisWeek.length} this-week not color-tagged (see console)`
+      : '';
+    setCalStatus('connected', `${events.length}/${all.length} synced · ${colorSummary || 'no color-matched events'}${skipSuffix} · ${now}`);
     document.getElementById('cal-btn').innerHTML = `<span class="gcal-icon"></span> Google Calendar`;
     const sb = document.getElementById('sync-btn'); if (sb) sb.style.display = 'block';
     processEvents(events);
