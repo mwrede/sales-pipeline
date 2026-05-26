@@ -6753,8 +6753,35 @@ function applyCloudBlob(b) {
   if (Array.isArray(b.stages) && b.stages.length) stages = b.stages;
   weeklyS1Tracker = (b.weeklyS1Tracker && typeof b.weeklyS1Tracker === 'object') ? b.weeklyS1Tracker : {};
   const migrated = migrateLegacyStages();
+  const stripped = stripResourceEmailsFromCompanies();
   companies.forEach(ensureCompanyStage);
-  return migrated;
+  return migrated || stripped;
+}
+
+// One-shot scrub: remove any Google Calendar room / resource invitee
+// emails that older syncs persisted on companies. They should never have
+// been treated as people, and they cause cross-attachment because shared
+// rooms make unrelated meetings look related.
+function stripResourceEmailsFromCompanies() {
+  let changed = false;
+  companies.forEach(c => {
+    if (c.primaryEmail && isCalendarResourceEmail(c.primaryEmail)) {
+      c.primaryEmail = '';
+      changed = true;
+    }
+    if (c.meetingAttendees) {
+      for (const d of Object.keys(c.meetingAttendees)) {
+        const arr = c.meetingAttendees[d] || [];
+        const cleaned = arr.filter(e => !isCalendarResourceEmail(e));
+        if (cleaned.length !== arr.length) {
+          c.meetingAttendees[d] = cleaned;
+          changed = true;
+        }
+      }
+    }
+  });
+  if (changed) console.info('Scrubbed Google Calendar resource emails from existing companies');
+  return changed;
 }
 
 // One-shot upgrade: pre-colored saved stages (the old 7-stage default with
