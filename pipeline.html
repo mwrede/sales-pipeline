@@ -1077,6 +1077,10 @@
   .k-card.likely-s1 {
     background: linear-gradient(180deg, rgba(51,182,121,0.06) 0%, #fff 60%);
   }
+  .k-card.likely-sqo {
+    background: linear-gradient(180deg, rgba(11,128,67,0.12) 0%, var(--green-bg) 70%);
+    border-color: #6ee7b7;
+  }
   .k-card.is-s1 {
     background: var(--green-bg);
   }
@@ -2460,6 +2464,7 @@ async function cloudSyncTables(userId) {
     stage_id: c.stageId || null,
     s1: !!c.s1,
     likely_s1: !!c.likelyS1,
+    likely_sqo: !!c.likelySQO,
     dead: !!c.dead,
     notes: c.notes || '',
     primary_email: c.primaryEmail || null,
@@ -2486,8 +2491,21 @@ async function cloudSyncTables(userId) {
 
   try {
     if (opps.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/opportunities`,
+      // Try with the new likely_sqo column. If the table hasn't been
+      // migrated yet PostgREST returns 400/PGRST204; strip it and retry
+      // so the rest of the sync still completes.
+      let ro = await fetch(`${SUPABASE_URL}/rest/v1/opportunities`,
         { method: 'POST', headers: headersWrite, body: JSON.stringify(opps) });
+      if (!ro.ok && (ro.status === 400 || ro.status === 404)) {
+        const errText = await ro.text();
+        if (/likely_sqo|PGRST204|column/i.test(errText)) {
+          console.warn('cloudSyncTables: opportunities table missing likely_sqo column — retrying without. Run the SQL in supabase-migrations to add it.', errText);
+          const legacy = opps.map(({ likely_sqo, ...rest }) => rest);
+          ro = await fetch(`${SUPABASE_URL}/rest/v1/opportunities`,
+            { method: 'POST', headers: headersWrite, body: JSON.stringify(legacy) });
+        }
+      }
+      if (!ro.ok) console.warn('cloudSyncTables: opportunities insert failed', ro.status, await ro.text().catch(() => ''));
     }
     if (meetings.length) {
       // Try with the new not_attended + follow_up columns. If the table
@@ -2655,7 +2673,7 @@ const DEFAULT_STAGES = [
     { id: 'i8', text: 'Create folder to collect prospect footage + data' },
     { id: 'i9', text: 'Triangulate upward into account' },
   ]},
-  { id: 's_s1', label: 'S1', color: '2', checklist: [
+  { id: 's_s1', label: 'S1', color: '2', sortByLikelySQO: true, checklist: [
     { id: 'i1', text: 'Collect footage / sample data' },
     { id: 'i2', text: 'Execute NDA' },
     { id: 'i3', text: 'Build demo if AE thinks it will progress deal' },
@@ -4671,9 +4689,13 @@ function lastMeetingDate(c) {
   return [...c.meetings].sort().pop();
 }
 function sortStageCompanies(arr, stage) {
+  const isS1 = stage && stage.id === s1StageId();
   return [...arr].sort((a, b) => {
-    // Likely-S1 always floats to the top of every column
-    const av = a.likelyS1 ? 1 : 0, bv = b.likelyS1 ? 1 : 0;
+    // Float "likely to progress" cards to the top of their column.
+    // S1-stage cards use likelySQO; every other column uses likelyS1.
+    const flagA = isS1 ? a.likelySQO : a.likelyS1;
+    const flagB = isS1 ? b.likelySQO : b.likelyS1;
+    const av = flagA ? 1 : 0, bv = flagB ? 1 : 0;
     if (av !== bv) return bv - av;
     const da = lastMeetingDate(a), db = lastMeetingDate(b);
     if (da !== db) return db.localeCompare(da); // most recent first
@@ -4723,7 +4745,10 @@ function renderKanban() {
       const age = daysSinceFirstMeeting(c);
       const isS1Stage = stage.id === s1StageId();
       const nextTask = showCardTasks ? firstDueTask(c, stage) : null;
-      const cardCls = ['k-card', c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '', isS1Stage ? 'is-s1' : '']
+      const cardCls = ['k-card',
+                       c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
+                       c.likelySQO && stage.sortByLikelySQO ? 'likely-sqo' : '',
+                       isS1Stage ? 'is-s1' : '']
         .filter(Boolean).join(' ');
       return `
         <div class="${cardCls}" draggable="true"
@@ -4747,9 +4772,13 @@ function renderKanban() {
           </div>
           ${total ? `<div class="k-card-progress"><div class="k-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
           <div class="k-card-actions">
-            <button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
-                    onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
-                    title="Mark as likely to progress to S1">⭐ ${c.likelyS1 ? 'Likely S1 ✓' : 'Likely S1'}</button>
+            ${isS1Stage
+              ? `<button class="k-card-btn ${c.likelySQO ? 'likely-active' : ''}"
+                        onclick="event.stopPropagation();toggleLikelySQO('${safeN}')"
+                        title="Mark as likely to progress to SQO (S2)">🌟 ${c.likelySQO ? 'Likely SQO ✓' : 'Likely SQO'}</button>`
+              : `<button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
+                        onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
+                        title="Mark as likely to progress to S1">⭐ ${c.likelyS1 ? 'Likely S1 ✓' : 'Likely S1'}</button>`}
             <button class="k-card-btn ${isS1Stage ? 's1-active' : ''}"
                     onclick="event.stopPropagation();toggleS1Flip('${safeN}')"
                     title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}">${isS1Stage ? '✓ S1' : '→ S1'}</button>
@@ -6125,12 +6154,19 @@ function restoreAEFilter() {
   populateAEFilter();
 }
 
-// ── Per-card actions: Likely S1 + Flip to S1 ──
+// ── Per-card actions: Likely S1, Likely SQO + Flip to S1 ──
 function toggleLikelyS1(name) {
   const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
   const c = companies.find(x => x.name === unescaped);
   if (!c) return;
   c.likelyS1 = !c.likelyS1;
+  saveData(); renderKanban();
+}
+function toggleLikelySQO(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  c.likelySQO = !c.likelySQO;
   saveData(); renderKanban();
 }
 function toggleS1Flip(name) {
@@ -6144,6 +6180,7 @@ function toggleS1Flip(name) {
     const fallback = c.prevStageId || (stages.find(s => /AE/i.test(s.label)) || stages[0]).id;
     c.stageId = fallback;
     c.s1 = false;
+    c.likelySQO = false; // no longer in S1 → SQO marker doesn't apply
   } else {
     c.prevStageId = c.stageId;
     c.stageId = s1Id;
