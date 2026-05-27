@@ -7088,6 +7088,9 @@ function loadData() {
 // ─────────────────────────────────────────────
 //  Overview S1 drill-down popup
 // ─────────────────────────────────────────────
+// Render the S1 drill-down INLINE inside the Overview content. Avoids
+// every modal / stacking-context / z-index trap by just putting the
+// list into a normal flow div right inside the same scroll container.
 function showOvS1List(scope, which) {
   console.log('[showOvS1List]', { scope, which, hasLists: !!window._ovS1Lists });
   const lists = window._ovS1Lists || {};
@@ -7107,69 +7110,32 @@ function showOvS1List(scope, which) {
     }
   }
   entries = [...entries].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  let modal = document.getElementById('ov-s1-modal');
-  // Defensive: if the static modal markup isn't in the DOM, build it.
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'ov-s1-modal';
-    modal.onclick = closeOvS1List;
-    modal.innerHTML = `
-      <div class="ov-s1-card" onclick="event.stopPropagation()">
-        <div class="ov-s1-head">
-          <span id="ov-s1-title" class="ov-s1-title">S1 opportunities</span>
-          <button class="ov-s1-close" onclick="document.getElementById('ov-s1-modal').classList.remove('visible')">×</button>
-        </div>
-        <div id="ov-s1-body" class="ov-s1-body"></div>
-      </div>`;
-    document.body.appendChild(modal);
-  }
-  const body = document.getElementById('ov-s1-body');
-  const titleEl = document.getElementById('ov-s1-title');
-  if (!body || !titleEl) { console.warn('Modal nodes missing'); return; }
-  titleEl.textContent = `${title} (${entries.length})`;
-  body.innerHTML = entries.length
-    ? entries.map(e => `
-        <div class="ov-s1-row">
-          ${e.avatarBg ? `<span class="ov-avatar" style="background:${e.avatarBg};color:${e.avatarColor}">${escapeHTML(e.init || '')}</span>` : ''}
-          <span class="ov-s1-name" title="${escapeHTML(e.name)}">${escapeHTML(e.name)}</span>
-          ${scope === '_all' ? `<span class="ov-s1-owner">${escapeHTML(e.label || '')}</span>` : ''}
-        </div>`).join('')
-    : '<div class="ov-s1-empty">No matching opportunities.</div>';
-  modal.classList.add('visible');
-  // Force visibility via inline styles — class-based show was getting
-  // squashed by something in the parent stacking context.
-  modal.style.cssText = 'display:block !important; position:fixed; inset:0; z-index:2147483647; background:rgba(15,23,42,0.55); padding:60px 20px 40px; overflow-y:auto;';
-  // And re-parent to <body> so #user-select-screen can't trap it.
-  if (modal.parentElement !== document.body) document.body.appendChild(modal);
-  console.log('[showOvS1List] modal opened with', entries.length, 'entries');
-}
-function closeOvS1List(e) {
-  if (e && e.target && e.target.id !== 'ov-s1-modal' && !e.currentTarget.matches('.ov-s1-close')) return;
-  const m = document.getElementById('ov-s1-modal');
-  if (!m) return;
-  m.classList.remove('visible');
-  m.style.cssText = 'display:none';
-}
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    const m = document.getElementById('ov-s1-modal');
-    if (m && m.classList.contains('visible')) {
-      m.classList.remove('visible');
-      m.style.cssText = 'display:none';
-    }
-  }
-});
-</script>
 
-<!-- Overview S1 drill-down modal -->
-<div id="ov-s1-modal" onclick="closeOvS1List(event)">
-  <div class="ov-s1-card" onclick="event.stopPropagation()">
-    <div class="ov-s1-head">
-      <span id="ov-s1-title" class="ov-s1-title">S1 opportunities</span>
-      <button class="ov-s1-close" onclick="document.getElementById('ov-s1-modal').classList.remove('visible')">×</button>
-    </div>
-    <div id="ov-s1-body" class="ov-s1-body"></div>
-  </div>
-</div>
+  let host = document.getElementById('ov-s1-drill');
+  if (!host) {
+    const ovContent = document.getElementById('overview-content');
+    if (!ovContent) return;
+    host = document.createElement('div');
+    host.id = 'ov-s1-drill';
+    ovContent.insertBefore(host, ovContent.firstChild);
+  }
+  host.innerHTML = `
+    <div style="background:#fff;border:2px solid #047857;border-radius:12px;padding:16px 20px;box-shadow:0 6px 20px rgba(4,120,87,0.12);margin-bottom:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <span style="font-size:14px;font-weight:700;color:#047857;">${escapeHTML(title)} (${entries.length})</span>
+        <button onclick="document.getElementById('ov-s1-drill').innerHTML=''" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#64748b;font-family:inherit;">Hide</button>
+      </div>
+      ${entries.length ? `<div style="display:flex;flex-direction:column;gap:6px;">${entries.map(e => `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:7px;">
+          ${e.avatarBg ? `<span class="ov-avatar" style="background:${e.avatarBg};color:${e.avatarColor};width:22px;height:22px;font-size:10px;">${escapeHTML(e.init || '')}</span>` : ''}
+          <span style="flex:1;font-size:13px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHTML(e.name)}">${escapeHTML(e.name)}</span>
+          ${scope === '_all' ? `<span style="font-size:11px;color:#64748b;">${escapeHTML(e.label || '')}</span>` : ''}
+        </div>`).join('')}</div>` : '<div style="font-size:13px;color:#64748b;text-align:center;padding:16px 0;">No matching opportunities.</div>'}
+    </div>`;
+  // Scroll into view so the user actually sees it
+  host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  console.log('[showOvS1List] rendered inline with', entries.length, 'entries');
+}
+</script>
 </body>
 </html>
