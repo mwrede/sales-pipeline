@@ -715,6 +715,62 @@
   }
   .ov-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
   .ov-table td.num.zero { color: #cbd5e1; font-weight: 500; }
+  .ov-table td.num.ov-clickable {
+    cursor: pointer; color: #047857;
+    border-bottom: 1px dashed transparent;
+  }
+  .ov-table td.num.ov-clickable:hover {
+    background: #ecfdf5; border-bottom-color: #6ee7b7;
+  }
+  .ov-card-clickable { cursor: pointer; transition: transform 0.08s, box-shadow 0.08s; }
+  .ov-card-clickable:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+  }
+  .ov-click-hint { color: var(--muted); font-weight: 400; font-size: 11px; }
+  /* S1 drill-down modal */
+  #ov-s1-modal {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15,23,42,0.55); padding: 60px 20px 40px;
+    overflow-y: auto;
+  }
+  #ov-s1-modal.visible { display: block; }
+  .ov-s1-card {
+    max-width: 640px; margin: 0 auto;
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(15,23,42,0.25);
+    overflow: hidden;
+  }
+  .ov-s1-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 22px; border-bottom: 1px solid var(--border);
+  }
+  .ov-s1-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .ov-s1-close {
+    background: none; border: none; cursor: pointer;
+    font-size: 22px; color: var(--muted); padding: 2px 8px; border-radius: 6px;
+    font-family: inherit;
+  }
+  .ov-s1-close:hover { background: #f1f5f9; color: var(--text); }
+  .ov-s1-body { padding: 8px 12px 16px; }
+  .ov-s1-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 7px;
+  }
+  .ov-s1-row + .ov-s1-row { border-top: 1px solid #f1f5f9; }
+  .ov-s1-row .ov-avatar {
+    width: 22px; height: 22px; font-size: 10px; flex-shrink: 0;
+  }
+  .ov-s1-name {
+    font-size: 13px; font-weight: 600; color: var(--text); flex: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ov-s1-owner {
+    font-size: 11px; color: var(--muted); flex-shrink: 0;
+  }
+  .ov-s1-empty {
+    font-size: 13px; color: var(--muted); text-align: center; padding: 24px 0;
+  }
   .ov-row-name { display: flex; align-items: center; gap: 10px; font-weight: 600; }
   .ov-avatar {
     width: 24px; height: 24px; border-radius: 50%;
@@ -1911,6 +1967,12 @@
     font-size: 10px; background: #eff6ff; color: var(--blue);
     padding: 1px 6px; border-radius: 999px; font-weight: 600; flex-shrink: 0;
   }
+  .cm-meeting-pull {
+    font-size: 10px; background: none; border: 1px solid var(--border);
+    color: var(--muted); padding: 2px 7px; border-radius: 5px;
+    font-weight: 700; cursor: pointer; font-family: inherit; flex-shrink: 0;
+  }
+  .cm-meeting-pull:hover { background: #fef2f2; color: var(--red); border-color: #fecaca; }
   .cm-meeting-empty { font-size: 12px; color: #94a3b8; padding: 6px 2px; }
 
   /* ── Sync Settings modal ── */
@@ -4151,12 +4213,14 @@ function computeOverviewHTML(rows) {
     let meetings = 0, week = 0, month = 0, s1ThisMonth = 0;
     let followUps = 0, followUpsWeek = 0, followUpsMonth = 0;
     let sdrCount = 0, aeCount = 0, s1Count = 0, s2Count = 0;
+    const s1Names = [];        // every S1-stage opp on this user's board
+    const s1MonthNames = [];   // S1 opps whose final meeting landed in monStr
     (data.companies || []).forEach(c => {
       if (c.dead || c.hmmm || c.old) return;
       totalOpps++;
       if (c.stageId === sdrId) { totalSDR++; sdrCount++; }
       else if (c.stageId === aeId) { totalAE++; aeCount++; }
-      else if (c.stageId === s1Id) { totalS1++; s1Count++; }
+      else if (c.stageId === s1Id) { totalS1++; s1Count++; s1Names.push(c.name); }
       else if (c.stageId === s2Id) { totalS2++; s2Count++; }
       // Bucket meetings: attended (countable) vs follow-ups vs not-attended.
       // Follow-ups and not-attended are excluded from the headline meeting
@@ -4181,7 +4245,10 @@ function computeOverviewHTML(rows) {
       if (c.stageId === s1Id) {
         const countable = (c.meetings || []).filter(d => !naSet.has(d) && !fuSet.has(d));
         const last = [...countable].sort().pop();
-        if (last && last.substring(0,7) === monStr) s1ThisMonth++;
+        if (last && last.substring(0,7) === monStr) {
+          s1ThisMonth++;
+          s1MonthNames.push(c.name);
+        }
       }
     });
     totalMeetings += meetings;
@@ -4190,13 +4257,27 @@ function computeOverviewHTML(rows) {
     totalFollowUps += followUps;
     totalFollowUpsWeek += followUpsWeek;
     totalFollowUpsMonth += followUpsMonth;
-    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count });
+    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count, s1Names, s1MonthNames });
   });
+
+  // Stash S1 lists so click handlers can drill in without recomputing.
+  // Keyed by uid; "_all" / "_allMonth" are the team-wide aggregates.
+  const _ovLists = { _all: [], _allMonth: [] };
+  perUser.forEach(p => {
+    _ovLists[p.uid] = { s1: p.s1Names, month: p.s1MonthNames, label: p.label };
+    p.s1Names.forEach(n => _ovLists._all.push({ uid: p.uid, label: p.label, avatarBg: p.avatarBg, avatarColor: p.avatarColor, init: p.init, name: n }));
+    p.s1MonthNames.forEach(n => _ovLists._allMonth.push({ uid: p.uid, label: p.label, avatarBg: p.avatarBg, avatarColor: p.avatarColor, init: p.init, name: n }));
+  });
+  window._ovS1Lists = _ovLists;
 
   // Sort perUser by month meetings desc, then by total desc
   perUser.sort((a, b) => b.month - a.month || b.meetings - a.meetings);
 
   const num = (n) => `<td class="num ${n===0?'zero':''}">${n}</td>`;
+  // Numeric cell that opens the S1 drill-down when non-zero.
+  const numS1 = (n, uid, which, label) => n === 0
+    ? `<td class="num zero">0</td>`
+    : `<td class="num ov-clickable" onclick="showOvS1List('${uid}','${which}', ${JSON.stringify(label).replace(/"/g, '&quot;')})">${n}</td>`;
   const nameCell = (p) => `
     <td>
       <div class="ov-row-name">
@@ -4215,7 +4296,7 @@ function computeOverviewHTML(rows) {
     .sort((a, b) => b.s1ThisMonth - a.s1ThisMonth ||
                     (b.sdrCount + b.aeCount + b.s1Count + b.s2Count) -
                     (a.sdrCount + a.aeCount + a.s1Count + a.s2Count))
-    .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${num(p.s1Count)}${num(p.s2Count)}${num(p.s1ThisMonth)}</tr>`).join('');
+    .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${numS1(p.s1Count, p.uid, 's1', p.label + ' — S1 opportunities')}${num(p.s2Count)}${numS1(p.s1ThisMonth, p.uid, 'month', p.label + ' — S1s this month')}</tr>`).join('');
 
   return `
     <div class="ov-group">
@@ -4278,10 +4359,11 @@ function computeOverviewHTML(rows) {
           <div class="ov-card-value">${totalAE}</div>
           <div class="ov-card-sub">opps in stage</div>
         </div>
-        <div class="ov-card" style="--ov-color:#33b679">
-          <div class="ov-card-label">S1</div>
+        <div class="ov-card ${totalS1 ? 'ov-card-clickable' : ''}" style="--ov-color:#33b679"
+             ${totalS1 ? `onclick="showOvS1List('_all','s1','S1 opportunities — team-wide')"` : ''}>
+          <div class="ov-card-label">S1${totalS1 ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
           <div class="ov-card-value">${totalS1}</div>
-          <div class="ov-card-sub">opps in stage</div>
+          <div class="ov-card-sub">opps in stage${totalS1 ? ' · click to see list' : ''}</div>
         </div>
         <div class="ov-card" style="--ov-color:#0b8043">
           <div class="ov-card-label">S2</div>
@@ -6423,6 +6505,7 @@ function renderModalMeetings() {
     return;
   }
   const calSet = new Set(c.calendarMeetings || []);
+  const safeName = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   wrap.innerHTML = meetings.map(d => {
     const atts = (c.meetingAttendees && c.meetingAttendees[d]) || [];
     const ext = atts.filter(a => a && a !== calendarEmail && !a.endsWith('@roboflow.com'));
@@ -6432,8 +6515,59 @@ function renderModalMeetings() {
         <span class="cm-meeting-date">${fmtDate(d)}</span>
         <span class="cm-meeting-att" title="${escapeHTML(attStr)}">${escapeHTML(attStr)}</span>
         ${calSet.has(d) ? '<span class="cm-meeting-cal">📅</span>' : ''}
+        <button class="cm-meeting-pull"
+                onclick="pullMeetingBackToTracker('${safeName}','${d}')"
+                title="Detach this meeting from ${escapeHTML(c.name)} and put it back into the unassigned tracker">↩ Pull back</button>
       </div>`;
   }).join('');
+}
+
+// Detach a meeting from this opp and push it back into the unassigned
+// tracker so the user can re-route it (or drop it into a different opp).
+// Removes the date from every per-date dict on the opp; rebuilds a
+// synthetic event from the stored attendees / color so the user sees the
+// same data the original sync would have surfaced.
+function pullMeetingBackToTracker(safeName, date) {
+  const name = safeName.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const atts = ((c.meetingAttendees || {})[date] || []).filter(e =>
+    e && !isCalendarResourceEmail(e)
+  );
+  const externalAtts  = atts.filter(e => e !== calendarEmail && !e.endsWith('@roboflow.com'));
+  const internalAtts  = atts.filter(e => e.endsWith('@roboflow.com'));
+  const colorId = (c.meetingColors && c.meetingColors[date]) || null;
+
+  // Strip the date from every per-date field on the opp
+  c.meetings = (c.meetings || []).filter(d => d !== date);
+  c.calendarMeetings = (c.calendarMeetings || []).filter(d => d !== date);
+  ['meetingAttendees','meetingColors','bookingInfo'].forEach(k => {
+    if (c[k] && Object.prototype.hasOwnProperty.call(c[k], date)) delete c[k][date];
+  });
+  ['notAttendedDates','followUpDates'].forEach(k => {
+    if (Array.isArray(c[k])) c[k] = c[k].filter(d => d !== date);
+  });
+
+  // Push synthetic event into the unassigned zone
+  if (!Array.isArray(pendingUnmatched)) pendingUnmatched = [];
+  const domainHint = externalAtts.map(e => e.split('@')[1]).find(Boolean) || '';
+  pendingUnmatched.push({
+    id: `pulled-${c.name}-${date}-${Date.now()}`,
+    title: c.name,
+    date,
+    colorId,
+    domainHint,
+    attendees: externalAtts,
+    internalAttendees: internalAtts
+  });
+
+  saveData();
+  renderModalMeetings();
+  renderKanban();
+  if (typeof renderTimelineV2 === 'function') renderTimelineV2();
+  if (typeof renderMeetingsView === 'function') renderMeetingsView();
+  renderUnassignedZone();
+  setCalStatus('connected', `Pulled "${fmtDate(date)} · ${c.name}" back to the unassigned tracker.`);
 }
 function renderCardModalStageSelect() {
   const c = companies.find(x => x.name === openCardName);
@@ -6651,12 +6785,36 @@ function isCalendarResourceEmail(e) {
       || lower.endsWith('@group.calendar.google.com');
 }
 
+// Personal-email domains. We allow a personal email to attach an event
+// to an existing opp ONLY when the email is an exact match against the
+// opp's primaryEmail. A tagalong gmail shared between two unrelated
+// meetings must not lump them onto the same opp.
+const PERSONAL_DOMAINS = new Set([
+  'gmail.com','yahoo.com','hotmail.com','outlook.com','outlook.co.uk',
+  'icloud.com','me.com','aol.com','live.com','protonmail.com','proton.me',
+  'pm.me','ymail.com','msn.com','mail.com','gmx.com','duck.com'
+]);
+function isPersonalEmail(e) {
+  if (!e || typeof e !== 'string' || !e.includes('@')) return false;
+  return PERSONAL_DOMAINS.has(e.split('@')[1].toLowerCase().trim());
+}
+
+// Build the set of attendee emails on this opp that can match an
+// incoming event. All company-domain emails count. Personal-domain
+// emails count ONLY if they're the opp's primary email.
 function externalAttendeesOf(c) {
   const out = new Set();
-  if (c.primaryEmail && !isCalendarResourceEmail(c.primaryEmail)) out.add(c.primaryEmail);
+  const primary = c.primaryEmail && !isCalendarResourceEmail(c.primaryEmail) ? c.primaryEmail.toLowerCase() : '';
+  if (primary) out.add(c.primaryEmail);
   if (c.meetingAttendees) {
     Object.values(c.meetingAttendees).forEach(arr => arr.forEach(e => {
-      if (!isCalendarResourceEmail(e)) out.add(e);
+      if (isCalendarResourceEmail(e)) return;
+      if (isPersonalEmail(e)) {
+        // Personal email only matches if it's THIS opp's primary email.
+        if (primary && e.toLowerCase() === primary) out.add(e);
+      } else {
+        out.add(e);
+      }
     }));
   }
   return out;
@@ -6903,6 +7061,59 @@ function loadData() {
 //  Init — show user selection screen
 // ─────────────────────────────────────────────
 // (app is hidden by default; selectUser() shows it)
+
+// ─────────────────────────────────────────────
+//  Overview S1 drill-down popup
+// ─────────────────────────────────────────────
+function showOvS1List(scope, which, title) {
+  const lists = window._ovS1Lists || {};
+  let entries = [];
+  if (scope === '_all') {
+    entries = (which === 'month' ? lists._allMonth : lists._all) || [];
+  } else {
+    const u = lists[scope];
+    if (u) {
+      const names = which === 'month' ? u.month : u.s1;
+      entries = (names || []).map(n => ({ name: n, label: u.label }));
+    }
+  }
+  entries = [...entries].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const modal = document.getElementById('ov-s1-modal');
+  const body = document.getElementById('ov-s1-body');
+  const titleEl = document.getElementById('ov-s1-title');
+  if (!modal || !body || !titleEl) return;
+  titleEl.textContent = `${title || 'S1 opportunities'} (${entries.length})`;
+  body.innerHTML = entries.length
+    ? entries.map(e => `
+        <div class="ov-s1-row">
+          ${e.avatarBg ? `<span class="ov-avatar" style="background:${e.avatarBg};color:${e.avatarColor}">${escapeHTML(e.init || '')}</span>` : ''}
+          <span class="ov-s1-name" title="${escapeHTML(e.name)}">${escapeHTML(e.name)}</span>
+          ${scope === '_all' ? `<span class="ov-s1-owner">${escapeHTML(e.label || '')}</span>` : ''}
+        </div>`).join('')
+    : '<div class="ov-s1-empty">No matching opportunities.</div>';
+  modal.classList.add('visible');
+}
+function closeOvS1List(e) {
+  if (e && e.target && e.target.id !== 'ov-s1-modal' && !e.currentTarget.matches('.ov-s1-close')) return;
+  document.getElementById('ov-s1-modal').classList.remove('visible');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const m = document.getElementById('ov-s1-modal');
+    if (m && m.classList.contains('visible')) m.classList.remove('visible');
+  }
+});
 </script>
+
+<!-- Overview S1 drill-down modal -->
+<div id="ov-s1-modal" onclick="closeOvS1List(event)">
+  <div class="ov-s1-card" onclick="event.stopPropagation()">
+    <div class="ov-s1-head">
+      <span id="ov-s1-title" class="ov-s1-title">S1 opportunities</span>
+      <button class="ov-s1-close" onclick="document.getElementById('ov-s1-modal').classList.remove('visible')">×</button>
+    </div>
+    <div id="ov-s1-body" class="ov-s1-body"></div>
+  </div>
+</div>
 </body>
 </html>
