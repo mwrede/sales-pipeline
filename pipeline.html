@@ -4057,14 +4057,16 @@ async function renderTargets() {
 }
 
 function computeTargetsHTML(rows) {
-  // Build the last 6 weeks (incl. this week)
+  // Build the last 6 weeks in chronological order — oldest on the left,
+  // this week on the right (past → future reads left-to-right).
   const thisMonday = mondayOfDate(new Date());
   const weeks = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 5; i >= 0; i--) {
     const m = new Date(thisMonday); m.setDate(thisMonday.getDate() - i * 7);
     weeks.push(_ymd(m));
   }
-  const thisWeekKey = weeks[0];
+  const thisWeekKey = weeks[weeks.length - 1];
+  const thisWeekIdx = weeks.length - 1;
 
   // Per user: pull tracker
   const perUser = rows.map(row => {
@@ -4084,10 +4086,11 @@ function computeTargetsHTML(rows) {
     return { uid, ...u, weekly, totalExp, totalAct, weeksLogged };
   });
 
-  // Sort by current-week actual desc, then total actual desc
+  // Sort by current-week actual desc, then total actual desc.
+  // (Weeks now run oldest → newest, so "this week" is the last cell.)
   perUser.sort((a, b) => {
-    const aw = (a.weekly[0] && a.weekly[0].a) || 0;
-    const bw = (b.weekly[0] && b.weekly[0].a) || 0;
+    const aw = (a.weekly[thisWeekIdx] && a.weekly[thisWeekIdx].a) || 0;
+    const bw = (b.weekly[thisWeekIdx] && b.weekly[thisWeekIdx].a) || 0;
     return bw - aw || b.totalAct - a.totalAct;
   });
 
@@ -4124,7 +4127,7 @@ function computeTargetsHTML(rows) {
   };
   const headerCells = weeks.map((wk, i) => `
     <th class="tg-week-th ${wk===thisWeekKey?'tg-current':''}">
-      <div class="tg-week-label">${i === 0 ? 'This week' : weekLabel(wk)}</div>
+      <div class="tg-week-label">${i === thisWeekIdx ? 'This week' : weekLabel(wk)}</div>
       <div class="tg-week-sub">${weekLabel(wk)}</div>
     </th>
   `).join('');
