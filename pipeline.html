@@ -7136,15 +7136,27 @@ function showOvS1List(scope, which) {
         </div>`).join('')
     : '<div class="ov-s1-empty">No matching opportunities.</div>';
   modal.classList.add('visible');
+  // Force visibility via inline styles — class-based show was getting
+  // squashed by something in the parent stacking context.
+  modal.style.cssText = 'display:block !important; position:fixed; inset:0; z-index:2147483647; background:rgba(15,23,42,0.55); padding:60px 20px 40px; overflow-y:auto;';
+  // And re-parent to <body> so #user-select-screen can't trap it.
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
+  console.log('[showOvS1List] modal opened with', entries.length, 'entries');
 }
 function closeOvS1List(e) {
   if (e && e.target && e.target.id !== 'ov-s1-modal' && !e.currentTarget.matches('.ov-s1-close')) return;
-  document.getElementById('ov-s1-modal').classList.remove('visible');
+  const m = document.getElementById('ov-s1-modal');
+  if (!m) return;
+  m.classList.remove('visible');
+  m.style.cssText = 'display:none';
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     const m = document.getElementById('ov-s1-modal');
-    if (m && m.classList.contains('visible')) m.classList.remove('visible');
+    if (m && m.classList.contains('visible')) {
+      m.classList.remove('visible');
+      m.style.cssText = 'display:none';
+    }
   }
 });
 </script>
