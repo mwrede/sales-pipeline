@@ -4772,13 +4772,9 @@ function renderKanban() {
           </div>
           ${total ? `<div class="k-card-progress"><div class="k-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
           <div class="k-card-actions">
-            ${isS1Stage
-              ? `<button class="k-card-btn ${c.likelySQO ? 'likely-active' : ''}"
-                        onclick="event.stopPropagation();toggleLikelySQO('${safeN}')"
-                        title="Mark as likely to progress to SQO (S2)">🌟 ${c.likelySQO ? 'Likely SQO ✓' : 'Likely SQO'}</button>`
-              : `<button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
-                        onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
-                        title="Mark as likely to progress to S1">⭐ ${c.likelyS1 ? 'Likely S1 ✓' : 'Likely S1'}</button>`}
+            <button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
+                    onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
+                    title="Mark as likely to progress to SQO">🌟 ${c.likelyS1 ? 'Likely SQO ✓' : 'Likely SQO'}</button>
             <button class="k-card-btn ${isS1Stage ? 's1-active' : ''}"
                     onclick="event.stopPropagation();toggleS1Flip('${safeN}')"
                     title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}">${isS1Stage ? '✓ S1' : '→ S1'}</button>
@@ -7157,19 +7153,46 @@ function showOvS1List(scope, which) {
     ovContent.insertBefore(host, ovContent.firstChild);
   }
   host.innerHTML = `
-    <div style="background:#fff;border:2px solid #047857;border-radius:12px;padding:16px 20px;box-shadow:0 6px 20px rgba(4,120,87,0.12);margin-bottom:18px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <span style="font-size:14px;font-weight:700;color:#047857;">${escapeHTML(title)} (${entries.length})</span>
-        <button onclick="document.getElementById('ov-s1-drill').innerHTML=''" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#64748b;font-family:inherit;">Hide</button>
+    <div style="
+        max-width:560px;
+        margin:0 auto 24px auto;
+        background:#fff;
+        border:3px solid #047857;
+        border-radius:14px;
+        padding:18px 22px;
+        box-shadow:0 12px 32px rgba(4,120,87,0.22), 0 0 0 6px rgba(16,185,129,0.08);
+        position:relative;">
+      <button id="ov-s1-drill-close" type="button" aria-label="Close"
+              style="
+                position:absolute; top:10px; right:10px;
+                width:30px; height:30px; line-height:1;
+                background:#f1f5f9; border:1px solid #cbd5e1;
+                color:#475569; border-radius:8px;
+                font-size:18px; font-weight:700;
+                cursor:pointer; font-family:inherit; padding:0;
+                display:flex; align-items:center; justify-content:center;">×</button>
+      <div style="font-size:11px;font-weight:700;color:#10b981;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">S1 drill-down</div>
+      <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:14px;padding-right:34px;">
+        ${escapeHTML(title)} <span style="color:#64748b;font-weight:600;">(${entries.length})</span>
       </div>
-      ${entries.length ? `<div style="display:flex;flex-direction:column;gap:6px;">${entries.map(e => `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:7px;">
-          ${e.avatarBg ? `<span class="ov-avatar" style="background:${e.avatarBg};color:${e.avatarColor};width:22px;height:22px;font-size:10px;">${escapeHTML(e.init || '')}</span>` : ''}
-          <span style="flex:1;font-size:13px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHTML(e.name)}">${escapeHTML(e.name)}</span>
-          ${scope === '_all' ? `<span style="font-size:11px;color:#64748b;">${escapeHTML(e.label || '')}</span>` : ''}
-        </div>`).join('')}</div>` : '<div style="font-size:13px;color:#64748b;text-align:center;padding:16px 0;">No matching opportunities.</div>'}
+      ${entries.length
+        ? `<div style="display:flex;flex-direction:column;gap:6px;">${entries.map(e => `
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f0fdf4;border:1px solid #d1fae5;border-radius:8px;">
+              ${e.avatarBg ? `<span class="ov-avatar" style="background:${e.avatarBg};color:${e.avatarColor};width:22px;height:22px;font-size:10px;">${escapeHTML(e.init || '')}</span>` : ''}
+              <span style="flex:1;font-size:13px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHTML(e.name)}">${escapeHTML(e.name)}</span>
+              ${scope === '_all' ? `<span style="font-size:11px;color:#64748b;font-weight:600;">${escapeHTML(e.label || '')}</span>` : ''}
+            </div>`).join('')}</div>`
+        : '<div style="font-size:13px;color:#64748b;text-align:center;padding:16px 0;">No matching opportunities.</div>'}
     </div>`;
-  // Scroll into view so the user actually sees it
+  // Hook up close button (bound here so we don't rely on inline onclick
+  // attribute escaping)
+  const closeBtn = document.getElementById('ov-s1-drill-close');
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      host.innerHTML = '';
+    };
+  }
   host.scrollIntoView({ behavior: 'smooth', block: 'start' });
   console.log('[showOvS1List] rendered inline with', entries.length, 'entries');
 }
