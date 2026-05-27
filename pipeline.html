@@ -4184,9 +4184,27 @@ async function renderOverview() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const rows = await r.json();
     el.innerHTML = computeOverviewHTML(rows);
+    wireOverviewS1Triggers(el);
   } catch (e) {
     el.innerHTML = `<div class="overview-loading">Couldn't load overview: ${escapeHTML(e.message)}</div>`;
   }
+}
+
+// Event delegation for the S1 drill-down. Re-bound every time the
+// Overview renders. Robust to inline-onclick HTML escaping issues.
+function wireOverviewS1Triggers(root) {
+  if (!root || root._s1Wired) return;
+  root._s1Wired = true;
+  root.addEventListener('click', (ev) => {
+    const trigger = ev.target.closest('.ov-s1-trigger');
+    if (!trigger || !root.contains(trigger)) return;
+    const scope = trigger.dataset.ovScope;
+    const which = trigger.dataset.ovWhich;
+    const label = trigger.dataset.ovLabel;
+    if (!scope || !which) return;
+    ev.stopPropagation();
+    showOvS1List(scope, which, label);
+  });
 }
 
 function computeOverviewHTML(rows) {
@@ -4277,10 +4295,12 @@ function computeOverviewHTML(rows) {
   perUser.sort((a, b) => b.month - a.month || b.meetings - a.meetings);
 
   const num = (n) => `<td class="num ${n===0?'zero':''}">${n}</td>`;
-  // Numeric cell that opens the S1 drill-down when non-zero.
+  // Numeric cell that opens the S1 drill-down when non-zero. Uses
+  // data-attrs + event delegation rather than inline onclick so HTML
+  // escaping never breaks the call.
   const numS1 = (n, uid, which, label) => n === 0
     ? `<td class="num zero">0</td>`
-    : `<td class="num ov-clickable" onclick="showOvS1List('${uid}','${which}', ${JSON.stringify(label).replace(/"/g, '&quot;')})">${n}</td>`;
+    : `<td class="num ov-clickable ov-s1-trigger" data-ov-scope="${escapeHTML(uid)}" data-ov-which="${which}" data-ov-label="${escapeHTML(label)}">${n}</td>`;
   const nameCell = (p) => `
     <td>
       <div class="ov-row-name">
@@ -4362,8 +4382,8 @@ function computeOverviewHTML(rows) {
           <div class="ov-card-value">${totalAE}</div>
           <div class="ov-card-sub">opps in stage</div>
         </div>
-        <div class="ov-card ${totalS1 ? 'ov-card-clickable' : ''}" style="--ov-color:#33b679"
-             ${totalS1 ? `onclick="showOvS1List('_all','s1','S1 opportunities — team-wide')"` : ''}>
+        <div class="ov-card ${totalS1 ? 'ov-card-clickable ov-s1-trigger' : ''}" style="--ov-color:#33b679"
+             ${totalS1 ? `data-ov-scope="_all" data-ov-which="s1" data-ov-label="S1 opportunities — team-wide"` : ''}>
           <div class="ov-card-label">S1${totalS1 ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
           <div class="ov-card-value">${totalS1}</div>
           <div class="ov-card-sub">opps in stage${totalS1 ? ' · click to see list' : ''}</div>
