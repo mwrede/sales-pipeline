@@ -4295,12 +4295,12 @@ function computeOverviewHTML(rows) {
   perUser.sort((a, b) => b.month - a.month || b.meetings - a.meetings);
 
   const num = (n) => `<td class="num ${n===0?'zero':''}">${n}</td>`;
-  // Numeric cell that opens the S1 drill-down when non-zero. Uses
-  // data-attrs + event delegation rather than inline onclick so HTML
-  // escaping never breaks the call.
-  const numS1 = (n, uid, which, label) => n === 0
+  // Numeric cell that opens the S1 drill-down when non-zero. Plain inline
+  // onclick — only two simple args, label is looked up inside the handler
+  // so there's nothing that needs HTML-escaping.
+  const numS1 = (n, uid, which) => n === 0
     ? `<td class="num zero">0</td>`
-    : `<td class="num ov-clickable ov-s1-trigger" data-ov-scope="${escapeHTML(uid)}" data-ov-which="${which}" data-ov-label="${escapeHTML(label)}">${n}</td>`;
+    : `<td class="num ov-clickable" onclick="showOvS1List('${uid}','${which}')">${n}</td>`;
   const nameCell = (p) => `
     <td>
       <div class="ov-row-name">
@@ -4319,7 +4319,7 @@ function computeOverviewHTML(rows) {
     .sort((a, b) => b.s1ThisMonth - a.s1ThisMonth ||
                     (b.sdrCount + b.aeCount + b.s1Count + b.s2Count) -
                     (a.sdrCount + a.aeCount + a.s1Count + a.s2Count))
-    .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${numS1(p.s1Count, p.uid, 's1', p.label + ' — S1 opportunities')}${num(p.s2Count)}${numS1(p.s1ThisMonth, p.uid, 'month', p.label + ' — S1s this month')}</tr>`).join('');
+    .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${numS1(p.s1Count, p.uid, 's1')}${num(p.s2Count)}${numS1(p.s1ThisMonth, p.uid, 'month')}</tr>`).join('');
 
   return `
     <div class="ov-group">
@@ -4382,8 +4382,8 @@ function computeOverviewHTML(rows) {
           <div class="ov-card-value">${totalAE}</div>
           <div class="ov-card-sub">opps in stage</div>
         </div>
-        <div class="ov-card ${totalS1 ? 'ov-card-clickable ov-s1-trigger' : ''}" style="--ov-color:#33b679"
-             ${totalS1 ? `data-ov-scope="_all" data-ov-which="s1" data-ov-label="S1 opportunities — team-wide"` : ''}>
+        <div class="ov-card ${totalS1 ? 'ov-card-clickable' : ''}" style="--ov-color:#33b679"
+             ${totalS1 ? `onclick="showOvS1List('_all','s1')"` : ''}>
           <div class="ov-card-label">S1${totalS1 ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
           <div class="ov-card-value">${totalS1}</div>
           <div class="ov-card-sub">opps in stage${totalS1 ? ' · click to see list' : ''}</div>
@@ -7088,24 +7088,45 @@ function loadData() {
 // ─────────────────────────────────────────────
 //  Overview S1 drill-down popup
 // ─────────────────────────────────────────────
-function showOvS1List(scope, which, title) {
+function showOvS1List(scope, which) {
+  console.log('[showOvS1List]', { scope, which, hasLists: !!window._ovS1Lists });
   const lists = window._ovS1Lists || {};
   let entries = [];
+  let title = 'S1 opportunities';
   if (scope === '_all') {
     entries = (which === 'month' ? lists._allMonth : lists._all) || [];
+    title = which === 'month' ? 'S1s this month — team-wide' : 'S1 opportunities — team-wide';
   } else {
     const u = lists[scope];
     if (u) {
       const names = which === 'month' ? u.month : u.s1;
       entries = (names || []).map(n => ({ name: n, label: u.label }));
+      title = which === 'month'
+        ? `${u.label} — S1s this month`
+        : `${u.label} — S1 opportunities`;
     }
   }
   entries = [...entries].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const modal = document.getElementById('ov-s1-modal');
+  let modal = document.getElementById('ov-s1-modal');
+  // Defensive: if the static modal markup isn't in the DOM, build it.
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'ov-s1-modal';
+    modal.onclick = closeOvS1List;
+    modal.innerHTML = `
+      <div class="ov-s1-card" onclick="event.stopPropagation()">
+        <div class="ov-s1-head">
+          <span id="ov-s1-title" class="ov-s1-title">S1 opportunities</span>
+          <button class="ov-s1-close" onclick="document.getElementById('ov-s1-modal').classList.remove('visible')">×</button>
+        </div>
+        <div id="ov-s1-body" class="ov-s1-body"></div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
   const body = document.getElementById('ov-s1-body');
   const titleEl = document.getElementById('ov-s1-title');
-  if (!modal || !body || !titleEl) return;
-  titleEl.textContent = `${title || 'S1 opportunities'} (${entries.length})`;
+  if (!body || !titleEl) { console.warn('Modal nodes missing'); return; }
+  titleEl.textContent = `${title} (${entries.length})`;
   body.innerHTML = entries.length
     ? entries.map(e => `
         <div class="ov-s1-row">
