@@ -4773,9 +4773,13 @@ function renderKanban() {
           </div>
           ${total ? `<div class="k-card-progress"><div class="k-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
           <div class="k-card-actions">
-            <button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
-                    onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
-                    title="Mark as likely to progress to SQO">🌟 ${c.likelyS1 ? 'Likely SQO ✓' : 'Likely SQO'}</button>
+            ${isS1Stage
+              ? `<button class="k-card-btn ${c.likelySQO ? 'likely-active' : ''}"
+                        onclick="event.stopPropagation();toggleLikelySQO('${safeN}')"
+                        title="Mark as likely to progress to SQO (S2)">🌟 ${c.likelySQO ? 'Likely SQO ✓' : 'Likely SQO'}</button>`
+              : `<button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
+                        onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
+                        title="Mark as likely to progress to S1">⭐ ${c.likelyS1 ? 'Likely S1 ✓' : 'Likely S1'}</button>`}
             <button class="k-card-btn ${isS1Stage ? 's1-active' : ''}"
                     onclick="event.stopPropagation();toggleS1Flip('${safeN}')"
                     title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}">${isS1Stage ? '✓ S1' : '→ S1'}</button>
