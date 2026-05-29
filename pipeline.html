@@ -728,7 +728,7 @@
   .ov-card {
     background: #fff; border: 1px solid var(--border); border-radius: 10px;
     padding: 12px 14px; --ov-color: #3b82f6; position: relative; overflow: hidden;
-    min-height: 80px;
+    min-height: 132px; display: flex; flex-direction: column;
   }
   .ov-card::before {
     content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0;
@@ -741,6 +741,21 @@
     margin-top: 4px; line-height: 1.1; letter-spacing: -0.02em; }
   .ov-card-sub { font-size: 10px; color: var(--muted); margin-top: 3px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Inbound / Outbound split footer on a tile — consistent across the Overview */
+  .ov-split {
+    display: flex; gap: 6px; margin-top: auto; padding-top: 8px;
+  }
+  .ov-split-chip {
+    flex: 1; display: flex; align-items: center; justify-content: space-between;
+    gap: 6px; padding: 4px 8px; border-radius: 6px;
+    font-size: 10px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+  .ov-split-chip.in  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .ov-split-chip.out { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+  .ov-split-chip-label { font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; }
+  .ov-split-chip-val   { font-size: 14px; font-weight: 800; }
   .ov-section {
     background: #fff; border: 1px solid var(--border); border-radius: 12px;
     padding: 14px 18px;
@@ -4553,6 +4568,8 @@ function computeOverviewHTML(rows) {
   let totalSDR = 0, totalAE = 0, totalS1 = 0, totalS2 = 0, totalOpps = 0;
   let totalInbound = 0, totalOutbound = 0;
   let totalInboundSAL = 0, totalOutboundSAL = 0;
+  // Per-stage inbound/outbound (Opportunities tile footers)
+  let inSDR = 0, outSDR = 0, inAE = 0, outAE = 0, inS2 = 0, outS2 = 0;
   const perUser = []; // [{ user, label, avatarBg, avatarColor, init, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, inboundCount, outboundCount, inboundNames, outboundNames }]
 
   rows.forEach(row => {
@@ -4579,13 +4596,13 @@ function computeOverviewHTML(rows) {
     (data.companies || []).forEach(c => {
       if (c.dead || c.hmmm || c.old) return;
       totalOpps++;
-      if (c.stageId === sdrId) { totalSDR++; sdrCount++; }
-      else if (c.stageId === aeId) { totalAE++; aeCount++; }
+      const src = sourceOf(c);
+      if (c.stageId === sdrId) { totalSDR++; sdrCount++; if (src === 'inbound') inSDR++; else outSDR++; }
+      else if (c.stageId === aeId) { totalAE++; aeCount++; if (src === 'inbound') inAE++; else outAE++; }
       else if (c.stageId === s1Id) { totalS1++; s1Count++; s1Names.push(c.name); }
-      else if (c.stageId === s2Id) { totalS2++; s2Count++; }
+      else if (c.stageId === s2Id) { totalS2++; s2Count++; if (src === 'inbound') inS2++; else outS2++; }
       // Source attribution — same rule as the kanban pill: any meeting
       // attendee matching the inbound roster → inbound; else outbound.
-      const src = sourceOf(c);
       if (src === 'inbound') { inboundCount++; inboundNames.push(c.name); totalInbound++; }
       else { outboundCount++; outboundNames.push(c.name); totalOutbound++; }
       // SAL split — only S1-stage opps count as SAL
@@ -4684,6 +4701,21 @@ function computeOverviewHTML(rows) {
                     (a.sdrCount + a.aeCount + a.s1Count + a.s2Count))
     .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${numS1(p.s1Count, p.uid, 's1')}${num(p.s2Count)}${numS1(p.s1ThisMonth, p.uid, 'month')}${numS1(p.inboundCount, p.uid, 'inbound')}${numS1(p.outboundCount, p.uid, 'outbound')}</tr>`).join('');
 
+  // Consistent inbound/outbound split footer used on every tile.
+  // `label` lets us swap "SAL" on meeting tiles vs "opps" on opp tiles.
+  const splitFooter = (inbound, outbound, label) => `
+    <div class="ov-split">
+      <div class="ov-split-chip in">
+        <span class="ov-split-chip-label">📥 In · ${label}</span>
+        <span class="ov-split-chip-val">${inbound}</span>
+      </div>
+      <div class="ov-split-chip out">
+        <span class="ov-split-chip-label">Out · ${label}</span>
+        <span class="ov-split-chip-val">${outbound}</span>
+      </div>
+    </div>`;
+  const salSplit = () => splitFooter(totalInboundSAL, totalOutboundSAL, 'SAL');
+
   return `
     <div class="ov-group">
       <h2 class="ov-group-title">📅 Meetings</h2>
@@ -4692,21 +4724,25 @@ function computeOverviewHTML(rows) {
           <div class="ov-card-label">This Week</div>
           <div class="ov-card-value">${totalWeek}</div>
           <div class="ov-card-sub">${wkStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${wkEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}${totalFollowUpsWeek ? ` · ${totalFollowUpsWeek} follow-up${totalFollowUpsWeek===1?'':'s'}` : ''}</div>
+          ${salSplit()}
         </div>
         <div class="ov-card" style="--ov-color:#3b82f6">
           <div class="ov-card-label">This Month</div>
           <div class="ov-card-value">${totalMonth}</div>
           <div class="ov-card-sub">${monthLabel}${totalFollowUpsMonth ? ` · ${totalFollowUpsMonth} follow-up${totalFollowUpsMonth===1?'':'s'}` : ''}</div>
+          ${salSplit()}
         </div>
         <div class="ov-card" style="--ov-color:#0f172a">
           <div class="ov-card-label">All Time</div>
           <div class="ov-card-value">${totalMeetings}</div>
           <div class="ov-card-sub">across every teammate${totalFollowUps ? ` · ${totalFollowUps} follow-up${totalFollowUps===1?'':'s'}` : ''}</div>
+          ${salSplit()}
         </div>
         <div class="ov-card" style="--ov-color:#047857">
           <div class="ov-card-label">🔁 Follow-ups</div>
           <div class="ov-card-value">${totalFollowUps}</div>
           <div class="ov-card-sub">excluded from totals · ${totalFollowUpsMonth} this month</div>
+          ${salSplit()}
         </div>
       </div>
       <div class="ov-section">
@@ -4734,27 +4770,32 @@ function computeOverviewHTML(rows) {
           <div class="ov-card-label">Live Total</div>
           <div class="ov-card-value">${totalOpps}</div>
           <div class="ov-card-sub">excluding dead / hmmm / old</div>
+          ${splitFooter(totalInbound, totalOutbound, 'opps')}
         </div>
         <div class="ov-card" style="--ov-color:#f5511d">
           <div class="ov-card-label">SDR Discovery</div>
           <div class="ov-card-value">${totalSDR}</div>
           <div class="ov-card-sub">opps in stage</div>
+          ${splitFooter(inSDR, outSDR, 'opps')}
         </div>
         <div class="ov-card" style="--ov-color:#f6c026">
           <div class="ov-card-label">AE Discovery</div>
           <div class="ov-card-value">${totalAE}</div>
           <div class="ov-card-sub">opps in stage</div>
+          ${splitFooter(inAE, outAE, 'opps')}
         </div>
         <div class="ov-card ${totalS1 ? 'ov-card-clickable' : ''}" style="--ov-color:#33b679"
              ${totalS1 ? `onclick="showOvS1List('_all','s1')"` : ''}>
           <div class="ov-card-label">S1${totalS1 ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
           <div class="ov-card-value">${totalS1}</div>
           <div class="ov-card-sub">opps in stage${totalS1 ? ' · click to see list' : ''}</div>
+          ${splitFooter(totalInboundSAL, totalOutboundSAL, 'SAL')}
         </div>
         <div class="ov-card" style="--ov-color:#0b8043">
           <div class="ov-card-label">S2</div>
           <div class="ov-card-value">${totalS2}</div>
           <div class="ov-card-sub">opps in stage</div>
+          ${splitFooter(inS2, outS2, 'opps')}
         </div>
       </div>
 
