@@ -5113,7 +5113,7 @@ function renderKanban() {
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
           <div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap;">
-            <span class="k-card-source-pill ${src}" title="${src === 'inbound' ? 'Includes a contact from the Inbound Leads sheet' : 'No inbound contacts on this opp'}">${src === 'inbound' ? '📥 Inbound' : '📤 Outbound'}</span>
+            <span class="k-card-source-pill ${src}" title="${src === 'inbound' ? 'Includes a contact from the Inbound Leads sheet' : 'No inbound contacts on this opp'}">${src === 'inbound' ? '📥 Inbound' : 'Outbound'}</span>
             ${showAEOnCards && c.ae && aeLabel(c.ae) ? `<span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span>` : ''}
           </div>
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
