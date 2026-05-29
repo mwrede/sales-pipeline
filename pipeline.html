@@ -746,17 +746,36 @@
     display: flex; gap: 4px; margin-top: auto; padding-top: 6px;
   }
   .ov-split-chip {
-    flex: 1; display: flex; align-items: center; justify-content: space-between;
-    gap: 4px; padding: 3px 6px; border-radius: 5px;
-    font-size: 9px; font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.15;
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 1px; padding: 4px 6px; border-radius: 5px;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
   }
   .ov-split-chip.in  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
   .ov-split-chip.out { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-  .ov-split-chip-label { font-size: 8px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ov-split-chip-val   { font-size: 12px; font-weight: 800; }
+  .ov-split-chip-label { font-size: 8px; letter-spacing: 0.05em; text-transform: uppercase;
+    font-weight: 800; opacity: 0.85;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .ov-split-chip-val   { font-size: 15px; font-weight: 800; }
+  /* Section toggle pill — used for "include dead/hmm" */
+  .ov-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-left: 12px; padding: 5px 10px;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 999px; cursor: pointer;
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    font-family: inherit;
+  }
+  .ov-toggle:hover { background: #f8fafc; color: var(--text); border-color: #cbd5e1; }
+  .ov-toggle.on { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .ov-toggle-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #cbd5e1; transition: background 0.1s;
+  }
+  .ov-toggle.on .ov-toggle-dot { background: #ef4444; }
+  .ov-group-head {
+    display: flex; align-items: center; flex-wrap: wrap;
+  }
   .ov-section {
     background: #fff; border: 1px solid var(--border); border-radius: 12px;
     padding: 14px 18px;
@@ -5421,6 +5440,12 @@ function computeOverviewHTML(rows) {
   const wkEndStr = _ymd(wkEnd);
   const monStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  // Persisted user toggle: include dead / hmmm / old cards in totals?
+  // Off by default — Overview tracks the live pipeline.
+  const includeHidden = (function() {
+    try { return localStorage.getItem('ov_include_hidden') === '1'; } catch (_) { return false; }
+  })();
+  window._ovIncludeHidden = includeHidden;
 
   let totalMeetings = 0, totalWeek = 0, totalMonth = 0;
   let totalFollowUps = 0, totalFollowUpsWeek = 0, totalFollowUpsMonth = 0;
@@ -5453,7 +5478,7 @@ function computeOverviewHTML(rows) {
     const inboundSALNames = []; // S1-stage opps that are inbound
     const outboundSALNames = []; // S1-stage opps that are outbound
     (data.companies || []).forEach(c => {
-      if (c.dead || c.hmmm || c.old) return;
+      if (!includeHidden && (c.dead || c.hmmm || c.old)) return;
       totalOpps++;
       const src = sourceOf(c);
       if (c.stageId === sdrId) { totalSDR++; sdrCount++; if (src === 'inbound') inSDR++; else outSDR++; }
@@ -5561,15 +5586,17 @@ function computeOverviewHTML(rows) {
     .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${numS1(p.s1Count, p.uid, 's1')}${num(p.s2Count)}${numS1(p.s1ThisMonth, p.uid, 'month')}${numS1(p.inboundCount, p.uid, 'inbound')}${numS1(p.outboundCount, p.uid, 'outbound')}</tr>`).join('');
 
   // Consistent inbound/outbound split footer used on every tile.
-  // `label` lets us swap "SAL" on meeting tiles vs "opps" on opp tiles.
+  // Stacked layout (label on top, value below) so 3-digit numbers don't
+  // get clipped on narrow tiles. `label` distinguishes SAL chips on
+  // meeting / S1 tiles from plain opp chips.
   const splitFooter = (inbound, outbound, label) => `
     <div class="ov-split">
       <div class="ov-split-chip in">
-        <span class="ov-split-chip-label">📥 In · ${label}</span>
+        <span class="ov-split-chip-label">📥 ${label}</span>
         <span class="ov-split-chip-val">${inbound}</span>
       </div>
       <div class="ov-split-chip out">
-        <span class="ov-split-chip-label">Out · ${label}</span>
+        <span class="ov-split-chip-label">${label}</span>
         <span class="ov-split-chip-val">${outbound}</span>
       </div>
     </div>`;
@@ -5577,58 +5604,19 @@ function computeOverviewHTML(rows) {
 
   return `
     <div class="ov-group">
-      <h2 class="ov-group-title">📅 Meetings</h2>
-      <div class="ov-top ov-meetings-tiles">
-        <div class="ov-card" style="--ov-color:#22c55e">
-          <div class="ov-card-label">This Week</div>
-          <div class="ov-card-value">${totalWeek}</div>
-          <div class="ov-card-sub">${wkStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${wkEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}${totalFollowUpsWeek ? ` · ${totalFollowUpsWeek} follow-up${totalFollowUpsWeek===1?'':'s'}` : ''}</div>
-          ${salSplit()}
-        </div>
-        <div class="ov-card" style="--ov-color:#3b82f6">
-          <div class="ov-card-label">This Month</div>
-          <div class="ov-card-value">${totalMonth}</div>
-          <div class="ov-card-sub">${monthLabel}${totalFollowUpsMonth ? ` · ${totalFollowUpsMonth} follow-up${totalFollowUpsMonth===1?'':'s'}` : ''}</div>
-          ${salSplit()}
-        </div>
-        <div class="ov-card" style="--ov-color:#0f172a">
-          <div class="ov-card-label">All Time</div>
-          <div class="ov-card-value">${totalMeetings}</div>
-          <div class="ov-card-sub">across every teammate${totalFollowUps ? ` · ${totalFollowUps} follow-up${totalFollowUps===1?'':'s'}` : ''}</div>
-          ${salSplit()}
-        </div>
-        <div class="ov-card" style="--ov-color:#047857">
-          <div class="ov-card-label">🔁 Follow-ups</div>
-          <div class="ov-card-value">${totalFollowUps}</div>
-          <div class="ov-card-sub">excluded from totals · ${totalFollowUpsMonth} this month</div>
-          ${salSplit()}
-        </div>
+      <div class="ov-group-head">
+        <h2 class="ov-group-title">🗂 Opportunities</h2>
+        <button class="ov-toggle ${includeHidden ? 'on' : ''}" onclick="toggleOvIncludeHidden()"
+                title="Toggle whether dead / hmm / old cards are counted in the totals below">
+          <span class="ov-toggle-dot"></span>
+          ${includeHidden ? 'Including dead / hmm' : 'Live only · click to include dead / hmm'}
+        </button>
       </div>
-      <div class="ov-section">
-        <h3>Per teammate — ${escapeHTML(monthLabel)}</h3>
-        <table class="ov-table">
-          <thead>
-            <tr>
-              <th>Person</th>
-              <th class="num">This Week</th>
-              <th class="num">This Month</th>
-              <th class="num">All Time</th>
-              <th class="num">Follow-ups (mo)</th>
-              <th class="num">Follow-ups (all)</th>
-            </tr>
-          </thead>
-          <tbody>${meetingsRows}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="ov-group">
-      <h2 class="ov-group-title">🗂 Opportunities</h2>
       <div class="ov-top ov-opps-tiles">
         <div class="ov-card" style="--ov-color:#94a3b8">
-          <div class="ov-card-label">Live Total</div>
+          <div class="ov-card-label">${includeHidden ? 'All Opps' : 'Live Total'}</div>
           <div class="ov-card-value">${totalOpps}</div>
-          <div class="ov-card-sub">excluding dead / hmmm / old</div>
+          <div class="ov-card-sub">${includeHidden ? 'including dead / hmm / old' : 'excluding dead / hmm / old'}</div>
           ${splitFooter(totalInbound, totalOutbound, 'opps')}
         </div>
         <div class="ov-card" style="--ov-color:#f5511d">
@@ -5675,7 +5663,64 @@ function computeOverviewHTML(rows) {
         </table>
       </div>
     </div>
+
+    <div class="ov-group">
+      <h2 class="ov-group-title">📅 Meetings</h2>
+      <div class="ov-top ov-meetings-tiles">
+        <div class="ov-card" style="--ov-color:#22c55e">
+          <div class="ov-card-label">This Week</div>
+          <div class="ov-card-value">${totalWeek}</div>
+          <div class="ov-card-sub">${wkStart.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${wkEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'})}${totalFollowUpsWeek ? ` · ${totalFollowUpsWeek} follow-up${totalFollowUpsWeek===1?'':'s'}` : ''}</div>
+          ${salSplit()}
+        </div>
+        <div class="ov-card" style="--ov-color:#3b82f6">
+          <div class="ov-card-label">This Month</div>
+          <div class="ov-card-value">${totalMonth}</div>
+          <div class="ov-card-sub">${monthLabel}${totalFollowUpsMonth ? ` · ${totalFollowUpsMonth} follow-up${totalFollowUpsMonth===1?'':'s'}` : ''}</div>
+          ${salSplit()}
+        </div>
+        <div class="ov-card" style="--ov-color:#0f172a">
+          <div class="ov-card-label">All Time</div>
+          <div class="ov-card-value">${totalMeetings}</div>
+          <div class="ov-card-sub">across every teammate${totalFollowUps ? ` · ${totalFollowUps} follow-up${totalFollowUps===1?'':'s'}` : ''}</div>
+          ${salSplit()}
+        </div>
+        <div class="ov-card" style="--ov-color:#047857">
+          <div class="ov-card-label">🔁 Follow-ups</div>
+          <div class="ov-card-value">${totalFollowUps}</div>
+          <div class="ov-card-sub">excluded from totals · ${totalFollowUpsMonth} this month</div>
+          ${salSplit()}
+        </div>
+      </div>
+      <div class="ov-section">
+        <h3>Per teammate — ${escapeHTML(monthLabel)}</h3>
+        <table class="ov-table">
+          <thead>
+            <tr>
+              <th>Person</th>
+              <th class="num">This Week</th>
+              <th class="num">This Month</th>
+              <th class="num">All Time</th>
+              <th class="num">Follow-ups (mo)</th>
+              <th class="num">Follow-ups (all)</th>
+            </tr>
+          </thead>
+          <tbody>${meetingsRows}</tbody>
+        </table>
+      </div>
+    </div>
   `;
+}
+
+// Toggle the "include dead / hmm / old" filter on the Overview tiles.
+// Persists in localStorage so the choice survives reloads + tab switches.
+function toggleOvIncludeHidden() {
+  let on = false;
+  try {
+    on = localStorage.getItem('ov_include_hidden') === '1';
+    localStorage.setItem('ov_include_hidden', on ? '0' : '1');
+  } catch (_) {}
+  if (typeof renderOverview === 'function') renderOverview();
 }
 
 function selectUser(name) {
