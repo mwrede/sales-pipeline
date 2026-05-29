@@ -5671,9 +5671,14 @@ function computeOverviewHTML(rows) {
 
   // Inbound / outbound split toggle (persisted). When on, each stage
   // cell in the per-teammate Opportunities table renders as two small
-  // chips (📥 in · out) instead of a single total. Off by default.
+  // chips (📥 in · out) instead of a single total. Defaults to ON so
+  // the split is visible the first time the Overview loads; explicit
+  // "off" persists.
   const splitOn = (function() {
-    try { return localStorage.getItem('ov_split_per_teammate') === '1'; } catch (_) { return false; }
+    try {
+      const v = localStorage.getItem('ov_split_per_teammate');
+      return v === null ? true : v === '1';
+    } catch (_) { return true; }
   })();
   // Render a stage cell — either a single total or a stacked in/out
   // mini-split. Total stays clickable for s1 / month (the existing
@@ -5836,9 +5841,10 @@ function computeOverviewHTML(rows) {
 // Toggle the "include dead / hmm / old" filter on the Overview tiles.
 // Persists in localStorage so the choice survives reloads + tab switches.
 function toggleOvSplit() {
-  let on = false;
   try {
-    on = localStorage.getItem('ov_split_per_teammate') === '1';
+    const v = localStorage.getItem('ov_split_per_teammate');
+    // null defaults to ON (matches the splitOn read in computeOverviewHTML)
+    const on = v === null ? true : v === '1';
     localStorage.setItem('ov_split_per_teammate', on ? '0' : '1');
   } catch (_) {}
   if (typeof renderOverview === 'function') renderOverview();
