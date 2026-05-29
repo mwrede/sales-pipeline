@@ -769,11 +769,22 @@
   }
   .ov-toggle:hover { background: #f8fafc; color: var(--text); border-color: #cbd5e1; }
   .ov-toggle.on { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .ov-toggle.on-split { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
   .ov-toggle-dot {
     width: 8px; height: 8px; border-radius: 50%;
     background: #cbd5e1; transition: background 0.1s;
   }
   .ov-toggle.on .ov-toggle-dot { background: #ef4444; }
+  .ov-toggle .ov-toggle-dot.split { background: #3b82f6; }
+  /* Inbound / outbound split cell inside the per-teammate stages table */
+  .ov-table td.ov-cell-split { padding: 6px 8px; }
+  .ov-cell-split-row {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 4px; font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .ov-cell-in  { color: #1d4ed8; font-weight: 800; font-size: 13px; }
+  .ov-cell-out { color: #b45309; font-weight: 800; font-size: 13px; }
+  .ov-cell-sep { color: #cbd5e1; font-weight: 600; font-size: 11px; }
   .ov-group-head {
     display: flex; align-items: center; flex-wrap: wrap;
   }
@@ -5530,6 +5541,13 @@ function computeOverviewHTML(rows) {
     let sdrCount = 0, aeCount = 0, s1Count = 0, s2Count = 0;
     let inboundCount = 0, outboundCount = 0;
     let inboundSALCount = 0, outboundSALCount = 0; // SAL = S1-stage (Sales Accepted Lead)
+    // Per-teammate, per-stage inbound / outbound for the new toggle on the
+    // Opportunities table.
+    let inSDRu = 0, outSDRu = 0;
+    let inAEu  = 0, outAEu  = 0;
+    let inS1u  = 0, outS1u  = 0; // = inboundSALCount / outboundSALCount
+    let inS2u  = 0, outS2u  = 0;
+    let inS1Mu = 0, outS1Mu = 0;
     const s1Names = [];        // every S1-stage opp on this user's board
     const s1MonthNames = [];   // S1 opps whose final meeting landed in monStr
     const inboundNames = [];   // every live inbound opp on this user's board
@@ -5540,10 +5558,22 @@ function computeOverviewHTML(rows) {
       if (!includeHidden && (c.dead || c.hmmm || c.old)) return;
       totalOpps++;
       const src = sourceOf(c);
-      if (c.stageId === sdrId) { totalSDR++; sdrCount++; if (src === 'inbound') inSDR++; else outSDR++; }
-      else if (c.stageId === aeId) { totalAE++; aeCount++; if (src === 'inbound') inAE++; else outAE++; }
-      else if (c.stageId === s1Id) { totalS1++; s1Count++; s1Names.push(c.name); }
-      else if (c.stageId === s2Id) { totalS2++; s2Count++; if (src === 'inbound') inS2++; else outS2++; }
+      if (c.stageId === sdrId) {
+        totalSDR++; sdrCount++;
+        if (src === 'inbound') { inSDR++; inSDRu++; } else { outSDR++; outSDRu++; }
+      }
+      else if (c.stageId === aeId) {
+        totalAE++; aeCount++;
+        if (src === 'inbound') { inAE++; inAEu++; } else { outAE++; outAEu++; }
+      }
+      else if (c.stageId === s1Id) {
+        totalS1++; s1Count++; s1Names.push(c.name);
+        if (src === 'inbound') inS1u++; else outS1u++;
+      }
+      else if (c.stageId === s2Id) {
+        totalS2++; s2Count++;
+        if (src === 'inbound') { inS2++; inS2u++; } else { outS2++; outS2u++; }
+      }
       // Source attribution — same rule as the kanban pill: any meeting
       // attendee matching the inbound roster → inbound; else outbound.
       if (src === 'inbound') { inboundCount++; inboundNames.push(c.name); totalInbound++; }
@@ -5579,6 +5609,7 @@ function computeOverviewHTML(rows) {
         if (last && last.substring(0,7) === monStr) {
           s1ThisMonth++;
           s1MonthNames.push(c.name);
+          if (src === 'inbound') inS1Mu++; else outS1Mu++;
         }
       }
     });
@@ -5588,7 +5619,8 @@ function computeOverviewHTML(rows) {
     totalFollowUps += followUps;
     totalFollowUpsWeek += followUpsWeek;
     totalFollowUpsMonth += followUpsMonth;
-    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count, inboundCount, outboundCount, inboundSALCount, outboundSALCount, s1Names, s1MonthNames, inboundNames, outboundNames, inboundSALNames, outboundSALNames });
+    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count, inboundCount, outboundCount, inboundSALCount, outboundSALCount, s1Names, s1MonthNames, inboundNames, outboundNames, inboundSALNames, outboundSALNames,
+      inSDRu, outSDRu, inAEu, outAEu, inS1u, outS1u, inS2u, outS2u, inS1Mu, outS1Mu });
   });
 
   // Stash drill-down lists. Keyed by uid; "_all*" are team-wide aggregates.
@@ -5637,12 +5669,37 @@ function computeOverviewHTML(rows) {
     .sort((a, b) => b.month - a.month || b.meetings - a.meetings)
     .map(p => `<tr>${nameCell(p)}${num(p.week)}${num(p.month)}${num(p.meetings)}${num(p.followUpsMonth)}${num(p.followUps)}</tr>`).join('');
 
+  // Inbound / outbound split toggle (persisted). When on, each stage
+  // cell in the per-teammate Opportunities table renders as two small
+  // chips (📥 in · out) instead of a single total. Off by default.
+  const splitOn = (function() {
+    try { return localStorage.getItem('ov_split_per_teammate') === '1'; } catch (_) { return false; }
+  })();
+  // Render a stage cell — either a single total or a stacked in/out
+  // mini-split. Total stays clickable for s1 / month (the existing
+  // numS1 drill-down handlers).
+  const stageCell = (total, inCount, outCount, uid, drillWhich) => {
+    if (!splitOn) return drillWhich ? numS1(total, uid, drillWhich) : num(total);
+    if (total === 0 && inCount === 0 && outCount === 0) return `<td class="num zero">0</td>`;
+    return `<td class="num ov-cell-split"><div class="ov-cell-split-row"><span class="ov-cell-in">${inCount}</span><span class="ov-cell-sep">/</span><span class="ov-cell-out">${outCount}</span></div></td>`;
+  };
+
   // Opportunities table: sort by S1s-this-month desc, then total
   const oppsRows = [...perUser]
     .sort((a, b) => b.s1ThisMonth - a.s1ThisMonth ||
                     (b.sdrCount + b.aeCount + b.s1Count + b.s2Count) -
                     (a.sdrCount + a.aeCount + a.s1Count + a.s2Count))
-    .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${numS1(p.s1Count, p.uid, 's1')}${num(p.s2Count)}${numS1(p.s1ThisMonth, p.uid, 'month')}${numS1(p.inboundCount, p.uid, 'inbound')}${numS1(p.outboundCount, p.uid, 'outbound')}</tr>`).join('');
+    .map(p => `<tr>${nameCell(p)}${
+      stageCell(p.sdrCount,    p.inSDRu, p.outSDRu, p.uid, null)
+    }${
+      stageCell(p.aeCount,     p.inAEu,  p.outAEu,  p.uid, null)
+    }${
+      stageCell(p.s1Count,     p.inS1u,  p.outS1u,  p.uid, 's1')
+    }${
+      stageCell(p.s2Count,     p.inS2u,  p.outS2u,  p.uid, null)
+    }${
+      stageCell(p.s1ThisMonth, p.inS1Mu, p.outS1Mu, p.uid, 'month')
+    }</tr>`).join('');
 
   // Consistent inbound/outbound split footer used on every tile.
   // Stacked layout (label on top, value below) so 3-digit numbers don't
@@ -5669,6 +5726,11 @@ function computeOverviewHTML(rows) {
                 title="Toggle whether dead / hmm / old cards are counted in the totals below">
           <span class="ov-toggle-dot"></span>
           ${includeHidden ? 'Including dead / hmm' : 'Live only · click to include dead / hmm'}
+        </button>
+        <button class="ov-toggle ${splitOn ? 'on-split' : ''}" onclick="toggleOvSplit()"
+                title="Toggle inbound / outbound split inside each per-teammate stage cell">
+          <span class="ov-toggle-dot ${splitOn ? 'split' : ''}"></span>
+          ${splitOn ? 'Showing in / out per cell' : 'Show in / out per cell'}
         </button>
       </div>
       <div class="ov-top ov-opps-tiles">
@@ -5773,6 +5835,14 @@ function computeOverviewHTML(rows) {
 
 // Toggle the "include dead / hmm / old" filter on the Overview tiles.
 // Persists in localStorage so the choice survives reloads + tab switches.
+function toggleOvSplit() {
+  let on = false;
+  try {
+    on = localStorage.getItem('ov_split_per_teammate') === '1';
+    localStorage.setItem('ov_split_per_teammate', on ? '0' : '1');
+  } catch (_) {}
+  if (typeof renderOverview === 'function') renderOverview();
+}
 function toggleOvIncludeHidden() {
   let on = false;
   try {
