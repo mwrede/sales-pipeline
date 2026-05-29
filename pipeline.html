@@ -674,9 +674,9 @@
     display: grid; gap: 10px;
   }
   .ov-meetings-tiles { grid-template-columns: repeat(4, 1fr); }
-  .ov-opps-tiles { grid-template-columns: repeat(7, 1fr); }
+  .ov-opps-tiles { grid-template-columns: repeat(9, 1fr); }
   @media (max-width: 1400px) {
-    .ov-opps-tiles { grid-template-columns: repeat(4, 1fr); }
+    .ov-opps-tiles { grid-template-columns: repeat(5, 1fr); }
   }
   @media (max-width: 1100px) {
     .ov-opps-tiles { grid-template-columns: repeat(3, 1fr); }
@@ -684,6 +684,47 @@
   @media (max-width: 720px) {
     .ov-meetings-tiles, .ov-opps-tiles { grid-template-columns: repeat(2, 1fr); }
   }
+  /* Per-person SAL tiles — one card per teammate split into Inbound + Outbound */
+  .ov-sal-tiles {
+    display: grid; gap: 10px;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  @media (max-width: 900px) {
+    .ov-sal-tiles { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .ov-sal-tiles { grid-template-columns: 1fr; }
+  }
+  .ov-sal-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .ov-sal-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+  }
+  .ov-sal-head .ov-avatar { width: 22px; height: 22px; font-size: 10px; }
+  .ov-sal-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .ov-sal-counts { display: flex; }
+  .ov-sal-half {
+    flex: 1; padding: 12px; text-align: center;
+    border-right: 1px solid #f1f5f9;
+  }
+  .ov-sal-half:last-child { border-right: none; }
+  .ov-sal-half.is-clickable { cursor: pointer; transition: background 0.08s; }
+  .ov-sal-in.is-clickable:hover  { background: #eff6ff; }
+  .ov-sal-out.is-clickable:hover { background: #fffbeb; }
+  .ov-sal-half-label {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .ov-sal-half-val {
+    font-size: 22px; font-weight: 800; margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ov-sal-in .ov-sal-half-val  { color: #1d4ed8; }
+  .ov-sal-out .ov-sal-half-val { color: #b45309; }
   .ov-card {
     background: #fff; border: 1px solid var(--border); border-radius: 10px;
     padding: 12px 14px; --ov-color: #3b82f6; position: relative; overflow: hidden;
@@ -4345,6 +4386,7 @@ function computeOverviewHTML(rows) {
   let totalFollowUps = 0, totalFollowUpsWeek = 0, totalFollowUpsMonth = 0;
   let totalSDR = 0, totalAE = 0, totalS1 = 0, totalS2 = 0, totalOpps = 0;
   let totalInbound = 0, totalOutbound = 0;
+  let totalInboundSAL = 0, totalOutboundSAL = 0;
   const perUser = []; // [{ user, label, avatarBg, avatarColor, init, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, inboundCount, outboundCount, inboundNames, outboundNames }]
 
   rows.forEach(row => {
@@ -4361,10 +4403,13 @@ function computeOverviewHTML(rows) {
     let followUps = 0, followUpsWeek = 0, followUpsMonth = 0;
     let sdrCount = 0, aeCount = 0, s1Count = 0, s2Count = 0;
     let inboundCount = 0, outboundCount = 0;
+    let inboundSALCount = 0, outboundSALCount = 0; // SAL = S1-stage (Sales Accepted Lead)
     const s1Names = [];        // every S1-stage opp on this user's board
     const s1MonthNames = [];   // S1 opps whose final meeting landed in monStr
     const inboundNames = [];   // every live inbound opp on this user's board
     const outboundNames = [];  // every live outbound opp on this user's board
+    const inboundSALNames = []; // S1-stage opps that are inbound
+    const outboundSALNames = []; // S1-stage opps that are outbound
     (data.companies || []).forEach(c => {
       if (c.dead || c.hmmm || c.old) return;
       totalOpps++;
@@ -4377,6 +4422,11 @@ function computeOverviewHTML(rows) {
       const src = sourceOf(c);
       if (src === 'inbound') { inboundCount++; inboundNames.push(c.name); totalInbound++; }
       else { outboundCount++; outboundNames.push(c.name); totalOutbound++; }
+      // SAL split — only S1-stage opps count as SAL
+      if (c.stageId === s1Id) {
+        if (src === 'inbound') { inboundSALCount++; inboundSALNames.push(c.name); totalInboundSAL++; }
+        else { outboundSALCount++; outboundSALNames.push(c.name); totalOutboundSAL++; }
+      }
       // Bucket meetings: attended (countable) vs follow-ups vs not-attended.
       // Follow-ups and not-attended are excluded from the headline meeting
       // totals; follow-ups are tracked in their own counters for display.
@@ -4412,15 +4462,20 @@ function computeOverviewHTML(rows) {
     totalFollowUps += followUps;
     totalFollowUpsWeek += followUpsWeek;
     totalFollowUpsMonth += followUpsMonth;
-    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count, inboundCount, outboundCount, s1Names, s1MonthNames, inboundNames, outboundNames });
+    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count, inboundCount, outboundCount, inboundSALCount, outboundSALCount, s1Names, s1MonthNames, inboundNames, outboundNames, inboundSALNames, outboundSALNames });
   });
 
   // Stash drill-down lists. Keyed by uid; "_all*" are team-wide aggregates.
-  const _ovLists = { _all: [], _allMonth: [], _allInbound: [], _allOutbound: [] };
+  const _ovLists = {
+    _all: [], _allMonth: [],
+    _allInbound: [], _allOutbound: [],
+    _allInboundSAL: [], _allOutboundSAL: []
+  };
   perUser.forEach(p => {
     _ovLists[p.uid] = {
       s1: p.s1Names, month: p.s1MonthNames,
       inbound: p.inboundNames, outbound: p.outboundNames,
+      inboundSAL: p.inboundSALNames, outboundSAL: p.outboundSALNames,
       label: p.label
     };
     const tag = n => ({ uid: p.uid, label: p.label, avatarBg: p.avatarBg, avatarColor: p.avatarColor, init: p.init, name: n });
@@ -4428,6 +4483,8 @@ function computeOverviewHTML(rows) {
     p.s1MonthNames.forEach(n => _ovLists._allMonth.push(tag(n)));
     p.inboundNames.forEach(n => _ovLists._allInbound.push(tag(n)));
     p.outboundNames.forEach(n => _ovLists._allOutbound.push(tag(n)));
+    p.inboundSALNames.forEach(n => _ovLists._allInboundSAL.push(tag(n)));
+    p.outboundSALNames.forEach(n => _ovLists._allOutboundSAL.push(tag(n)));
   });
   window._ovS1Lists = _ovLists;
 
@@ -4545,6 +4602,43 @@ function computeOverviewHTML(rows) {
           <div class="ov-card-value">${totalOutbound}</div>
           <div class="ov-card-sub">prospected from scratch${totalOutbound ? ' · click to see list' : ''}</div>
         </div>
+        <div class="ov-card ${totalInboundSAL ? 'ov-card-clickable' : ''}" style="--ov-color:#1d4ed8"
+             ${totalInboundSAL ? `onclick="showOvS1List('_all','inboundSAL')"` : ''}>
+          <div class="ov-card-label">📥 Inbound SALs${totalInboundSAL ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
+          <div class="ov-card-value">${totalInboundSAL}</div>
+          <div class="ov-card-sub">S1-stage from inbound${totalInboundSAL ? ' · click to see list' : ''}</div>
+        </div>
+        <div class="ov-card ${totalOutboundSAL ? 'ov-card-clickable' : ''}" style="--ov-color:#b45309"
+             ${totalOutboundSAL ? `onclick="showOvS1List('_all','outboundSAL')"` : ''}>
+          <div class="ov-card-label">📤 Outbound SALs${totalOutboundSAL ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
+          <div class="ov-card-value">${totalOutboundSAL}</div>
+          <div class="ov-card-sub">S1-stage from outbound${totalOutboundSAL ? ' · click to see list' : ''}</div>
+        </div>
+      </div>
+
+      <h3 style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px;">SALs by teammate — Inbound vs Outbound</h3>
+      <div class="ov-sal-tiles">
+        ${[...perUser]
+          .sort((a, b) => (b.inboundSALCount + b.outboundSALCount) - (a.inboundSALCount + a.outboundSALCount))
+          .map(p => `
+          <div class="ov-sal-card">
+            <div class="ov-sal-head">
+              <span class="ov-avatar" style="background:${p.avatarBg};color:${p.avatarColor}">${escapeHTML(p.init)}</span>
+              <span class="ov-sal-name">${escapeHTML(p.label)}</span>
+            </div>
+            <div class="ov-sal-counts">
+              <div class="ov-sal-half ov-sal-in ${p.inboundSALCount ? 'is-clickable' : ''}"
+                   ${p.inboundSALCount ? `onclick="showOvS1List('${p.uid}','inboundSAL')"` : ''}>
+                <div class="ov-sal-half-label">📥 Inbound</div>
+                <div class="ov-sal-half-val">${p.inboundSALCount}</div>
+              </div>
+              <div class="ov-sal-half ov-sal-out ${p.outboundSALCount ? 'is-clickable' : ''}"
+                   ${p.outboundSALCount ? `onclick="showOvS1List('${p.uid}','outboundSAL')"` : ''}>
+                <div class="ov-sal-half-label">📤 Outbound</div>
+                <div class="ov-sal-half-val">${p.outboundSALCount}</div>
+              </div>
+            </div>
+          </div>`).join('')}
       </div>
       <div class="ov-section">
         <h3>Per teammate — opps in each stage</h3>
@@ -7275,15 +7369,19 @@ function showOvS1List(scope, which) {
   let entries = [];
   let title = 'Opportunities';
   const TITLES = {
-    s1:       { team: 'S1 opportunities — team-wide',     user: 'S1 opportunities' },
-    month:    { team: 'S1s this month — team-wide',       user: 'S1s this month' },
-    inbound:  { team: '📥 Inbound opportunities — team-wide',  user: '📥 Inbound opportunities' },
-    outbound: { team: '📤 Outbound opportunities — team-wide', user: '📤 Outbound opportunities' },
+    s1:          { team: 'S1 opportunities — team-wide',          user: 'S1 opportunities' },
+    month:       { team: 'S1s this month — team-wide',            user: 'S1s this month' },
+    inbound:     { team: '📥 Inbound opportunities — team-wide',   user: '📥 Inbound opportunities' },
+    outbound:    { team: '📤 Outbound opportunities — team-wide',  user: '📤 Outbound opportunities' },
+    inboundSAL:  { team: '📥 Inbound SALs — team-wide',            user: '📥 Inbound SALs' },
+    outboundSAL: { team: '📤 Outbound SALs — team-wide',           user: '📤 Outbound SALs' },
   };
   if (scope === '_all') {
     const aggKey = which === 'month' ? '_allMonth'
                  : which === 'inbound' ? '_allInbound'
                  : which === 'outbound' ? '_allOutbound'
+                 : which === 'inboundSAL' ? '_allInboundSAL'
+                 : which === 'outboundSAL' ? '_allOutboundSAL'
                  : '_all';
     entries = lists[aggKey] || [];
     title = (TITLES[which] || TITLES.s1).team;
@@ -7293,6 +7391,8 @@ function showOvS1List(scope, which) {
       const names = which === 'month' ? u.month
                   : which === 'inbound' ? u.inbound
                   : which === 'outbound' ? u.outbound
+                  : which === 'inboundSAL' ? u.inboundSAL
+                  : which === 'outboundSAL' ? u.outboundSAL
                   : u.s1;
       entries = (names || []).map(n => ({ name: n, label: u.label }));
       title = `${u.label} — ${(TITLES[which] || TITLES.s1).user}`;
