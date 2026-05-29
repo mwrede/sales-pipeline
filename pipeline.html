@@ -2399,7 +2399,7 @@
       <div class="tile-size-control" title="How many cards wide each column packs in a row">
         <span class="cwc-label">Per row</span>
         <button class="tile-size-btn" onclick="changePerRow(-1)">−</button>
-        <span class="cwc-val" id="per-row-val">2</span>
+        <span class="cwc-val" id="per-row-val">3</span>
         <button class="tile-size-btn" onclick="changePerRow(1)">+</button>
       </div>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
@@ -7258,10 +7258,10 @@ function restoreTileSize() {
   applyTileSize();
 }
 
-// Cards-per-row inside each column zone — 1..4, default 2.
+// Cards-per-row inside each column zone — 1..4, default 3.
 // Stored per user in localStorage and applied via a CSS custom prop
 // on #kanban so the grid template recomputes immediately.
-let cardsPerRow = 2;
+let cardsPerRow = 3;
 function changePerRow(delta) {
   cardsPerRow = Math.max(1, Math.min(4, cardsPerRow + delta));
   if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_per_row`, String(cardsPerRow));
@@ -7276,7 +7276,7 @@ function applyPerRow() {
 function restorePerRow() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_per_row`) : null;
   const n = parseInt(saved, 10);
-  cardsPerRow = (n >= 1 && n <= 4) ? n : 2;
+  cardsPerRow = (n >= 1 && n <= 4) ? n : 3;
   applyPerRow();
 }
 
