@@ -2352,8 +2352,8 @@
         <div class="metric-value" id="metric-sals">0</div>
         <div class="metric-sub">AE Discovery + S1 + S2</div>
         <div class="metric-split">
-          <div class="metric-split-chip in"><span class="metric-split-lbl">📥 IN</span><span class="metric-split-val" id="metric-sals-in">0</span></div>
-          <div class="metric-split-chip out"><span class="metric-split-lbl">OUT</span><span class="metric-split-val" id="metric-sals-out">0</span></div>
+          <div class="metric-split-chip in"><span class="metric-split-lbl">📥 Inbound</span><span class="metric-split-val" id="metric-sals-in">0</span></div>
+          <div class="metric-split-chip out"><span class="metric-split-lbl">Outbound</span><span class="metric-split-val" id="metric-sals-out">0</span></div>
         </div>
       </div>
       <div class="metric-card">
@@ -2361,8 +2361,8 @@
         <div class="metric-value" id="metric-meetings">0</div>
         <div class="metric-sub" id="metric-meetings-sub">in selected month</div>
         <div class="metric-split">
-          <div class="metric-split-chip in"><span class="metric-split-lbl">📥 IN</span><span class="metric-split-val" id="metric-meetings-in">0</span></div>
-          <div class="metric-split-chip out"><span class="metric-split-lbl">OUT</span><span class="metric-split-val" id="metric-meetings-out">0</span></div>
+          <div class="metric-split-chip in"><span class="metric-split-lbl">📥 Inbound</span><span class="metric-split-val" id="metric-meetings-in">0</span></div>
+          <div class="metric-split-chip out"><span class="metric-split-lbl">Outbound</span><span class="metric-split-val" id="metric-meetings-out">0</span></div>
         </div>
       </div>
       <div class="metric-card">
@@ -2370,8 +2370,8 @@
         <div class="metric-value" id="metric-opps">0</div>
         <div class="metric-sub" id="metric-opps-sub">with activity this month</div>
         <div class="metric-split">
-          <div class="metric-split-chip in"><span class="metric-split-lbl">📥 IN</span><span class="metric-split-val" id="metric-opps-in">0</span></div>
-          <div class="metric-split-chip out"><span class="metric-split-lbl">OUT</span><span class="metric-split-val" id="metric-opps-out">0</span></div>
+          <div class="metric-split-chip in"><span class="metric-split-lbl">📥 Inbound</span><span class="metric-split-val" id="metric-opps-in">0</span></div>
+          <div class="metric-split-chip out"><span class="metric-split-lbl">Outbound</span><span class="metric-split-val" id="metric-opps-out">0</span></div>
         </div>
       </div>
     </div>
@@ -5743,18 +5743,21 @@ function computeOverviewHTML(rows) {
   // Consistent inbound/outbound split footer used on every tile.
   // Stacked layout (label on top, value below) so 3-digit numbers don't
   // get clipped on narrow tiles. `label` distinguishes SAL chips on
-  // meeting / S1 tiles from plain opp chips.
-  const splitFooter = (inbound, outbound, label) => `
-    <div class="ov-split">
-      <div class="ov-split-chip in">
-        <span class="ov-split-chip-label">📥 ${label}</span>
-        <span class="ov-split-chip-val">${inbound}</span>
-      </div>
-      <div class="ov-split-chip out">
-        <span class="ov-split-chip-label">${label}</span>
-        <span class="ov-split-chip-val">${outbound}</span>
-      </div>
-    </div>`;
+  // meeting / S1 tiles — plain opp tiles just say "Inbound" / "Outbound".
+  const splitFooter = (inbound, outbound, label) => {
+    const suffix = (label && label !== 'opps') ? ` ${label}` : '';
+    return `
+      <div class="ov-split">
+        <div class="ov-split-chip in">
+          <span class="ov-split-chip-label">📥 Inbound${suffix}</span>
+          <span class="ov-split-chip-val">${inbound}</span>
+        </div>
+        <div class="ov-split-chip out">
+          <span class="ov-split-chip-label">Outbound${suffix}</span>
+          <span class="ov-split-chip-val">${outbound}</span>
+        </div>
+      </div>`;
+  };
   const salSplit = () => splitFooter(totalInboundSAL, totalOutboundSAL, 'SAL');
 
   return `
