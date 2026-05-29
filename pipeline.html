@@ -674,7 +674,10 @@
     display: grid; gap: 10px;
   }
   .ov-meetings-tiles { grid-template-columns: repeat(4, 1fr); }
-  .ov-opps-tiles { grid-template-columns: repeat(5, 1fr); }
+  .ov-opps-tiles { grid-template-columns: repeat(7, 1fr); }
+  @media (max-width: 1400px) {
+    .ov-opps-tiles { grid-template-columns: repeat(4, 1fr); }
+  }
   @media (max-width: 1100px) {
     .ov-opps-tiles { grid-template-columns: repeat(3, 1fr); }
   }
@@ -1082,6 +1085,16 @@
     background: linear-gradient(180deg, rgba(11,128,67,0.12) 0%, var(--green-bg) 70%);
     border-color: #6ee7b7;
   }
+  /* Source accent — left edge color tells inbound vs outbound at a glance */
+  .k-card.source-inbound  { box-shadow: inset 4px 0 0 #3b82f6; }
+  .k-card.source-outbound { box-shadow: inset 4px 0 0 #f59e0b; }
+  .k-card-source-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+    line-height: 1.5;
+  }
+  .k-card-source-pill.inbound  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .k-card-source-pill.outbound { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
   .k-card.is-s1 {
     background: var(--green-bg);
   }
@@ -2539,6 +2552,99 @@ function setCloudStatus(s) {
     : '☁ Synced';
   el.textContent = label;
   el.dataset.state = s || 'idle';
+}
+
+// ─────────────────────────────────────────────
+//  Inbound contact roster
+// ─────────────────────────────────────────────
+// Pulled from the "Coefficient Inbound Leads" Google Sheet
+// (id: 1s0X4zP0bi4R6ybzZSFZLjS0-vW30zlUwY7X_nare_E4). Any opportunity
+// whose meetings include ANY of these attendee emails is considered
+// inbound; everything else is outbound. Match is case-insensitive.
+const INBOUND_EMAILS = new Set([
+  'kevin.biehle@cummins.com', 'robert.badea@rockwellautomation.com',
+  'anjul.ten@gmail.com', 'handelerik+deere@johndeere.com', 'aiden.sagaser@doosan.com',
+  'manuel.funk@atos.net', 'evgeny17387@gmail.com', 'benoit.limon@thermofisher.com',
+  'talnegrin@gmail.com', 'patchado@scg.com', 'gerardwjones@gmail.com',
+  'leonardo.heis@gmail.com', 'raco_oh@live.cn', 'emmanuel.guadamud@holcim.com',
+  'jdnicoll1@gmail.com', 'daypea@yahoo.com', 'westonvogle@gmail.com',
+  'aniruddha.rvce@gmail.com', 'panjaitanandree@gmail.com', 'giovanni.naag@deped.gov.ph',
+  'arley.wilches@gmail.com', 'emilio@green-solution.ai', 'ronny@packing.se',
+  'yoshida-hiroshi1@sei.co.jp', 'moon_kaleen@bah.com',
+  'alexandre.chatelaindepaiva@solvay.com', 'hilariusjeremy@gmail.com',
+  'howard.martin@agc.com', 'ramansiranjeevi@gmail.com', 'bc.chiu12@gmail.com',
+  'reshmap1997@gmail.com', 'bernadetta.palupi@ai.astra.co.id',
+  'mcampass@emeal.nttdata.com', 'naoki.morita.j6w@jp.denso.com',
+  'zi.yern.chong@pwc.com', 'albertchp1@gmail.com', 'rajendramajhi88@gmail.com',
+  'whishii@gmail.com', 'jarek.koch@deutschebahn.com', 'tec.mastrocinque@gmail.com',
+  'pattanpr@scg.com', 'm.wilayat@nec.com', 'whong2@lsu.edu', 'kai_li@trimble.com',
+  'varun.kausika@gmail.com', 'liam.surka@magna.com', 'jothi.l+hon@honeywell.com',
+  'tu.nguyendangthien@se.com', 'pablobraconi@gmail.com', 'pranaypratap@gmail.com',
+  'khaotic47@gmail.com', 'jinming.chen@unitxlabs.com', 'alitzlan@gmail.com',
+  'alex.menshutin99@gmail.com', 'devendersys@gmail.com', 'david.weisz@gmail.com',
+  'kuminda@gmail.com', 'dmitry_antonov@epam.com', 'koichi.ryu@anritsu.com',
+  'anncaryn@gmail.com', 'hensleyrandy3@gmail.com', 'ntrevino@hebmex.com',
+  'thomas.monkhouse@msd.com', 'chapman_thor@yahoo.com', 'dyakovlab@gmail.com',
+  'enginatesh@gmail.com', 'skander.mourali@valeo.com', 'evan_masterson@hotmail.com',
+  'm_rusha@hotmail.com', 'chrisdillemsm@gmail.com', 'jarvis.omar.glenn91@gmail.com',
+  'bajraswarnim@gmail.com', 'fjworley@yahoo.com', 'john.webb@loreal.com',
+  'm.skakov@accenture.com', 'bfigueir@emeal.nttdata.com', 'liormo@gmail.com',
+  'noahkuo@gmail.com', 'wilsonlu@msoe.edu', 'koesterc@msoe.edu', 'villae@msoe.edu',
+  'nitish.bidwe@dxc.com', 'goldendeer6984@gmail.com', 'nedagher@gmail.com',
+  'wisdom.chen@circlek.com', 'sergi.puigardeu@gmail.com', 'israil.alakbarov@gmail.com',
+  'sravans.hice@gmail.com', 'vamshivnm@gmail.com', 'deepaks911@gmail.com',
+  'jessie.zhao@ap.averydennison.com', 'nicholmb@gmail.com', 'nmstuart20@gmail.com',
+  'christa4457@gmail.com', 'akshajuppala@gmail.com', 'lhaiyan3@gmail.com',
+  'csuson@yahoo.com', 'odr1cl@bosch.com', 'ali.lopez@elektra.com.mx',
+  'colette.doerr@spectrumplastics.com', 'mrodriguez-pinerojim+deloitte@deloitte.es',
+  'lilymolily@gmail.com', 'migodfre@microsoft.com',
+  'erich.blaschczok@arcelormittal.com', 'constance.sohler.partner@decathlon.com',
+  'amar.kumar99@gmail.com', 'yotatsep@schaeffler.com', 'henry.tse@disney.com',
+  'pynandan@gmail.com', 'david.tezmol@magna.com', 'mustafa.cayci@gmail.com',
+  'sanjay.mj62@gmail.com', 'carol.d.hernandez@gmail.com', 'namcyeon@gmail.com',
+  'agentlemontree@gmail.com', 'cdwood@amazon.co.uk', 'leo.morel@orange.com',
+  'vsiyer@amazon.com', 'beena.devadathan@bd.com', 'asihag70@gmail.com',
+  'chetan.sadhu@gmail.com', 'meymogensen+deloitte@deloitte.dk',
+  'david.martinez.lopez@hp.com', 'gautier.guilmot.ext@agc.com',
+  'levimurrell04@gmail.com', 'peter.difurio@retiina.com',
+  'scott.donohoo@databricks.com', 'rayanjaber07@gmail.com', 'annie.ballou@bd.com',
+  'arlo.halpern@bd.com', 'travmcwilliams@gmail.com', 'corcodel@merl.com',
+  'deepak.kumar11@cvshealth.com', 'quentin.weber@airbus.com',
+  'samueltawiah2003@gmail.com', 'jagadish.devarajan@gmail.com', 'mlyhoops@gmail.com',
+  'namihmj@gmail.com', 'paolo.armas@heineken.com', 'dhaval.durve@gmail.com',
+  'xjw031201@gmail.com', 'peddusu@gmail.com', 'aaronmaziarz@gmail.com',
+  'finalfire.to@gmail.com', 'rahulbasu.710@gmail.com', 'blackdiamondsales@gmail.com',
+  'marcuschildress@aol.com', 'mahima.nath@sap.com', 'santimarinh04@gmail.com',
+  'jiangyilin5653@lbl.gov', 'patrickishimwe16@gmail.com', 'sao95428@uga.edu',
+  'balaji.punyakoti@gmail.com', 'javiermoreno2708@hotmail.com', 'obiento@gmail.com',
+  'nurbanu.gok@pwc.com', 'sa39id_ahmad@yahoo.co.id', 'martijn.gorissen@nl.abb.com',
+  'the.chozen.one@gmail.com', 'osmapafo@gmail.com', 'frank.kachinski@bosch.com',
+  'galwiner@gmail.com', 'rumaisa.kashif@bosch.com', 'pablo.m.tomas@gmail.com',
+  'settawaw@scg.com', 'gbecerra@hotmail.com.ar', 'max.zamarin@hercrentals.com',
+  'joe.mcconnell10@gmail.com', 'vilkova.an@gmail.com', 'dahgdp@gmail.com',
+  'amina.jaouani@edf.fr', 'wenjie.yan@vorwerk.de', 'matthups@gmail.com',
+  'patrisiya.rumyantseva@delta.com', 'bartosz.furmanek@capgemini.com',
+  'tom.marsura@safran-ai.safrangroup.com', 'narotamchahar@gmail.com',
+  'tiago.pereira@atos.net', 'enoughfleece@gmail.com', 'ben.beath@gmail.com',
+  'eriktauil@gmail.com', 'taylornelms15@gmail.com',
+  'cagatay.guersoy@springernature.com', 'jsstorm@gmail.com', 'edmendez@tenaris.com',
+  'andrewqle@gmail.com', '4dford@gmail.com', 'alex.xxx@binance.com',
+  'osunsanyayimika@gmail.com', 'george.frost@mclaren.com', 'pmgomez@gmail.com',
+  'lucas.faure@airbus.com', 'benjamin.wrobel.external@airbus.com'
+]);
+// Returns 'inbound' or 'outbound' for an opportunity based on whether
+// any meeting attendee on it matches the inbound roster.
+function sourceOf(c) {
+  const primary = (c.primaryEmail || '').toLowerCase().trim();
+  if (primary && INBOUND_EMAILS.has(primary)) return 'inbound';
+  if (c.meetingAttendees) {
+    for (const arr of Object.values(c.meetingAttendees)) {
+      for (const e of (arr || [])) {
+        if (e && INBOUND_EMAILS.has(String(e).toLowerCase().trim())) return 'inbound';
+      }
+    }
+  }
+  return 'outbound';
 }
 
 // ─────────────────────────────────────────────
@@ -4238,7 +4344,8 @@ function computeOverviewHTML(rows) {
   let totalMeetings = 0, totalWeek = 0, totalMonth = 0;
   let totalFollowUps = 0, totalFollowUpsWeek = 0, totalFollowUpsMonth = 0;
   let totalSDR = 0, totalAE = 0, totalS1 = 0, totalS2 = 0, totalOpps = 0;
-  const perUser = []; // [{ user, label, avatarBg, avatarColor, init, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth }]
+  let totalInbound = 0, totalOutbound = 0;
+  const perUser = []; // [{ user, label, avatarBg, avatarColor, init, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, inboundCount, outboundCount, inboundNames, outboundNames }]
 
   rows.forEach(row => {
     const uid = row.user_id;
@@ -4253,8 +4360,11 @@ function computeOverviewHTML(rows) {
     let meetings = 0, week = 0, month = 0, s1ThisMonth = 0;
     let followUps = 0, followUpsWeek = 0, followUpsMonth = 0;
     let sdrCount = 0, aeCount = 0, s1Count = 0, s2Count = 0;
+    let inboundCount = 0, outboundCount = 0;
     const s1Names = [];        // every S1-stage opp on this user's board
     const s1MonthNames = [];   // S1 opps whose final meeting landed in monStr
+    const inboundNames = [];   // every live inbound opp on this user's board
+    const outboundNames = [];  // every live outbound opp on this user's board
     (data.companies || []).forEach(c => {
       if (c.dead || c.hmmm || c.old) return;
       totalOpps++;
@@ -4262,6 +4372,11 @@ function computeOverviewHTML(rows) {
       else if (c.stageId === aeId) { totalAE++; aeCount++; }
       else if (c.stageId === s1Id) { totalS1++; s1Count++; s1Names.push(c.name); }
       else if (c.stageId === s2Id) { totalS2++; s2Count++; }
+      // Source attribution — same rule as the kanban pill: any meeting
+      // attendee matching the inbound roster → inbound; else outbound.
+      const src = sourceOf(c);
+      if (src === 'inbound') { inboundCount++; inboundNames.push(c.name); totalInbound++; }
+      else { outboundCount++; outboundNames.push(c.name); totalOutbound++; }
       // Bucket meetings: attended (countable) vs follow-ups vs not-attended.
       // Follow-ups and not-attended are excluded from the headline meeting
       // totals; follow-ups are tracked in their own counters for display.
@@ -4297,16 +4412,22 @@ function computeOverviewHTML(rows) {
     totalFollowUps += followUps;
     totalFollowUpsWeek += followUpsWeek;
     totalFollowUpsMonth += followUpsMonth;
-    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count, s1Names, s1MonthNames });
+    perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count, inboundCount, outboundCount, s1Names, s1MonthNames, inboundNames, outboundNames });
   });
 
-  // Stash S1 lists so click handlers can drill in without recomputing.
-  // Keyed by uid; "_all" / "_allMonth" are the team-wide aggregates.
-  const _ovLists = { _all: [], _allMonth: [] };
+  // Stash drill-down lists. Keyed by uid; "_all*" are team-wide aggregates.
+  const _ovLists = { _all: [], _allMonth: [], _allInbound: [], _allOutbound: [] };
   perUser.forEach(p => {
-    _ovLists[p.uid] = { s1: p.s1Names, month: p.s1MonthNames, label: p.label };
-    p.s1Names.forEach(n => _ovLists._all.push({ uid: p.uid, label: p.label, avatarBg: p.avatarBg, avatarColor: p.avatarColor, init: p.init, name: n }));
-    p.s1MonthNames.forEach(n => _ovLists._allMonth.push({ uid: p.uid, label: p.label, avatarBg: p.avatarBg, avatarColor: p.avatarColor, init: p.init, name: n }));
+    _ovLists[p.uid] = {
+      s1: p.s1Names, month: p.s1MonthNames,
+      inbound: p.inboundNames, outbound: p.outboundNames,
+      label: p.label
+    };
+    const tag = n => ({ uid: p.uid, label: p.label, avatarBg: p.avatarBg, avatarColor: p.avatarColor, init: p.init, name: n });
+    p.s1Names.forEach(n => _ovLists._all.push(tag(n)));
+    p.s1MonthNames.forEach(n => _ovLists._allMonth.push(tag(n)));
+    p.inboundNames.forEach(n => _ovLists._allInbound.push(tag(n)));
+    p.outboundNames.forEach(n => _ovLists._allOutbound.push(tag(n)));
   });
   window._ovS1Lists = _ovLists;
 
@@ -4338,7 +4459,7 @@ function computeOverviewHTML(rows) {
     .sort((a, b) => b.s1ThisMonth - a.s1ThisMonth ||
                     (b.sdrCount + b.aeCount + b.s1Count + b.s2Count) -
                     (a.sdrCount + a.aeCount + a.s1Count + a.s2Count))
-    .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${numS1(p.s1Count, p.uid, 's1')}${num(p.s2Count)}${numS1(p.s1ThisMonth, p.uid, 'month')}</tr>`).join('');
+    .map(p => `<tr>${nameCell(p)}${num(p.sdrCount)}${num(p.aeCount)}${numS1(p.s1Count, p.uid, 's1')}${num(p.s2Count)}${numS1(p.s1ThisMonth, p.uid, 'month')}${numS1(p.inboundCount, p.uid, 'inbound')}${numS1(p.outboundCount, p.uid, 'outbound')}</tr>`).join('');
 
   return `
     <div class="ov-group">
@@ -4412,6 +4533,18 @@ function computeOverviewHTML(rows) {
           <div class="ov-card-value">${totalS2}</div>
           <div class="ov-card-sub">opps in stage</div>
         </div>
+        <div class="ov-card ${totalInbound ? 'ov-card-clickable' : ''}" style="--ov-color:#3b82f6"
+             ${totalInbound ? `onclick="showOvS1List('_all','inbound')"` : ''}>
+          <div class="ov-card-label">📥 Inbound${totalInbound ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
+          <div class="ov-card-value">${totalInbound}</div>
+          <div class="ov-card-sub">contact on inbound sheet${totalInbound ? ' · click to see list' : ''}</div>
+        </div>
+        <div class="ov-card ${totalOutbound ? 'ov-card-clickable' : ''}" style="--ov-color:#f59e0b"
+             ${totalOutbound ? `onclick="showOvS1List('_all','outbound')"` : ''}>
+          <div class="ov-card-label">📤 Outbound${totalOutbound ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
+          <div class="ov-card-value">${totalOutbound}</div>
+          <div class="ov-card-sub">prospected from scratch${totalOutbound ? ' · click to see list' : ''}</div>
+        </div>
       </div>
       <div class="ov-section">
         <h3>Per teammate — opps in each stage</h3>
@@ -4424,6 +4557,8 @@ function computeOverviewHTML(rows) {
               <th class="num">S1</th>
               <th class="num">S2</th>
               <th class="num">S1s This Month</th>
+              <th class="num">📥 Inbound</th>
+              <th class="num">📤 Outbound</th>
             </tr>
           </thead>
           <tbody>${oppsRows}</tbody>
@@ -4746,10 +4881,12 @@ function renderKanban() {
       const age = daysSinceFirstMeeting(c);
       const isS1Stage = stage.id === s1StageId();
       const nextTask = showCardTasks ? firstDueTask(c, stage) : null;
+      const src = sourceOf(c);
       const cardCls = ['k-card',
                        c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
                        c.likelySQO && stage.sortByLikelySQO ? 'likely-sqo' : '',
-                       isS1Stage ? 'is-s1' : '']
+                       isS1Stage ? 'is-s1' : '',
+                       `source-${src}`]
         .filter(Boolean).join(' ');
       return `
         <div class="${cardCls}" draggable="true"
@@ -4765,7 +4902,10 @@ function renderKanban() {
             <div class="k-card-name">${escapeHTML(c.name)}</div>
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
-          ${showAEOnCards && c.ae && aeLabel(c.ae) ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span></div>` : ''}
+          <div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap;">
+            <span class="k-card-source-pill ${src}" title="${src === 'inbound' ? 'Includes a contact from the Inbound Leads sheet' : 'No inbound contacts on this opp'}">${src === 'inbound' ? '📥 Inbound' : '📤 Outbound'}</span>
+            ${showAEOnCards && c.ae && aeLabel(c.ae) ? `<span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span>` : ''}
+          </div>
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
@@ -7133,18 +7273,29 @@ function showOvS1List(scope, which) {
   console.log('[showOvS1List]', { scope, which, hasLists: !!window._ovS1Lists });
   const lists = window._ovS1Lists || {};
   let entries = [];
-  let title = 'S1 opportunities';
+  let title = 'Opportunities';
+  const TITLES = {
+    s1:       { team: 'S1 opportunities — team-wide',     user: 'S1 opportunities' },
+    month:    { team: 'S1s this month — team-wide',       user: 'S1s this month' },
+    inbound:  { team: '📥 Inbound opportunities — team-wide',  user: '📥 Inbound opportunities' },
+    outbound: { team: '📤 Outbound opportunities — team-wide', user: '📤 Outbound opportunities' },
+  };
   if (scope === '_all') {
-    entries = (which === 'month' ? lists._allMonth : lists._all) || [];
-    title = which === 'month' ? 'S1s this month — team-wide' : 'S1 opportunities — team-wide';
+    const aggKey = which === 'month' ? '_allMonth'
+                 : which === 'inbound' ? '_allInbound'
+                 : which === 'outbound' ? '_allOutbound'
+                 : '_all';
+    entries = lists[aggKey] || [];
+    title = (TITLES[which] || TITLES.s1).team;
   } else {
     const u = lists[scope];
     if (u) {
-      const names = which === 'month' ? u.month : u.s1;
+      const names = which === 'month' ? u.month
+                  : which === 'inbound' ? u.inbound
+                  : which === 'outbound' ? u.outbound
+                  : u.s1;
       entries = (names || []).map(n => ({ name: n, label: u.label }));
-      title = which === 'month'
-        ? `${u.label} — S1s this month`
-        : `${u.label} — S1 opportunities`;
+      title = `${u.label} — ${(TITLES[which] || TITLES.s1).user}`;
     }
   }
   entries = [...entries].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
