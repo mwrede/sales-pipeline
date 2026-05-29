@@ -2260,6 +2260,8 @@
         </button>
         <button id="cal-settings-btn" onclick="openSyncSettings()" title="Calendar sync settings"
           style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;cursor:pointer;line-height:1;">⚙</button>
+        <button id="inbound-sync-btn" onclick="runInboundSync()" title="Reclassify every opportunity against the inbound roster"
+          style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;line-height:1;font-family:inherit;">📥 Sync inbound</button>
       </div>
       <div id="cal-status">
         <div class="dot-status"></div>
@@ -3668,11 +3670,14 @@ const INBOUND_EMAILS = new Set([
   'zulifqar.ali@amalaxis.ai', 'zveerayuthp@pttep.com', 'zyrusmmfj@gmail.com'
 ]);
 // Returns 'inbound' or 'outbound' for an opportunity.
-// Precedence: explicit c.sourceOverride > auto-detected from attendees.
+// Precedence: explicit c.sourceOverride > stored c.source > auto-detected.
+// The auto fallback handles brand-new cards that haven't been synced yet —
+// otherwise nothing runs the matcher except the "Sync inbound" button.
 function sourceOf(c) {
   if (c.sourceOverride === 'inbound' || c.sourceOverride === 'outbound') {
     return c.sourceOverride;
   }
+  if (c.source === 'inbound' || c.source === 'outbound') return c.source;
   return autoSourceOf(c);
 }
 function autoSourceOf(c) {
@@ -3686,6 +3691,40 @@ function autoSourceOf(c) {
     }
   }
   return 'outbound';
+}
+
+// Manual classification trigger. Walks every company, runs autoSourceOf,
+// stores the result on c.source. Manual sourceOverride values are left
+// alone — those always win. Surfaces a short toast in the calendar
+// status bar with the before / after counts.
+function runInboundSync() {
+  if (!Array.isArray(companies) || !companies.length) {
+    setCalStatus('', 'No opps to classify yet.');
+    return;
+  }
+  let inbound = 0, outbound = 0, flippedToInbound = 0, flippedToOutbound = 0, overridden = 0;
+  companies.forEach(c => {
+    if (c.sourceOverride === 'inbound' || c.sourceOverride === 'outbound') {
+      overridden++;
+      if (c.sourceOverride === 'inbound') inbound++; else outbound++;
+      return;
+    }
+    const prev = c.source;
+    const next = autoSourceOf(c);
+    c.source = next;
+    if (next === 'inbound') inbound++; else outbound++;
+    if (prev !== next) {
+      if (next === 'inbound') flippedToInbound++; else flippedToOutbound++;
+    }
+  });
+  saveData();
+  renderKanban();
+  if (typeof renderMetrics === 'function') renderMetrics();
+  const flipMsg = (flippedToInbound + flippedToOutbound) > 0
+    ? ` · ${flippedToInbound} → inbound, ${flippedToOutbound} → outbound`
+    : ' · no changes';
+  setCalStatus('connected',
+    `Classified ${companies.length} opps: ${inbound} inbound · ${outbound} outbound (${overridden} manual)${flipMsg}`);
 }
 
 // ─────────────────────────────────────────────
