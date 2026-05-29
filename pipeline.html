@@ -663,15 +663,15 @@
     text-align: left; }
   .ov-group { display: flex; flex-direction: column; gap: 12px; }
   .ov-group-title {
-    font-size: 16px; font-weight: 800; letter-spacing: -0.01em;
-    color: var(--text); padding-bottom: 4px;
+    font-size: 19px; font-weight: 800; letter-spacing: -0.015em;
+    color: var(--text); padding-bottom: 5px;
     border-bottom: 2px solid var(--text);
     display: inline-block; align-self: flex-start;
     margin-bottom: 2px;
   }
   .overview-loading { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
   .ov-top {
-    display: grid; gap: 10px;
+    display: grid; gap: 7px;
   }
   .ov-meetings-tiles { grid-template-columns: repeat(4, 1fr); }
   .ov-opps-tiles { grid-template-columns: repeat(9, 1fr); }
@@ -726,36 +726,37 @@
   .ov-sal-in .ov-sal-half-val  { color: #1d4ed8; }
   .ov-sal-out .ov-sal-half-val { color: #b45309; }
   .ov-card {
-    background: #fff; border: 1px solid var(--border); border-radius: 10px;
-    padding: 12px 14px; --ov-color: #3b82f6; position: relative; overflow: hidden;
-    min-height: 132px; display: flex; flex-direction: column;
+    background: #fff; border: 1px solid var(--border); border-radius: 9px;
+    padding: 8px 10px 9px 12px; --ov-color: #3b82f6; position: relative; overflow: hidden;
+    min-height: 92px; display: flex; flex-direction: column;
   }
   .ov-card::before {
     content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0;
     background: var(--ov-color);
   }
-  .ov-card-label { font-size: 10px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.06em;
+  .ov-card-label { font-size: 11px; font-weight: 700; color: var(--text);
+    text-transform: uppercase; letter-spacing: 0.05em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ov-card-value { font-size: 24px; font-weight: 800; color: var(--text);
-    margin-top: 4px; line-height: 1.1; letter-spacing: -0.02em; }
-  .ov-card-sub { font-size: 10px; color: var(--muted); margin-top: 3px;
+  .ov-card-value { font-size: 19px; font-weight: 800; color: var(--text);
+    margin-top: 2px; line-height: 1.1; letter-spacing: -0.02em; }
+  .ov-card-sub { font-size: 9px; color: var(--muted); margin-top: 1px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Inbound / Outbound split footer on a tile — consistent across the Overview */
   .ov-split {
-    display: flex; gap: 6px; margin-top: auto; padding-top: 8px;
+    display: flex; gap: 4px; margin-top: auto; padding-top: 6px;
   }
   .ov-split-chip {
     flex: 1; display: flex; align-items: center; justify-content: space-between;
-    gap: 6px; padding: 4px 8px; border-radius: 6px;
-    font-size: 10px; font-weight: 700;
+    gap: 4px; padding: 3px 6px; border-radius: 5px;
+    font-size: 9px; font-weight: 700;
     font-variant-numeric: tabular-nums;
-    line-height: 1.2;
+    line-height: 1.15;
   }
   .ov-split-chip.in  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
   .ov-split-chip.out { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-  .ov-split-chip-label { font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; }
-  .ov-split-chip-val   { font-size: 14px; font-weight: 800; }
+  .ov-split-chip-label { font-size: 8px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-split-chip-val   { font-size: 12px; font-weight: 800; }
   .ov-section {
     background: #fff; border: 1px solid var(--border); border-radius: 12px;
     padding: 14px 18px;
