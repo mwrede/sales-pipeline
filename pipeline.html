@@ -1033,8 +1033,16 @@
   #kanban.tile-small .k-card-tasks { padding: 4px 5px; }
   #kanban.tile-small .k-card-task-item-text { font-size: 9px; }
   #kanban.tile-small .k-card-tasks-head { font-size: 8px; padding: 2px 3px; }
-  #kanban.tile-small .k-card-actions { padding-top: 4px; gap: 3px; }
-  #kanban.tile-small .k-card-btn { padding: 2px 5px; font-size: 9px; }
+  #kanban.tile-small .k-card-actions { padding-top: 4px; gap: 3px; row-gap: 3px; }
+  /* Small tiles: icon-only action buttons. Text label is replaced by the
+     button's title attribute on hover. Keeps the card readable when two
+     cards share a single column row. */
+  #kanban.tile-small .k-card-btn {
+    padding: 3px 6px; font-size: 11px; line-height: 1; min-height: 22px;
+    flex: 1 1 0; min-width: 0; justify-content: center; gap: 0;
+  }
+  #kanban.tile-small .k-card-btn .k-btn-txt { display: none; }
+  #kanban.tile-small .k-card-btn .k-btn-ico { font-size: 12px; }
   #kanban.tile-small .k-card-source-pill,
   #kanban.tile-small .k-card-ae-pill { font-size: 8px; padding: 1px 5px; }
   #kanban.tile-small .k-card-head { gap: 5px; }
@@ -1168,7 +1176,10 @@
   .kc-zone-outbound .kc-zone-count { background: #fffbeb; color: #b45309; }
   .kc-zone-body {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    /* Always two cards per row inside a column — independent of column
+       width — so the layout doesn't reflow as the user drags the width
+       slider, and tiles stay readable on the default 360px column. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
     min-height: 32px;
     overflow-x: hidden;
@@ -6107,22 +6118,22 @@ function renderKanban() {
             ${isS1Stage
               ? `<button class="k-card-btn ${c.likelySQO ? 'likely-active' : ''}"
                         onclick="event.stopPropagation();toggleLikelySQO('${safeN}')"
-                        title="Mark as likely to progress to SQO (S2)">🌟 ${c.likelySQO ? 'Likely SQO ✓' : 'Likely SQO'}</button>`
+                        title="${c.likelySQO ? 'Likely SQO ✓' : 'Mark as likely to progress to SQO (S2)'}"><span class="k-btn-ico">🌟</span><span class="k-btn-txt">${c.likelySQO ? 'Likely SQO ✓' : 'Likely SQO'}</span></button>`
               : `<button class="k-card-btn ${c.likelyS1 ? 'likely-active' : ''}"
                         onclick="event.stopPropagation();toggleLikelyS1('${safeN}')"
-                        title="Mark as likely to progress to S1">⭐ ${c.likelyS1 ? 'Likely S1 ✓' : 'Likely S1'}</button>`}
+                        title="${c.likelyS1 ? 'Likely S1 ✓' : 'Mark as likely to progress to S1'}"><span class="k-btn-ico">⭐</span><span class="k-btn-txt">${c.likelyS1 ? 'Likely S1 ✓' : 'Likely S1'}</span></button>`}
             <button class="k-card-btn ${isS1Stage ? 's1-active' : ''}"
                     onclick="event.stopPropagation();toggleS1Flip('${safeN}')"
-                    title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}">${isS1Stage ? '✓ S1' : '→ S1'}</button>
+                    title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}"><span class="k-btn-ico">${isS1Stage ? '✓' : '→'}</span><span class="k-btn-txt">S1</span></button>
             <button class="k-card-btn dead-btn"
                     onclick="event.stopPropagation();markDead('${safeN}')"
-                    title="Mark this opportunity dead">× Dead</button>
+                    title="Mark this opportunity dead"><span class="k-btn-ico">×</span><span class="k-btn-txt">Dead</span></button>
             <button class="k-card-btn hmmm-btn"
                     onclick="event.stopPropagation();markHmmm('${safeN}')"
-                    title="Park as uncertain — moves to Hmmm pile">🤔 Hmmm</button>
+                    title="Park as uncertain — moves to Hmmm pile"><span class="k-btn-ico">🤔</span><span class="k-btn-txt">Hmmm</span></button>
             ${isS1Stage ? `<button class="k-card-btn old-btn"
                     onclick="event.stopPropagation();markOld('${safeN}')"
-                    title="Mark as old — hides like Dead">⏳ Old</button>` : ''}
+                    title="Mark as old — hides like Dead"><span class="k-btn-ico">⏳</span><span class="k-btn-txt">Old</span></button>` : ''}
           </div>
         </div>`;
     };
