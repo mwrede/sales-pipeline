@@ -1033,19 +1033,24 @@
   #kanban.tile-small .k-card-tasks { padding: 4px 5px; }
   #kanban.tile-small .k-card-task-item-text { font-size: 9px; }
   #kanban.tile-small .k-card-tasks-head { font-size: 8px; padding: 2px 3px; }
-  #kanban.tile-small .k-card-actions { padding-top: 4px; gap: 3px; row-gap: 3px; }
+  #kanban.tile-small .k-card-actions { padding-top: 3px; margin-top: 4px; gap: 3px; row-gap: 3px; }
   /* Small tiles: icon-only action buttons. Text label is replaced by the
      button's title attribute on hover. Keeps the card readable when two
      cards share a single column row. */
   #kanban.tile-small .k-card-btn {
-    padding: 3px 6px; font-size: 11px; line-height: 1; min-height: 22px;
+    padding: 2px 4px; font-size: 10px; line-height: 1; min-height: 20px;
     flex: 1 1 0; min-width: 0; justify-content: center; gap: 0;
   }
   #kanban.tile-small .k-card-btn .k-btn-txt { display: none; }
-  #kanban.tile-small .k-card-btn .k-btn-ico { font-size: 12px; }
-  #kanban.tile-small .k-card-source-pill,
+  #kanban.tile-small .k-card-btn .k-btn-ico { font-size: 11px; }
   #kanban.tile-small .k-card-ae-pill { font-size: 8px; padding: 1px 5px; }
   #kanban.tile-small .k-card-head { gap: 5px; }
+  /* Hide chrome that pushes cards taller on the default small tile so
+     a column reliably shows at least 4 rows. The data is still available
+     in the card modal when you click in. */
+  #kanban.tile-small .k-card-age { display: none; }
+  #kanban.tile-small .k-card-meta { margin-top: 3px; }
+  #kanban.tile-small .k-card-progress { height: 2px; margin-top: 3px; }
   #kanban.tile-small .k-card-task-group-label { font-size: 9px; padding: 3px 3px; }
 
   #kanban.tile-large .k-card { padding: 14px 16px; }
@@ -1070,7 +1075,7 @@
     width: var(--col-width); min-width: var(--col-width); max-width: var(--col-width);
     background: #f8fafc; border: 1px solid var(--border);
     border-radius: 12px; padding: 8px;
-    height: calc(100vh - 190px);
+    height: calc(100vh - 150px);
     display: flex; flex-direction: column;
     --stage-color: #94a3b8;
     --stage-color-soft: rgba(148,163,184,0.10);
@@ -6104,10 +6109,7 @@ function renderKanban() {
             <div class="k-card-name">${escapeHTML(c.name)}</div>
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
-          <div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap;">
-            <span class="k-card-source-pill ${src}" title="${src === 'inbound' ? 'Includes a contact from the Inbound Leads sheet' : 'No inbound contacts on this opp'}">${src === 'inbound' ? '📥 Inbound' : 'Outbound'}</span>
-            ${showAEOnCards && c.ae && aeLabel(c.ae) ? `<span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span>` : ''}
-          </div>
+          ${showAEOnCards && c.ae && aeLabel(c.ae) ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span></div>` : ''}
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
