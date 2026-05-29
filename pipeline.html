@@ -673,16 +673,17 @@
   .ov-top {
     display: grid; gap: 7px;
   }
-  .ov-meetings-tiles { grid-template-columns: repeat(4, 1fr); }
-  .ov-opps-tiles { grid-template-columns: repeat(9, 1fr); }
-  @media (max-width: 1400px) {
-    .ov-opps-tiles { grid-template-columns: repeat(5, 1fr); }
-  }
+  /* Both tile rows share the same visual rhythm: equal-width tiles
+     across the row, same gap, same chip styling. Opportunities has 5
+     tiles; Meetings has 4. */
+  .ov-opps-tiles     { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ov-meetings-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   @media (max-width: 1100px) {
-    .ov-opps-tiles { grid-template-columns: repeat(3, 1fr); }
+    .ov-opps-tiles     { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ov-meetings-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 720px) {
-    .ov-meetings-tiles, .ov-opps-tiles { grid-template-columns: repeat(2, 1fr); }
+    .ov-meetings-tiles, .ov-opps-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   /* Per-person SAL tiles — one card per teammate split into Inbound + Outbound */
   .ov-sal-tiles {
@@ -1181,10 +1182,10 @@
   .kc-zone-outbound .kc-zone-count { background: #fffbeb; color: #b45309; }
   .kc-zone-body {
     display: grid;
-    /* Always two cards per row inside a column — independent of column
-       width — so the layout doesn't reflow as the user drags the width
-       slider, and tiles stay readable on the default 360px column. */
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Cards per row is user-configurable from the kanban toolbar
+       (--cards-per-row, defaults to 2). The layout doesn't reflow on
+       width drag — only on explicit ±. */
+    grid-template-columns: repeat(var(--cards-per-row, 2), minmax(0, 1fr));
     gap: 5px;
     min-height: 32px;
     overflow-x: hidden;
@@ -2383,6 +2384,12 @@
         <button class="tile-size-btn" onclick="changeTileSize(-1)">−</button>
         <span class="cwc-val" id="tile-size-val">M</span>
         <button class="tile-size-btn" onclick="changeTileSize(1)">+</button>
+      </div>
+      <div class="tile-size-control" title="How many cards wide each column packs in a row">
+        <span class="cwc-label">Per row</span>
+        <button class="tile-size-btn" onclick="changePerRow(-1)">−</button>
+        <span class="cwc-val" id="per-row-val">2</span>
+        <button class="tile-size-btn" onclick="changePerRow(1)">+</button>
       </div>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
@@ -5804,6 +5811,7 @@ function selectUser(name) {
   setView('kanban');
   restoreColumnWidth();
   restoreTileSize();
+  restorePerRow();
   restoreCardTasksPref();
   restoreAEOnCardsPref();
   restoreAEFilter();
@@ -7172,6 +7180,28 @@ function restoreTileSize() {
   const idx = TILE_SIZES.indexOf(saved);
   tileSizeIdx = idx >= 0 ? idx : 0;
   applyTileSize();
+}
+
+// Cards-per-row inside each column zone — 1..4, default 2.
+// Stored per user in localStorage and applied via a CSS custom prop
+// on #kanban so the grid template recomputes immediately.
+let cardsPerRow = 2;
+function changePerRow(delta) {
+  cardsPerRow = Math.max(1, Math.min(4, cardsPerRow + delta));
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_per_row`, String(cardsPerRow));
+  applyPerRow();
+}
+function applyPerRow() {
+  const root = document.getElementById('kanban');
+  if (root) root.style.setProperty('--cards-per-row', cardsPerRow);
+  const lbl = document.getElementById('per-row-val');
+  if (lbl) lbl.textContent = cardsPerRow;
+}
+function restorePerRow() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_per_row`) : null;
+  const n = parseInt(saved, 10);
+  cardsPerRow = (n >= 1 && n <= 4) ? n : 2;
+  applyPerRow();
 }
 
 // ── Month picker + metrics ──
