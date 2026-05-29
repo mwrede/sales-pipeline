@@ -1085,13 +1085,55 @@
   .kc-menu button.danger:hover { background: #fef2f2; }
   .kc-cards {
     flex: 1; overflow-y: auto;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 8px;
-    align-content: start;
+    display: flex; flex-direction: column;
+    gap: 10px;
     min-height: 40px; padding: 2px;
   }
   .kc-cards.drop-target { background: rgba(59,130,246,0.06); border-radius: 8px; }
+  /* Inbound / Outbound zones inside each column */
+  .kc-zone {
+    border-radius: 8px; padding: 6px 4px 8px;
+    display: flex; flex-direction: column; gap: 6px;
+    border: 1px dashed transparent;
+  }
+  .kc-zone-inbound  { background: linear-gradient(180deg, rgba(59,130,246,0.05), rgba(59,130,246,0)); }
+  .kc-zone-outbound { background: linear-gradient(180deg, rgba(245,158,11,0.05), rgba(245,158,11,0)); }
+  .kc-zone.drop-target.kc-zone-inbound  { background: rgba(59,130,246,0.12);  border-color: #93c5fd; }
+  .kc-zone.drop-target.kc-zone-outbound { background: rgba(245,158,11,0.14); border-color: #fcd34d; }
+  .kc-zone-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 2px 6px 4px;
+    border-bottom: 1px solid rgba(15,23,42,0.06);
+  }
+  .kc-zone-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--muted);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .kc-zone-inbound  .kc-zone-label { color: #1d4ed8; }
+  .kc-zone-outbound .kc-zone-label { color: #b45309; }
+  .kc-zone-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .kc-zone-dot.inbound  { background: #3b82f6; }
+  .kc-zone-dot.outbound { background: #f59e0b; }
+  .kc-zone-count {
+    font-size: 11px; font-weight: 800; padding: 1px 8px;
+    border-radius: 999px; font-variant-numeric: tabular-nums;
+  }
+  .kc-zone-inbound  .kc-zone-count { background: #eff6ff; color: #1d4ed8; }
+  .kc-zone-outbound .kc-zone-count { background: #fffbeb; color: #b45309; }
+  .kc-zone-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    min-height: 36px;
+  }
+  .kc-zone-empty {
+    grid-column: 1 / -1;
+    color: #cbd5e1; font-size: 11px; padding: 8px;
+    text-align: center; font-style: italic;
+  }
   .kc-add {
     margin-top: 8px; background: none; border: none; cursor: pointer;
     padding: 8px; font-size: 12px; font-weight: 600; color: var(--muted);
@@ -2011,6 +2053,22 @@
     outline: none; border-color: #93c5fd;
     box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
   }
+  .cm-source-row {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  }
+  .cm-source-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 13px; border-radius: 8px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    background: #fff; border: 1px solid var(--border); color: var(--muted);
+    font-family: inherit;
+  }
+  .cm-source-btn:hover { background: #f8fafc; color: var(--text); }
+  .cm-source-btn.active.inbound  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .cm-source-btn.active.outbound { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+  .cm-source-hint {
+    font-size: 11px; color: var(--muted); margin-left: 4px;
+  }
   .cm-meetings-list {
     display: flex; flex-direction: column; gap: 4px;
   }
@@ -2386,6 +2444,9 @@
       <div class="card-modal-section-label">AE on the account</div>
       <select id="cm-ae" class="cm-ae-select" onchange="commitCardAE(this.value)"></select>
 
+      <div class="card-modal-section-label" style="margin-top:16px;">Source</div>
+      <div id="cm-source" class="cm-source-row"></div>
+
       <div class="card-modal-section-label" style="margin-top:16px;">Notes</div>
       <textarea id="cm-notes" class="cm-notes" rows="3"
         placeholder="Add notes about this opportunity…"
@@ -2673,9 +2734,15 @@ const INBOUND_EMAILS = new Set([
   'osunsanyayimika@gmail.com', 'george.frost@mclaren.com', 'pmgomez@gmail.com',
   'lucas.faure@airbus.com', 'benjamin.wrobel.external@airbus.com'
 ]);
-// Returns 'inbound' or 'outbound' for an opportunity based on whether
-// any meeting attendee on it matches the inbound roster.
+// Returns 'inbound' or 'outbound' for an opportunity.
+// Precedence: explicit c.sourceOverride > auto-detected from attendees.
 function sourceOf(c) {
+  if (c.sourceOverride === 'inbound' || c.sourceOverride === 'outbound') {
+    return c.sourceOverride;
+  }
+  return autoSourceOf(c);
+}
+function autoSourceOf(c) {
   const primary = (c.primaryEmail || '').toLowerCase().trim();
   if (primary && INBOUND_EMAILS.has(primary)) return 'inbound';
   if (c.meetingAttendees) {
@@ -4590,56 +4657,8 @@ function computeOverviewHTML(rows) {
           <div class="ov-card-value">${totalS2}</div>
           <div class="ov-card-sub">opps in stage</div>
         </div>
-        <div class="ov-card ${totalInbound ? 'ov-card-clickable' : ''}" style="--ov-color:#3b82f6"
-             ${totalInbound ? `onclick="showOvS1List('_all','inbound')"` : ''}>
-          <div class="ov-card-label">📥 Inbound${totalInbound ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
-          <div class="ov-card-value">${totalInbound}</div>
-          <div class="ov-card-sub">contact on inbound sheet${totalInbound ? ' · click to see list' : ''}</div>
-        </div>
-        <div class="ov-card ${totalOutbound ? 'ov-card-clickable' : ''}" style="--ov-color:#f59e0b"
-             ${totalOutbound ? `onclick="showOvS1List('_all','outbound')"` : ''}>
-          <div class="ov-card-label">📤 Outbound${totalOutbound ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
-          <div class="ov-card-value">${totalOutbound}</div>
-          <div class="ov-card-sub">prospected from scratch${totalOutbound ? ' · click to see list' : ''}</div>
-        </div>
-        <div class="ov-card ${totalInboundSAL ? 'ov-card-clickable' : ''}" style="--ov-color:#1d4ed8"
-             ${totalInboundSAL ? `onclick="showOvS1List('_all','inboundSAL')"` : ''}>
-          <div class="ov-card-label">📥 Inbound SALs${totalInboundSAL ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
-          <div class="ov-card-value">${totalInboundSAL}</div>
-          <div class="ov-card-sub">S1-stage from inbound${totalInboundSAL ? ' · click to see list' : ''}</div>
-        </div>
-        <div class="ov-card ${totalOutboundSAL ? 'ov-card-clickable' : ''}" style="--ov-color:#b45309"
-             ${totalOutboundSAL ? `onclick="showOvS1List('_all','outboundSAL')"` : ''}>
-          <div class="ov-card-label">📤 Outbound SALs${totalOutboundSAL ? ' <span class="ov-click-hint">▸</span>' : ''}</div>
-          <div class="ov-card-value">${totalOutboundSAL}</div>
-          <div class="ov-card-sub">S1-stage from outbound${totalOutboundSAL ? ' · click to see list' : ''}</div>
-        </div>
       </div>
 
-      <h3 style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px;">SALs by teammate — Inbound vs Outbound</h3>
-      <div class="ov-sal-tiles">
-        ${[...perUser]
-          .sort((a, b) => (b.inboundSALCount + b.outboundSALCount) - (a.inboundSALCount + a.outboundSALCount))
-          .map(p => `
-          <div class="ov-sal-card">
-            <div class="ov-sal-head">
-              <span class="ov-avatar" style="background:${p.avatarBg};color:${p.avatarColor}">${escapeHTML(p.init)}</span>
-              <span class="ov-sal-name">${escapeHTML(p.label)}</span>
-            </div>
-            <div class="ov-sal-counts">
-              <div class="ov-sal-half ov-sal-in ${p.inboundSALCount ? 'is-clickable' : ''}"
-                   ${p.inboundSALCount ? `onclick="showOvS1List('${p.uid}','inboundSAL')"` : ''}>
-                <div class="ov-sal-half-label">📥 Inbound</div>
-                <div class="ov-sal-half-val">${p.inboundSALCount}</div>
-              </div>
-              <div class="ov-sal-half ov-sal-out ${p.outboundSALCount ? 'is-clickable' : ''}"
-                   ${p.outboundSALCount ? `onclick="showOvS1List('${p.uid}','outboundSAL')"` : ''}>
-                <div class="ov-sal-half-label">📤 Outbound</div>
-                <div class="ov-sal-half-val">${p.outboundSALCount}</div>
-              </div>
-            </div>
-          </div>`).join('')}
-      </div>
       <div class="ov-section">
         <h3>Per teammate — opps in each stage</h3>
         <table class="ov-table">
@@ -4651,8 +4670,6 @@ function computeOverviewHTML(rows) {
               <th class="num">S1</th>
               <th class="num">S2</th>
               <th class="num">S1s This Month</th>
-              <th class="num">📥 Inbound</th>
-              <th class="num">📤 Outbound</th>
             </tr>
           </thead>
           <tbody>${oppsRows}</tbody>
@@ -4961,7 +4978,7 @@ function renderKanban() {
     const stageColor = colorHex(stage.color);
     const stageSoft = colorSoft(stage.color);
     const colStyle = `--stage-color:${stageColor};--stage-color-soft:${stageSoft};`;
-    const cardsHTML = stageCompanies.map(c => {
+    const renderCard = c => {
       const state = (c.checklistState && c.checklistState[stage.id]) || {};
       const done = stage.checklist.filter(it => state[it.id]).length;
       const total = stage.checklist.length;
@@ -5028,7 +5045,13 @@ function renderKanban() {
                     title="Mark as old — hides like Dead">⏳ Old</button>` : ''}
           </div>
         </div>`;
-    }).join('');
+    };
+    // Split this column's cards into inbound / outbound zones so the user
+    // can see (and reorganize) how each stage breaks down by source.
+    const inboundCards  = stageCompanies.filter(c => sourceOf(c) === 'inbound');
+    const outboundCards = stageCompanies.filter(c => sourceOf(c) === 'outbound');
+    const inboundHTML  = inboundCards.map(renderCard).join('');
+    const outboundHTML = outboundCards.map(renderCard).join('');
     return `
       <div class="kanban-col" data-stage-id="${stage.id}" style="${colStyle}"
            ondragover="kColDragOver(event,'${safeId}')"
@@ -5052,7 +5075,26 @@ function renderKanban() {
              ondragover="kColDragOver(event,'${safeId}')"
              ondragleave="kColDragLeave(event)"
              ondrop="kColDrop(event,'${safeId}')">
-          ${cardsHTML || '<div style="color:#cbd5e1;font-size:12px;padding:8px;text-align:center;">Drop cards here</div>'}
+          <div class="kc-zone kc-zone-inbound"
+               ondragover="kZoneDragOver(event)"
+               ondragleave="kZoneDragLeave(event)"
+               ondrop="kZoneDrop(event,'${safeId}','inbound')">
+            <div class="kc-zone-head">
+              <span class="kc-zone-label"><span class="kc-zone-dot inbound"></span>📥 Inbound</span>
+              <span class="kc-zone-count">${inboundCards.length}</span>
+            </div>
+            <div class="kc-zone-body">${inboundHTML || '<div class="kc-zone-empty">Drop here for inbound</div>'}</div>
+          </div>
+          <div class="kc-zone kc-zone-outbound"
+               ondragover="kZoneDragOver(event)"
+               ondragleave="kZoneDragLeave(event)"
+               ondrop="kZoneDrop(event,'${safeId}','outbound')">
+            <div class="kc-zone-head">
+              <span class="kc-zone-label"><span class="kc-zone-dot outbound"></span>📤 Outbound</span>
+              <span class="kc-zone-count">${outboundCards.length}</span>
+            </div>
+            <div class="kc-zone-body">${outboundHTML || '<div class="kc-zone-empty">Drop here for outbound</div>'}</div>
+          </div>
         </div>
         <button class="kc-add" onclick="openNewOppModalForStage('${safeId}')">+ Add opportunity</button>
       ${renderColumnHmmmSection(stage)}
@@ -6678,6 +6720,54 @@ function kColDragLeave(e) {
   if (!col) return;
   if (!col.contains(e.relatedTarget)) col.classList.remove('drop-target');
 }
+// Zone-specific drag handlers — dropping a card into a column's
+// Inbound or Outbound zone sets c.sourceOverride in addition to moving
+// it (if needed) to that column's stage.
+function kZoneDragOver(e) {
+  if (draggingCardName == null && draggingUnassignedIdx == null) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.add('drop-target');
+}
+function kZoneDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drop-target');
+  }
+}
+function kZoneDrop(e, stageId, source) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('drop-target');
+  // Unassigned event being dropped here → create a new opp pinned to source
+  if (draggingUnassignedIdx != null) {
+    createOppFromUnassigned(draggingUnassignedIdx, stageId);
+    // The newly created opp is the last one in companies
+    const fresh = companies[companies.length - 1];
+    if (fresh) { fresh.sourceOverride = source; saveData(); renderKanban(); }
+    draggingUnassignedIdx = null;
+    return;
+  }
+  if (!draggingCardName) return;
+  const c = companies.find(x => x.name === draggingCardName);
+  if (!c) return;
+  let changed = false;
+  if (c.stageId !== stageId) {
+    c.stageId = stageId;
+    changed = true;
+  }
+  if (sourceOf(c) !== source) {
+    c.sourceOverride = source;
+    changed = true;
+  }
+  if (changed) {
+    saveData(); renderKanban();
+    if (openCardName === c.name) {
+      renderCardModalStageSelect();
+      if (typeof renderModalSource === 'function') renderModalSource();
+    }
+  }
+}
+
 function kColDrop(e, stageId) {
   e.preventDefault();
   const col = e.currentTarget.closest('.kanban-col');
@@ -6749,7 +6839,41 @@ function openCardModal(name) {
   renderChecklist();
   renderModalNotes();
   renderModalMeetings();
+  renderModalSource();
   document.getElementById('card-modal-overlay').classList.add('show');
+}
+
+function renderModalSource() {
+  const c = companies.find(x => x.name === openCardName);
+  const el = document.getElementById('cm-source');
+  if (!c || !el) return;
+  const auto = autoSourceOf(c);
+  const current = sourceOf(c);
+  const overridden = c.sourceOverride === 'inbound' || c.sourceOverride === 'outbound';
+  el.innerHTML = `
+    <button type="button" class="cm-source-btn ${current==='inbound'?'active inbound':''}"
+            onclick="setCardSource('inbound')">📥 Inbound</button>
+    <button type="button" class="cm-source-btn ${current==='outbound'?'active outbound':''}"
+            onclick="setCardSource('outbound')">📤 Outbound</button>
+    <span class="cm-source-hint">${overridden
+      ? `Manually set <button type="button" onclick="clearCardSource()" style="background:none;border:none;color:#1d4ed8;font-weight:700;font-size:11px;cursor:pointer;font-family:inherit;padding:0 0 0 6px;text-decoration:underline;">↺ revert to auto (${auto})</button>`
+      : `Auto-detected from meeting attendees`}</span>`;
+}
+function setCardSource(src) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  c.sourceOverride = src;
+  saveData();
+  renderModalSource();
+  renderKanban();
+}
+function clearCardSource() {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  delete c.sourceOverride;
+  saveData();
+  renderModalSource();
+  renderKanban();
 }
 function renderModalNotes() {
   const c = companies.find(x => x.name === openCardName);
