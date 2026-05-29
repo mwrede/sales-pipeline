@@ -1160,8 +1160,8 @@
   .kc-zone-outbound .kc-zone-count { background: #fffbeb; color: #b45309; }
   .kc-zone-body {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 6px;
     min-height: 36px;
   }
   .kc-zone-empty {
@@ -1203,9 +1203,8 @@
     background: linear-gradient(180deg, rgba(11,128,67,0.12) 0%, var(--green-bg) 70%);
     border-color: #6ee7b7;
   }
-  /* Source accent — left edge color tells inbound vs outbound at a glance */
-  .k-card.source-inbound  { box-shadow: inset 4px 0 0 #3b82f6; }
-  .k-card.source-outbound { box-shadow: inset 4px 0 0 #f59e0b; }
+  /* Source accent removed — the inbound/outbound zone already tells the
+     same story at the column level. Cards stay clean. */
   .k-card-source-pill {
     display: inline-flex; align-items: center; gap: 3px;
     font-size: 9px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
@@ -7100,7 +7099,7 @@ function setColumnWidth(px) {
 }
 function restoreColumnWidth() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_width`) : null;
-  setColumnWidth(saved || 500);
+  setColumnWidth(saved || 360);
 }
 
 // Tile size — 3 presets toggled by ± buttons in the kanban toolbar
@@ -7121,7 +7120,7 @@ function applyTileSize() {
 function restoreTileSize() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_tile_size`) : null;
   const idx = TILE_SIZES.indexOf(saved);
-  tileSizeIdx = idx >= 0 ? idx : 1;
+  tileSizeIdx = idx >= 0 ? idx : 0;
   applyTileSize();
 }
 
