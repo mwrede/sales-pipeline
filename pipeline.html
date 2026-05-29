@@ -1024,17 +1024,20 @@
   .tile-size-btn:active { transform: scale(0.92); }
 
   /* Tile-size presets — apply on #kanban (which doesn't get innerHTML'd) */
-  #kanban.tile-small .k-card { padding: 6px 9px; }
-  #kanban.tile-small .k-card-name { font-size: 12px; }
-  #kanban.tile-small .k-card-email { font-size: 10px; }
-  #kanban.tile-small .k-card-age { font-size: 9px; }
-  #kanban.tile-small .k-card-meta { font-size: 10px; }
-  #kanban.tile-small .k-card-logo { width: 18px; height: 18px; font-size: 9px; }
-  #kanban.tile-small .k-card-tasks { padding: 5px 6px; }
-  #kanban.tile-small .k-card-task-item-text { font-size: 10px; }
-  #kanban.tile-small .k-card-tasks-head { font-size: 9px; padding: 3px 3px; }
-  #kanban.tile-small .k-card-actions { padding-top: 5px; gap: 4px; }
-  #kanban.tile-small .k-card-btn { padding: 3px 7px; font-size: 10px; }
+  #kanban.tile-small .k-card { padding: 5px 7px; }
+  #kanban.tile-small .k-card-name { font-size: 11px; line-height: 1.25; }
+  #kanban.tile-small .k-card-email { font-size: 9px; }
+  #kanban.tile-small .k-card-age { font-size: 8px; }
+  #kanban.tile-small .k-card-meta { font-size: 9px; }
+  #kanban.tile-small .k-card-logo { width: 16px; height: 16px; font-size: 8px; }
+  #kanban.tile-small .k-card-tasks { padding: 4px 5px; }
+  #kanban.tile-small .k-card-task-item-text { font-size: 9px; }
+  #kanban.tile-small .k-card-tasks-head { font-size: 8px; padding: 2px 3px; }
+  #kanban.tile-small .k-card-actions { padding-top: 4px; gap: 3px; }
+  #kanban.tile-small .k-card-btn { padding: 2px 5px; font-size: 9px; }
+  #kanban.tile-small .k-card-source-pill,
+  #kanban.tile-small .k-card-ae-pill { font-size: 8px; padding: 1px 5px; }
+  #kanban.tile-small .k-card-head { gap: 5px; }
   #kanban.tile-small .k-card-task-group-label { font-size: 9px; padding: 3px 3px; }
 
   #kanban.tile-large .k-card { padding: 14px 16px; }
@@ -1058,7 +1061,7 @@
     flex: 0 0 var(--col-width);
     width: var(--col-width); min-width: var(--col-width); max-width: var(--col-width);
     background: #f8fafc; border: 1px solid var(--border);
-    border-radius: 12px; padding: 12px;
+    border-radius: 12px; padding: 8px;
     height: calc(100vh - 280px);
     display: flex; flex-direction: column;
     --stage-color: #94a3b8;
@@ -1085,7 +1088,7 @@
   }
   .kc-head {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 10px; gap: 6px;
+    margin-bottom: 6px; gap: 5px;
   }
   .kc-head-left { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
   .kc-drag-handle {
@@ -1125,14 +1128,14 @@
   .kc-cards {
     flex: 1; overflow-y: auto;
     display: flex; flex-direction: column;
-    gap: 10px;
+    gap: 6px;
     min-height: 40px; padding: 2px;
   }
   .kc-cards.drop-target { background: rgba(59,130,246,0.06); border-radius: 8px; }
   /* Inbound / Outbound zones inside each column */
   .kc-zone {
-    border-radius: 8px; padding: 6px 4px 8px;
-    display: flex; flex-direction: column; gap: 6px;
+    border-radius: 8px; padding: 4px 3px 5px;
+    display: flex; flex-direction: column; gap: 4px;
     border: 1px dashed transparent;
   }
   .kc-zone-inbound  { background: linear-gradient(180deg, rgba(59,130,246,0.05), rgba(59,130,246,0)); }
@@ -1141,13 +1144,13 @@
   .kc-zone.drop-target.kc-zone-outbound { background: rgba(245,158,11,0.14); border-color: #fcd34d; }
   .kc-zone-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 2px 6px 4px;
+    padding: 1px 4px 3px;
     border-bottom: 1px solid rgba(15,23,42,0.06);
   }
   .kc-zone-label {
-    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
     text-transform: uppercase; color: var(--muted);
-    display: inline-flex; align-items: center; gap: 6px;
+    display: inline-flex; align-items: center; gap: 5px;
   }
   .kc-zone-inbound  .kc-zone-label { color: #1d4ed8; }
   .kc-zone-outbound .kc-zone-label { color: #b45309; }
@@ -1157,16 +1160,16 @@
   .kc-zone-dot.inbound  { background: #3b82f6; }
   .kc-zone-dot.outbound { background: #f59e0b; }
   .kc-zone-count {
-    font-size: 11px; font-weight: 800; padding: 1px 8px;
+    font-size: 10px; font-weight: 800; padding: 1px 6px;
     border-radius: 999px; font-variant-numeric: tabular-nums;
   }
   .kc-zone-inbound  .kc-zone-count { background: #eff6ff; color: #1d4ed8; }
   .kc-zone-outbound .kc-zone-count { background: #fffbeb; color: #b45309; }
   .kc-zone-body {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 6px;
-    min-height: 36px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 5px;
+    min-height: 32px;
   }
   .kc-zone-empty {
     grid-column: 1 / -1;
