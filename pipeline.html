@@ -7121,7 +7121,7 @@ function applyTileSize() {
 function restoreTileSize() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_tile_size`) : null;
   const idx = TILE_SIZES.indexOf(saved);
-  tileSizeIdx = idx >= 0 ? idx : 0;
+  tileSizeIdx = idx >= 0 ? idx : 1;
   applyTileSize();
 }
 
