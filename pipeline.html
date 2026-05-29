@@ -7100,7 +7100,7 @@ function setColumnWidth(px) {
 }
 function restoreColumnWidth() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_width`) : null;
-  setColumnWidth(saved || 300);
+  setColumnWidth(saved || 500);
 }
 
 // Tile size — 3 presets toggled by ± buttons in the kanban toolbar
@@ -7121,7 +7121,7 @@ function applyTileSize() {
 function restoreTileSize() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_tile_size`) : null;
   const idx = TILE_SIZES.indexOf(saved);
-  tileSizeIdx = idx >= 0 ? idx : 1;
+  tileSizeIdx = idx >= 0 ? idx : 0;
   applyTileSize();
 }
 
