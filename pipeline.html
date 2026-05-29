@@ -5538,6 +5538,13 @@ function computeOverviewHTML(rows) {
 
     let meetings = 0, week = 0, month = 0, s1ThisMonth = 0;
     let followUps = 0, followUpsWeek = 0, followUpsMonth = 0;
+    // Per-teammate inbound / outbound meetings split (mirrors the stage
+    // breakdown). Used when the "Show in / out per cell" toggle is on.
+    let weekIn = 0, weekOut = 0;
+    let monthIn = 0, monthOut = 0;
+    let meetingsIn = 0, meetingsOut = 0;
+    let fuIn = 0, fuOut = 0;
+    let fuMonthIn = 0, fuMonthOut = 0;
     let sdrCount = 0, aeCount = 0, s1Count = 0, s2Count = 0;
     let inboundCount = 0, outboundCount = 0;
     let inboundSALCount = 0, outboundSALCount = 0; // SAL = S1-stage (Sales Accepted Lead)
@@ -5596,10 +5603,21 @@ function computeOverviewHTML(rows) {
           followUps++;
           if (inWeek) followUpsWeek++;
           if (inMonth) followUpsMonth++;
+          if (src === 'inbound') { fuIn++; if (inMonth) fuMonthIn++; }
+          else                   { fuOut++; if (inMonth) fuMonthOut++; }
         } else {
           meetings++;
           if (inWeek) week++;
           if (inMonth) month++;
+          if (src === 'inbound') {
+            meetingsIn++;
+            if (inWeek) weekIn++;
+            if (inMonth) monthIn++;
+          } else {
+            meetingsOut++;
+            if (inWeek) weekOut++;
+            if (inMonth) monthOut++;
+          }
         }
       });
       // S1 this month attributed by final-meeting month (countable, non-follow-up)
@@ -5620,7 +5638,8 @@ function computeOverviewHTML(rows) {
     totalFollowUpsWeek += followUpsWeek;
     totalFollowUpsMonth += followUpsMonth;
     perUser.push({ uid, ...u, meetings, week, month, followUps, followUpsWeek, followUpsMonth, s1ThisMonth, sdrCount, aeCount, s1Count, s2Count, inboundCount, outboundCount, inboundSALCount, outboundSALCount, s1Names, s1MonthNames, inboundNames, outboundNames, inboundSALNames, outboundSALNames,
-      inSDRu, outSDRu, inAEu, outAEu, inS1u, outS1u, inS2u, outS2u, inS1Mu, outS1Mu });
+      inSDRu, outSDRu, inAEu, outAEu, inS1u, outS1u, inS2u, outS2u, inS1Mu, outS1Mu,
+      weekIn, weekOut, monthIn, monthOut, meetingsIn, meetingsOut, fuMonthIn, fuMonthOut, fuIn, fuOut });
   });
 
   // Stash drill-down lists. Keyed by uid; "_all*" are team-wide aggregates.
@@ -5664,10 +5683,8 @@ function computeOverviewHTML(rows) {
       </div>
     </td>`;
 
-  // Meetings table: sort by this-month meetings desc
-  const meetingsRows = [...perUser]
-    .sort((a, b) => b.month - a.month || b.meetings - a.meetings)
-    .map(p => `<tr>${nameCell(p)}${num(p.week)}${num(p.month)}${num(p.meetings)}${num(p.followUpsMonth)}${num(p.followUps)}</tr>`).join('');
+  // (Meetings table rendered below after the split toggle is read so
+  // it can honor the same in/out split as Opportunities.)
 
   // Inbound / outbound split toggle (persisted). When on, each stage
   // cell in the per-teammate Opportunities table renders as two small
@@ -5688,6 +5705,23 @@ function computeOverviewHTML(rows) {
     if (total === 0 && inCount === 0 && outCount === 0) return `<td class="num zero">0</td>`;
     return `<td class="num ov-cell-split"><div class="ov-cell-split-row"><span class="ov-cell-in">${inCount}</span><span class="ov-cell-sep">/</span><span class="ov-cell-out">${outCount}</span></div></td>`;
   };
+
+  // Meetings table: same split rule (uses splitOn from above), no
+  // drill-down handlers — every cell either shows the total or the
+  // in/out chip pair.
+  const meetingsRows = [...perUser]
+    .sort((a, b) => b.month - a.month || b.meetings - a.meetings)
+    .map(p => `<tr>${nameCell(p)}${
+      stageCell(p.week,            p.weekIn,    p.weekOut,    p.uid, null)
+    }${
+      stageCell(p.month,           p.monthIn,   p.monthOut,   p.uid, null)
+    }${
+      stageCell(p.meetings,        p.meetingsIn,p.meetingsOut,p.uid, null)
+    }${
+      stageCell(p.followUpsMonth,  p.fuMonthIn, p.fuMonthOut, p.uid, null)
+    }${
+      stageCell(p.followUps,       p.fuIn,      p.fuOut,      p.uid, null)
+    }</tr>`).join('');
 
   // Opportunities table: sort by S1s-this-month desc, then total
   const oppsRows = [...perUser]
