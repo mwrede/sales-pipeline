@@ -969,7 +969,11 @@
   .view-toggle button:not(.active):hover { background: #f1f5f9; color: var(--text); }
 
   /* ── Kanban Board ── */
-  #kanban { display: none; }
+  /* Default zoom (~67%) makes the pipeline scan-friendly without the
+     user having to ⌘+- every session. The browser still renders all
+     text/images crisply because we use the `zoom` property rather
+     than CSS transform. */
+  #kanban { display: none; zoom: 0.67; }
   #kanban.active { display: block; }
   .kanban-toolbar {
     display: flex; align-items: center; justify-content: space-between;
