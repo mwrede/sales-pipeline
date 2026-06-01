@@ -1008,17 +1008,20 @@
     text-transform: uppercase; letter-spacing: 0.05em; }
   .cwc-val { font-size: 11px; font-weight: 600; color: var(--text);
     min-width: 28px; text-align: right; }
-  #col-width-slider {
+  #col-width-slider,
+  #col-height-slider {
     -webkit-appearance: none; appearance: none;
     width: 140px; height: 4px; background: #e2e8f0; border-radius: 999px;
     outline: none; cursor: pointer;
   }
-  #col-width-slider::-webkit-slider-thumb {
+  #col-width-slider::-webkit-slider-thumb,
+  #col-height-slider::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
     width: 14px; height: 14px; border-radius: 50%; background: var(--text);
     cursor: grab; box-shadow: 0 1px 3px rgba(0,0,0,0.12);
   }
-  #col-width-slider::-moz-range-thumb {
+  #col-width-slider::-moz-range-thumb,
+  #col-height-slider::-moz-range-thumb {
     width: 14px; height: 14px; border-radius: 50%; background: var(--text);
     cursor: grab; border: none;
   }
@@ -2416,11 +2419,11 @@
         <span class="cwc-val" id="per-row-val">3</span>
         <button class="tile-size-btn" onclick="changePerRow(1)">+</button>
       </div>
-      <div class="tile-size-control" title="Set the height of all columns at once">
+      <div class="col-width-control" title="Drag to make all columns taller">
         <span class="cwc-label">Height</span>
-        <button class="tile-size-btn" onclick="changeColHeight(-1)">−</button>
-        <span class="cwc-val" id="col-height-val">M</span>
-        <button class="tile-size-btn" onclick="changeColHeight(1)">+</button>
+        <input type="range" id="col-height-slider" min="320" max="2400" step="20" value="800"
+               oninput="setColumnHeight(this.value)" />
+        <span class="cwc-val" id="col-height-val">800</span>
       </div>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
@@ -4004,7 +4007,7 @@ const GCAL_COLORS = [
 ];
 let syncColors = []; // colorIds to include when syncing — per user
 let selectedMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
-let showCardTasks = true; // global toggle: show next-due task at the top of every card
+let showCardTasks = false; // global toggle: show next-due task at the top of every card
 let showAEOnCards = true; // global toggle: show "AE: ___" pill on each tile
 let selectedAEFilter = ''; // '' = all AEs, 'unassigned', or an AE id from AES
 let selectedMeetingsMonth = 'all'; // 'all' or 'YYYY-MM' — filters the Meetings view
@@ -7338,33 +7341,20 @@ function restorePerRow() {
   applyPerRow();
 }
 
-// Column height — single global toggle that resizes ALL columns at once.
-// 'S' = compact, 'M' = default viewport height, 'L'/'XL' = let columns
-// grow beyond the viewport (page itself scrolls).
-const COL_HEIGHTS = ['S', 'M', 'L', 'XL'];
-const COL_HEIGHT_PX = {
-  S:  '480px',
-  M:  'calc(100vh - 150px)',
-  L:  'calc(100vh + 200px)',
-  XL: 'calc(100vh + 600px)',
-};
-let colHeightIdx = 1;
-function changeColHeight(delta) {
-  colHeightIdx = Math.max(0, Math.min(COL_HEIGHTS.length - 1, colHeightIdx + delta));
-  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_col_height`, COL_HEIGHTS[colHeightIdx]);
-  applyColHeight();
-}
-function applyColHeight() {
-  const key = COL_HEIGHTS[colHeightIdx];
-  document.documentElement.style.setProperty('--col-height', COL_HEIGHT_PX[key]);
-  const lbl = document.getElementById('col-height-val');
-  if (lbl) lbl.textContent = key;
+// Column height — single slider that resizes ALL columns at once (px).
+function setColumnHeight(px) {
+  const n = Math.max(320, Math.min(2400, parseInt(px, 10) || 800));
+  document.documentElement.style.setProperty('--col-height', n + 'px');
+  const valEl = document.getElementById('col-height-val');
+  if (valEl) valEl.textContent = n;
+  const sliderEl = document.getElementById('col-height-slider');
+  if (sliderEl && String(sliderEl.value) !== String(n)) sliderEl.value = n;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_col_height`, n);
 }
 function restoreColHeight() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_height`) : null;
-  const idx = COL_HEIGHTS.indexOf(saved);
-  colHeightIdx = idx >= 0 ? idx : 1;
-  applyColHeight();
+  const def = Math.max(360, Math.floor(window.innerHeight - 150));
+  setColumnHeight(saved || def);
 }
 
 // ── Month picker + metrics ──
@@ -7684,7 +7674,7 @@ function toggleCardTasksDisplay() {
 }
 function restoreCardTasksPref() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_show_card_tasks`) : null;
-  showCardTasks = (saved === null) ? true : (saved === '1');
+  showCardTasks = (saved === null) ? false : (saved === '1');
   updateTaskToggleBtn();
 }
 function updateTaskToggleBtn() {
