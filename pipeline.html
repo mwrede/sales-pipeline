@@ -2007,19 +2007,31 @@
   .metric-card {
     background: #fff; border: 1px solid var(--border); border-radius: 12px;
     padding: 14px 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.03);
-    display: flex; flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "label split"
+      "value split"
+      "sub   split";
+    column-gap: 14px; row-gap: 2px;
+    align-items: center;
   }
+  .metric-card > .metric-label { grid-area: label; }
+  .metric-card > .metric-value { grid-area: value; }
+  .metric-card > .metric-sub { grid-area: sub; }
   .metric-label {
     font-size: 11px; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.05em;
   }
   .metric-split {
-    display: flex; gap: 5px; margin-top: 8px;
+    grid-area: split;
+    display: flex; flex-direction: column; gap: 6px; margin-top: 0;
+    align-self: center;
   }
   .metric-split-chip {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    padding: 4px 6px; border-radius: 6px; font-variant-numeric: tabular-nums;
-    line-height: 1.1;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 5px 10px; border-radius: 6px; font-variant-numeric: tabular-nums;
+    line-height: 1.1; min-width: 96px;
   }
   .metric-split-chip.in  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
   .metric-split-chip.out { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
