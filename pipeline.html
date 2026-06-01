@@ -2403,9 +2403,9 @@
     <div class="kt-actions">
       <div class="col-width-control" title="Drag to widen columns — wider columns fit more cards per row">
         <span class="cwc-label">Width</span>
-        <input type="range" id="col-width-slider" min="280" max="900" step="10" value="300"
+        <input type="range" id="col-width-slider" min="280" max="900" step="10" value="520"
                oninput="setColumnWidth(this.value)" />
-        <span class="cwc-val" id="col-width-val">300</span>
+        <span class="cwc-val" id="col-width-val">520</span>
       </div>
       <div class="tile-size-control" title="Make tiles smaller or larger">
         <span class="cwc-label">Tile</span>
@@ -2416,14 +2416,14 @@
       <div class="tile-size-control" title="How many cards wide each column packs in a row">
         <span class="cwc-label">Per row</span>
         <button class="tile-size-btn" onclick="changePerRow(-1)">−</button>
-        <span class="cwc-val" id="per-row-val">3</span>
+        <span class="cwc-val" id="per-row-val">2</span>
         <button class="tile-size-btn" onclick="changePerRow(1)">+</button>
       </div>
       <div class="col-width-control" title="Drag to make all columns taller">
         <span class="cwc-label">Height</span>
-        <input type="range" id="col-height-slider" min="320" max="2400" step="20" value="800"
+        <input type="range" id="col-height-slider" min="320" max="2400" step="20" value="1000"
                oninput="setColumnHeight(this.value)" />
-        <span class="cwc-val" id="col-height-val">800</span>
+        <span class="cwc-val" id="col-height-val">1000</span>
       </div>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
@@ -7294,7 +7294,7 @@ function setColumnWidth(px) {
 }
 function restoreColumnWidth() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_width`) : null;
-  setColumnWidth(saved || 360);
+  setColumnWidth(saved || 520);
 }
 
 // Tile size — 3 presets toggled by ± buttons in the kanban toolbar
@@ -7322,7 +7322,7 @@ function restoreTileSize() {
 // Cards-per-row inside each column zone — 1..4, default 3.
 // Stored per user in localStorage and applied via a CSS custom prop
 // on #kanban so the grid template recomputes immediately.
-let cardsPerRow = 3;
+let cardsPerRow = 2;
 function changePerRow(delta) {
   cardsPerRow = Math.max(1, Math.min(4, cardsPerRow + delta));
   if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_per_row`, String(cardsPerRow));
@@ -7337,7 +7337,7 @@ function applyPerRow() {
 function restorePerRow() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_per_row`) : null;
   const n = parseInt(saved, 10);
-  cardsPerRow = (n >= 1 && n <= 4) ? n : 3;
+  cardsPerRow = (n >= 1 && n <= 4) ? n : 2;
   applyPerRow();
 }
 
@@ -7353,8 +7353,7 @@ function setColumnHeight(px) {
 }
 function restoreColHeight() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_height`) : null;
-  const def = Math.max(360, Math.floor(window.innerHeight - 150));
-  setColumnHeight(saved || def);
+  setColumnHeight(saved || 1000);
 }
 
 // ── Month picker + metrics ──
