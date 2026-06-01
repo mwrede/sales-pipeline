@@ -1484,7 +1484,7 @@
   }
   .k-card-logo img { width: 100%; height: 100%; object-fit: cover; }
   .k-card-name {
-    font-size: var(--card-title-size, 18px); font-weight: 600; color: var(--text);
+    font-size: var(--card-title-size, 14px); font-weight: 600; color: var(--text);
     flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .k-card-meta {
@@ -2427,7 +2427,7 @@
       <div class="tile-size-control" title="Card title font size">
         <span class="cwc-label">Title</span>
         <button class="tile-size-btn" onclick="changeTitleSize(-1)">−</button>
-        <span class="cwc-val" id="title-size-val">18</span>
+        <span class="cwc-val" id="title-size-val">14</span>
         <button class="tile-size-btn" onclick="changeTitleSize(1)">+</button>
       </div>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
@@ -7364,7 +7364,7 @@ function restoreColHeight() {
 
 // Card title font size — global toggle, persisted per user
 const TITLE_SIZES = [12, 14, 16, 18, 20, 22, 24, 28];
-let titleSizeIdx = TITLE_SIZES.indexOf(18);
+let titleSizeIdx = TITLE_SIZES.indexOf(14);
 function changeTitleSize(delta) {
   titleSizeIdx = Math.max(0, Math.min(TITLE_SIZES.length - 1, titleSizeIdx + delta));
   if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_title_size`, String(TITLE_SIZES[titleSizeIdx]));
@@ -7379,7 +7379,7 @@ function applyTitleSize() {
 function restoreTitleSize() {
   const saved = currentUser ? parseInt(localStorage.getItem(`pipeline_v2_${currentUser}_title_size`), 10) : NaN;
   const idx = TITLE_SIZES.indexOf(saved);
-  titleSizeIdx = idx >= 0 ? idx : TITLE_SIZES.indexOf(18);
+  titleSizeIdx = idx >= 0 ? idx : TITLE_SIZES.indexOf(14);
   applyTitleSize();
 }
 
