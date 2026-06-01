@@ -1087,15 +1087,14 @@
     width: var(--col-width); min-width: var(--col-width); max-width: var(--col-width);
     background: #f8fafc; border: 1px solid var(--border);
     border-radius: 12px; padding: 8px;
-    height: calc(100vh - 150px);
+    height: var(--col-height, calc(100vh - 150px));
     min-height: 360px;
     display: flex; flex-direction: column;
     --stage-color: #94a3b8;
     --stage-color-soft: rgba(148,163,184,0.10);
     position: relative;
     overflow: hidden;
-    resize: vertical;
-    transition: flex-basis 0.05s linear;
+    transition: flex-basis 0.05s linear, height 0.15s ease;
   }
   .kanban-col::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
@@ -2416,6 +2415,12 @@
         <button class="tile-size-btn" onclick="changePerRow(-1)">−</button>
         <span class="cwc-val" id="per-row-val">3</span>
         <button class="tile-size-btn" onclick="changePerRow(1)">+</button>
+      </div>
+      <div class="tile-size-control" title="Set the height of all columns at once">
+        <span class="cwc-label">Height</span>
+        <button class="tile-size-btn" onclick="changeColHeight(-1)">−</button>
+        <span class="cwc-val" id="col-height-val">M</span>
+        <button class="tile-size-btn" onclick="changeColHeight(1)">+</button>
       </div>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
@@ -5940,6 +5945,7 @@ function selectUser(name) {
   restoreColumnWidth();
   restoreTileSize();
   restorePerRow();
+  restoreColHeight();
   restoreCardTasksPref();
   restoreAEOnCardsPref();
   restoreAEFilter();
@@ -7330,6 +7336,35 @@ function restorePerRow() {
   const n = parseInt(saved, 10);
   cardsPerRow = (n >= 1 && n <= 4) ? n : 3;
   applyPerRow();
+}
+
+// Column height — single global toggle that resizes ALL columns at once.
+// 'S' = compact, 'M' = default viewport height, 'L'/'XL' = let columns
+// grow beyond the viewport (page itself scrolls).
+const COL_HEIGHTS = ['S', 'M', 'L', 'XL'];
+const COL_HEIGHT_PX = {
+  S:  '480px',
+  M:  'calc(100vh - 150px)',
+  L:  'calc(100vh + 200px)',
+  XL: 'calc(100vh + 600px)',
+};
+let colHeightIdx = 1;
+function changeColHeight(delta) {
+  colHeightIdx = Math.max(0, Math.min(COL_HEIGHTS.length - 1, colHeightIdx + delta));
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_col_height`, COL_HEIGHTS[colHeightIdx]);
+  applyColHeight();
+}
+function applyColHeight() {
+  const key = COL_HEIGHTS[colHeightIdx];
+  document.documentElement.style.setProperty('--col-height', COL_HEIGHT_PX[key]);
+  const lbl = document.getElementById('col-height-val');
+  if (lbl) lbl.textContent = key;
+}
+function restoreColHeight() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_height`) : null;
+  const idx = COL_HEIGHTS.indexOf(saved);
+  colHeightIdx = idx >= 0 ? idx : 1;
+  applyColHeight();
 }
 
 // ── Month picker + metrics ──
