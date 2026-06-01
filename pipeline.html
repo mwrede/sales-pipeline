@@ -1040,7 +1040,7 @@
 
   /* Tile-size presets — apply on #kanban (which doesn't get innerHTML'd) */
   #kanban.tile-small .k-card { padding: 5px 7px; }
-  #kanban.tile-small .k-card-name { font-size: 11px; line-height: 1.25; }
+  #kanban.tile-small .k-card-name { line-height: 1.25; }
   #kanban.tile-small .k-card-email { font-size: 9px; }
   #kanban.tile-small .k-card-age { font-size: 8px; }
   #kanban.tile-small .k-card-meta { font-size: 9px; }
@@ -1069,7 +1069,6 @@
   #kanban.tile-small .k-card-task-group-label { font-size: 9px; padding: 3px 3px; }
 
   #kanban.tile-large .k-card { padding: 14px 16px; }
-  #kanban.tile-large .k-card-name { font-size: 15px; }
   #kanban.tile-large .k-card-email { font-size: 13px; }
   #kanban.tile-large .k-card-age { font-size: 12px; }
   #kanban.tile-large .k-card-meta { font-size: 13px; }
@@ -1485,7 +1484,7 @@
   }
   .k-card-logo img { width: 100%; height: 100%; object-fit: cover; }
   .k-card-name {
-    font-size: 13px; font-weight: 600; color: var(--text);
+    font-size: var(--card-title-size, 18px); font-weight: 600; color: var(--text);
     flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .k-card-meta {
@@ -2424,6 +2423,12 @@
         <input type="range" id="col-height-slider" min="320" max="2400" step="20" value="1000"
                oninput="setColumnHeight(this.value)" />
         <span class="cwc-val" id="col-height-val">1000</span>
+      </div>
+      <div class="tile-size-control" title="Card title font size">
+        <span class="cwc-label">Title</span>
+        <button class="tile-size-btn" onclick="changeTitleSize(-1)">−</button>
+        <span class="cwc-val" id="title-size-val">18</span>
+        <button class="tile-size-btn" onclick="changeTitleSize(1)">+</button>
       </div>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
@@ -5949,6 +5954,7 @@ function selectUser(name) {
   restoreTileSize();
   restorePerRow();
   restoreColHeight();
+  restoreTitleSize();
   restoreCardTasksPref();
   restoreAEOnCardsPref();
   restoreAEFilter();
@@ -7354,6 +7360,27 @@ function setColumnHeight(px) {
 function restoreColHeight() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_col_height`) : null;
   setColumnHeight(saved || 1000);
+}
+
+// Card title font size — global toggle, persisted per user
+const TITLE_SIZES = [12, 14, 16, 18, 20, 22, 24, 28];
+let titleSizeIdx = TITLE_SIZES.indexOf(18);
+function changeTitleSize(delta) {
+  titleSizeIdx = Math.max(0, Math.min(TITLE_SIZES.length - 1, titleSizeIdx + delta));
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_title_size`, String(TITLE_SIZES[titleSizeIdx]));
+  applyTitleSize();
+}
+function applyTitleSize() {
+  const px = TITLE_SIZES[titleSizeIdx];
+  document.documentElement.style.setProperty('--card-title-size', px + 'px');
+  const lbl = document.getElementById('title-size-val');
+  if (lbl) lbl.textContent = px;
+}
+function restoreTitleSize() {
+  const saved = currentUser ? parseInt(localStorage.getItem(`pipeline_v2_${currentUser}_title_size`), 10) : NaN;
+  const idx = TITLE_SIZES.indexOf(saved);
+  titleSizeIdx = idx >= 0 ? idx : TITLE_SIZES.indexOf(18);
+  applyTitleSize();
 }
 
 // ── Month picker + metrics ──
