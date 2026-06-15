@@ -4597,6 +4597,7 @@ window.addEventListener('load', () => {
         callback: handleToken,
       });
       if (_autoSyncOnReady) { _autoSyncOnReady = false; silentSync(); }
+      if (_autoConnectOnReady) { _autoConnectOnReady = false; attemptAutoConnect(); }
     }
   }, 200);
 });
@@ -4619,6 +4620,33 @@ function connectCalendar() {
 // Kept for backward compat — but now no-ops so we never silently re-auth.
 // The user clicks Connect Google Calendar to start the flow each session.
 function silentSync() { /* explicit-auth-only mode: do nothing */ }
+
+// Silent re-auth path used on login: try to get a calendar token
+// without showing the Google consent / chooser UI. Only succeeds when
+// the user is already signed into the right Google account in this
+// browser and has previously granted Calendar scope. The existing
+// handleToken email-allowlist check catches any wrong-account case.
+let _autoConnectOnReady = false;
+function attemptAutoConnect() {
+  if (!IS_CONFIGURED) return;
+  if (!currentUser) return;
+  if (accessToken) return; // already connected
+  if (!tokenClient) { _autoConnectOnReady = true; return; }
+  // The cached calendar-email check has to match the active user's
+  // allowlist before we even ask Google for a token — otherwise the
+  // popup-less prompt='none' would just bounce.
+  const saved = localStorage.getItem(`pipeline_v2_${currentUser}_cal_email`);
+  if (saved && !isAllowedCalendarEmail(saved)) {
+    console.info('[auto-connect] skipping — cached cal email not in allowlist for', currentUser);
+    return;
+  }
+  setCalStatus('syncing', 'Reconnecting Google Calendar…');
+  try {
+    tokenClient.requestAccessToken({ prompt: 'none' });
+  } catch (e) {
+    console.warn('[auto-connect] silent re-auth failed', e);
+  }
+}
 
 async function handleToken(resp) {
   if (resp.error) {
@@ -5992,6 +6020,17 @@ function selectUser(name) {
   // Show app, hide selection
   document.getElementById('user-select-screen').style.display = 'none';
   document.getElementById('app').style.display = '';
+
+  // Auto-reconnect Google Calendar + auto-classify inbound on login.
+  // Silent token request (prompt: 'none') — if the user is already
+  // signed into the matching Google account in this browser and has
+  // previously granted scope, it just works. Otherwise the existing
+  // "Connect Google Calendar" button still does the manual flow.
+  setTimeout(attemptAutoConnect, 50);
+  // Re-classify inbound vs outbound against the embedded roster on
+  // every login so newly-added sheet contacts pick up without the
+  // user having to hit the 📥 Sync inbound button.
+  setTimeout(runInboundSync, 80);
 }
 
 function switchUser() {
