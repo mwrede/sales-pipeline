@@ -1256,6 +1256,20 @@
   .k-card.is-s1 {
     background: var(--green-bg);
   }
+  /* Salesforce SAL match — current-month SALs glow green, prior-month
+     SALs fade to grey. Driven by findSalForCard against SAL_OPPS. */
+  .k-card.sal-current {
+    background: #dcfce7;
+    border-color: #4ade80;
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.25);
+  }
+  .k-card.sal-prior {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+    opacity: 0.65;
+  }
+  .k-card.sal-prior .k-card-name { color: #64748b; }
 
   /* Compact next-due-task strip on every card */
   .k-card-task {
@@ -2004,8 +2018,11 @@
     gap: 16px; margin-bottom: 22px; flex-wrap: wrap;
   }
   .metric-cards {
-    display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr));
+    display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr));
     gap: 12px; flex: 1; min-width: 320px;
+  }
+  @media (max-width: 1100px) {
+    .metric-cards { grid-template-columns: repeat(2, 1fr); }
   }
   .metric-card {
     background: #fff; border: 1px solid var(--border); border-radius: 12px;
@@ -2363,6 +2380,11 @@
 <div id="kanban" class="active">
   <div class="metric-bar">
     <div class="metric-cards">
+      <div class="metric-card" style="border-color:#86efac;background:linear-gradient(180deg,#f0fdf4,#fff);">
+        <div class="metric-label" style="color:#15803d;">📊 SALs · this month</div>
+        <div class="metric-value" id="metric-sals-month" style="color:#15803d;">0</div>
+        <div class="metric-sub" id="metric-sals-month-sub">from Salesforce</div>
+      </div>
       <div class="metric-card">
         <div class="metric-label">SALs</div>
         <div class="metric-value" id="metric-sals">0</div>
@@ -3798,6 +3820,136 @@ function sourceOf(c) {
   if (c.source === 'inbound' || c.source === 'outbound') return c.source;
   return autoSourceOf(c);
 }
+// SAL roster — snapshot of the "TOTAL SALS" Salesforce sheet
+// (1hHB7br3do-wHdP_UcLUlRPr9NnYHtvkZUSKTo5Kfy0Q). Source of truth for
+// which opportunities are SALs and when they entered Stage 1. Used to
+// (a) tint kanban S1 cards green if they're a current-month SAL and
+// grey if they're a SAL from a prior month, and (b) render a "SALs
+// this month" tile in the top metric strip.
+//   a = Account name (used for fuzzy match against c.name)
+//   o = Opportunity name
+//   s = Stage (e.g. "1. Discover")
+//   d = Stage 1 Discover Start Date (YYYY-MM-DD, falls back to Created Date)
+//   u = Sourcer's user id (michael / sylvie / davis / grace / sabrina / charlie)
+const SAL_OPPS = [
+  {a:'Johnson Controls',o:'Johnson Controls - Assembly Verification',s:'0. Research',d:'2026-06-01',u:'charlie'},
+  {a:'Freeport-McMoRan',o:'Freeport McMoRan P80 Binning',s:'1. Discover',d:'2026-05-27',u:'charlie'},
+  {a:'Freeport-McMoRan',o:'Freeport McMoRan Safety',s:'1. Discover',d:'2026-06-04',u:'charlie'},
+  {a:'Freeport-McMoRan',o:'Freeport McMoRan Cathode Inspection',s:'1. Discover',d:'2026-06-09',u:'charlie'},
+  {a:'NOV',o:'NOV - PrideCo Mag Particle Inspection',s:'1. Discover',d:'2026-04-24',u:'davis'},
+  {a:'NOV',o:'NOV Auredia - Field team + assembly lines',s:'1. Discover',d:'2026-06-05',u:'davis'},
+  {a:'GM',o:'GM Orion Vision Team - connectors + dents',s:'1. Discover',d:'2026-03-30',u:'davis'},
+  {a:'GE Aerospace',o:'GE Aerospace TABS (Greenville + BladeworX)',s:'0. Research',d:'2026-03-26',u:'davis'},
+  {a:'GE Aerospace',o:'GE Aero Tubing Inspection (Beaver Creek)',s:'0. Research',d:'2026-05-26',u:'davis'},
+  {a:'Tesla',o:'Tesla Platform',s:'Closed Lost',d:'2026-01-29',u:'davis'},
+  {a:'GE Aerospace',o:'GE Aerospace MA - combustion parts quality inspection',s:'1. Discover',d:'2026-03-09',u:'davis'},
+  {a:'GE Aerospace',o:'GE Aerospace - West Jefferson Machining automation',s:'1. Discover',d:'2026-03-20',u:'davis'},
+  {a:'Generac',o:'Generac - Wisconsin Industrial Assembly',s:'1. Discover',d:'2026-05-29',u:'davis'},
+  {a:'Schemata',o:'Schemata - SAM 3 Endpoint',s:'Scope',d:'2026-04-28',u:'davis'},
+  {a:'Medtronic',o:'Medtronic - Pallet Stacking Optimization',s:'Closed Lost',d:'2026-03-05',u:'davis'},
+  {a:'NOV',o:'NOV Houston - Technical inspections Tuboscope',s:'1. Discover',d:'2026-05-18',u:'davis'},
+  {a:'Commercial Metals Company',o:'CMC - Oklahoma Safety Use cases',s:'1. Discover',d:'2026-06-09',u:'davis'},
+  {a:'Ford',o:'Ford Data Intelligence',s:'1. Discover',d:'2026-06-11',u:'grace'},
+  {a:'AES',o:'AES Clean Energy',s:'0. Research',d:'2026-06-15',u:'grace'},
+  {a:'Tesla',o:'Tesla Defect Claim Automation',s:'1. Discover',d:'2026-04-24',u:'grace'},
+  {a:'Dexcom',o:'Dexcom - Medical Quality Initiative',s:'1. Discover',d:'2026-05-12',u:'grace'},
+  {a:'Dexcom',o:'Dexcom - Defect Detection Initiative',s:'1. Discover',d:'2026-05-21',u:'grace'},
+  {a:'Cepheid',o:'Cepheid Cartridge Inspection',s:'2. Validate',d:'2026-05-21',u:'grace'},
+  {a:'Mitsubishi Logisnext',o:'Logisnext España',s:'1. Discover',d:'2026-05-27',u:'michael'},
+  {a:'Baxter Germany',o:'Baxter PM',s:'1. Discover',d:'2026-06-09',u:'michael'},
+  {a:'Magna International',o:'Magna Factory 4.0 Team',s:'1. Discover',d:'2026-06-11',u:'michael'},
+  {a:'Lowe\'s Home Improvement',o:'Lowe\'s Platform',s:'1. Discover',d:'2026-05-13',u:'michael'},
+  {a:'Spectrum Plastics Group',o:'Dupont Healthcare',s:'1. Discover',d:'2026-05-18',u:'michael'},
+  {a:'Nucor',o:'Nucor Innovation Platform',s:'1. Discover',d:'2026-05-20',u:'michael'},
+  {a:'JELD-WEN',o:'JELD WEN Fiber',s:'1. Discover',d:'2026-05-28',u:'michael'},
+  {a:'Lear',o:'Lear CKD',s:'Closed Lost',d:'2026-02-11',u:'michael'},
+  {a:'Lear',o:'Lear Stamping',s:'Closed Lost',d:'2026-03-06',u:'michael'},
+  {a:'Lear',o:'Lear Vision Team',s:'0. Research',d:'2026-03-06',u:'michael'},
+  {a:'Mosaic',o:'Mosaic Co',s:'1. Discover',d:'2026-05-27',u:'michael'},
+  {a:'Toyota North America',o:'Toyota NA - Vehicle ID',s:'Closed Lost',d:'2026-01-05',u:'michael'},
+  {a:'Toyota Motor Manufacturing Canada',o:'Toyota Canada Welding Defect Detection',s:'Closed Lost',d:'2026-01-28',u:'michael'},
+  {a:'Toyota',o:'Toyota TMMK GM Weld & Paint',s:'Closed Lost',d:'2026-01-28',u:'michael'},
+  {a:'SLATE Auto',o:'Slate Quality Defect Detection',s:'0. Research',d:'2026-01-28',u:'michael'},
+  {a:'Kawasaki Rail Car',o:'Kawasaki Rail Car Quality',s:'Closed Lost',d:'2026-01-28',u:'michael'},
+  {a:'United States Postal Service',o:'USPS Box & Slot Detection',s:'Closed Lost',d:'2026-01-30',u:'michael'},
+  {a:'TaylorMade',o:'Taylormade Engineering',s:'Closed Lost',d:'2026-03-09',u:'michael'},
+  {a:'Allied Universal',o:'Allied Universal Security Feature',s:'0. Research',d:'2026-03-10',u:'michael'},
+  {a:'Kawasaki Rail Car',o:'Kawasaki Rail Car - Vision System',s:'Closed Lost',d:'2026-03-12',u:'michael'},
+  {a:'Viant Medical Inc',o:'Viant Medical - Injection Molding',s:'0. Research',d:'2026-04-01',u:'michael'},
+  {a:'Nissan USA',o:'Nissan Welding',s:'0. Research',d:'2026-04-01',u:'michael'},
+  {a:'Nissan USA',o:'Nissan Verkada',s:'1. Discover',d:'2026-04-24',u:'michael'},
+  {a:'DamageID',o:'DamageID',s:'0. Research',d:'2026-04-28',u:'michael'},
+  {a:'BCM Group',o:'BCM Group',s:'Qualify',d:'2026-06-01',u:'michael'},
+  {a:'Nissan USA',o:'Nissan Engineering',s:'Closed Lost',d:'2026-03-19',u:'michael'},
+  {a:'Mohawk Industries',o:'Mohawk Loom Defects',s:'Closed Lost',d:'2026-04-09',u:'michael'},
+  {a:'Cytiva',o:'Cytiva Fiber Inspection',s:'0. Research',d:'2026-06-15',u:'michael'},
+  {a:'United States Postal Service',o:'USPS - Dash Cam POC',s:'Closed Lost',d:'2026-03-06',u:'michael'},
+  {a:'BD',o:'BD - Label & QC Inspection',s:'Closed Lost',d:'2026-03-09',u:'michael'},
+  {a:'Adient',o:'Adient - Platform',s:'Closed Lost',d:'2026-03-18',u:'michael'},
+  {a:'BD',o:'BD - Injection Molding',s:'Closed Lost',d:'2026-03-16',u:'michael'},
+  {a:'United States Postal Service',o:'USPS - Retiina Use Case',s:'Closed Lost',d:'2026-03-17',u:'michael'},
+  {a:'Corning',o:'Corning Research - Platform',s:'Closed Lost',d:'2026-04-01',u:'michael'},
+  {a:'3M',o:'3M Roofing Granule',s:'1. Discover',d:'2026-06-15',u:'michael'},
+  {a:'GM',o:'GM Paint Defect Detection NA',s:'Closed Lost',d:'2026-01-21',u:'michael'},
+  {a:'Procter & Gamble',o:'Procter & Gamble - Lima Plant',s:'2. Validate',d:'2026-05-18',u:'sabrina'},
+  {a:'Procter & Gamble',o:'Procter & Gamble - Cincinnati',s:'1. Discover',d:'2026-05-26',u:'sabrina'},
+  {a:'Procter & Gamble',o:'Procter & Gamble - Greensboro',s:'1. Discover',d:'2026-06-08',u:'sabrina'},
+  {a:'SOPREMA',o:'SOPREMA - CSE Modules',s:'Qualify',d:'2026-06-04',u:'sabrina'},
+  {a:'Toyoda Gosei Americas',o:'Toyoda Gosei (Plastic Filler Neck Assembly)',s:'0. Research',d:'2026-05-04',u:'sabrina'},
+  {a:'Marathon Petroleum Corporation',o:'Marathon Terminal Operations',s:'0. Research',d:'2026-05-26',u:'sabrina'},
+  {a:'Marathon Petroleum Corporation',o:'Marathon Petroleum - Flare Stack Monitoring',s:'Closed Lost',d:'2026-05-29',u:'sabrina'},
+  {a:'Toyoda Gosei Americas',o:'Toyoda Gosei (Steering-Wheel Molding)',s:'Closed Lost',d:'2026-06-02',u:'sabrina'},
+  {a:'Toyoda Gosei Americas',o:'Toyoda Gosei - Paint Booth Automation',s:'1. Discover',d:'2026-06-09',u:'sabrina'},
+  {a:'julian.meninger@hekner.com Paid Plan',o:'Hekner - Roofing Inspection',s:'Qualify',d:'2026-06-15',u:'sabrina'},
+  {a:'Yazaki',o:'Yazaki do Brasil Ltda',s:'0. Research',d:'2026-04-27',u:'sabrina'},
+  {a:'Carestream',o:'Carestream Object Tracking',s:'Closed Lost',d:'2026-05-03',u:'sabrina'},
+  {a:'PACCAR',o:'PACCAR - DAF Trucks',s:'1. Discover',d:'2026-06-12',u:'sabrina'},
+  {a:'Liat AI',o:'Liat AI - Real-Time Football Commentary',s:'Scope',d:'2026-06-01',u:'sabrina'},
+  {a:'Asish Pradhan Consulting',o:'Retail Tire Inventory Automation',s:'1. Discover',d:'2026-05-22',u:'sylvie'},
+  {a:'Fincantieri',o:'Fincantieri - Platform Play',s:'1. Discover',d:'2026-05-18',u:'sylvie'},
+  {a:'Simmons Foods',o:'Simmons Pet Food - Platform Pallet Detection',s:'0. Research',d:'2026-05-15',u:'sylvie'},
+  {a:'Boston Dynamics',o:'Boston Dynamics - VLAs',s:'1. Discover',d:'2026-05-29',u:'sylvie'},
+  {a:'Benchmark Electronics',o:'Benchmark - Cycle Time Reduction',s:'1. Discover',d:'2026-06-03',u:'sylvie'},
+  {a:'ROCKWOOL',o:'Rockwool - Scalable Platform',s:'2. Validate',d:'2026-04-17',u:'sylvie'},
+  {a:'Siemens Mobility',o:'Siemens Mobility - Railway Object Detection',s:'0. Research',d:'2026-04-21',u:'sylvie'},
+  {a:'Americana Foods',o:'Americana Foods - Krispy Kreme CV',s:'0. Research',d:'2026-05-01',u:'sylvie'},
+  {a:'Parsons Corporation',o:'Parsons - Platform LIDAR + Road Detection',s:'2. Validate',d:'2026-05-29',u:'sylvie'},
+  {a:'Siemens Energy',o:'Siemens Energy - Voltage Regulators',s:'2. Validate',d:'2026-06-11',u:'sylvie'},
+  {a:'ResMed',o:'ResMed ARISE Phases 1-2',s:'2. Validate',d:'2026-01-16',u:'sylvie'},
+  {a:'NSW Government',o:'NSW Transport Platform',s:'Closed Won',d:'2026-02-12',u:'sylvie'},
+  {a:'Lucid Motors',o:'Lucid Platform',s:'Closed Won',d:'2026-02-17',u:'sylvie'},
+  {a:'Amazon',o:'Amazon - Conveyor Sorting',s:'1. Discover',d:'2026-05-14',u:'sylvie'},
+  {a:'Abbott',o:'Catheter Inspections',s:'2. Validate',d:'2026-02-23',u:'sylvie'},
+  {a:'Volkswagen',o:'Volkswagen - Platform Scale',s:'2. Validate',d:'2026-05-08',u:'sylvie'},
+  {a:'Kimball Electronics',o:'Kimball Electronics - Repeatable Detections',s:'1. Discover',d:'2026-05-29',u:'sylvie'},
+  {a:'Binaivo',o:'Binaivo - Chicken Counting',s:'Closed Won',d:'2026-04-01',u:'sylvie'},
+];
+
+// Match a kanban card against the SAL sheet. Returns the matched row
+// or null. Match rule: account name is a case-insensitive substring of
+// the card name. Skips Closed Lost / Closed Won rows because those
+// shouldn't drive any visual state on a live card.
+function findSalForCard(c) {
+  if (!c || !c.name) return null;
+  const nm = c.name.toLowerCase();
+  for (const r of SAL_OPPS) {
+    if (!r.u || r.u !== currentUser) continue;
+    if (/closed/i.test(r.s)) continue;
+    const account = (r.a || '').toLowerCase().trim();
+    if (account.length < 3) continue;
+    if (nm.includes(account)) return r;
+  }
+  return null;
+}
+
+// Is this SAL row's Stage 1 start date in the current calendar month?
+function isSalThisMonth(r) {
+  if (!r || !r.d) return false;
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  return r.d.startsWith(ym);
+}
+
 function autoSourceOf(c) {
   const primary = (c.primaryEmail || '').toLowerCase().trim();
   if (primary && INBOUND_EMAILS.has(primary)) return 'inbound';
@@ -6279,11 +6431,18 @@ function renderKanban() {
       const isS1Stage = stage.id === s1StageId();
       const nextTask = showCardTasks ? firstDueTask(c, stage) : null;
       const src = sourceOf(c);
+      // SAL match from the Salesforce sheet — only meaningful on S1+
+      // stage cards; we don't fade SDR/AE.
+      const salRow = isS1Stage ? findSalForCard(c) : null;
+      const salTone = salRow
+        ? (isSalThisMonth(salRow) ? 'sal-current' : 'sal-prior')
+        : '';
       const cardCls = ['k-card',
                        c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
                        c.likelySQO && stage.sortByLikelySQO ? 'likely-sqo' : '',
                        isS1Stage ? 'is-s1' : '',
-                       `source-${src}`]
+                       `source-${src}`,
+                       salTone]
         .filter(Boolean).join(' ');
       return `
         <div class="${cardCls}" draggable="true"
@@ -7489,6 +7648,14 @@ function renderMetrics() {
   set('metric-sals', sals);     set('metric-sals-in', salsIn);     set('metric-sals-out', salsOut);
   set('metric-meetings', meetings); set('metric-meetings-in', meetingsIn); set('metric-meetings-out', meetingsOut);
   set('metric-opps', opps);     set('metric-opps-in', oppsIn);     set('metric-opps-out', oppsOut);
+  // 📊 SALs this month — from the Salesforce sheet, owned by current user
+  if (typeof SAL_OPPS !== 'undefined' && currentUser) {
+    const mine = SAL_OPPS.filter(r => r.u === currentUser && !/closed/i.test(r.s));
+    const thisMonth = mine.filter(isSalThisMonth);
+    set('metric-sals-month', thisMonth.length);
+    const sub = document.getElementById('metric-sals-month-sub');
+    if (sub) sub.textContent = `${mine.length} total · from Salesforce`;
+  }
 }
 
 // ── Per-column Dead + Hmmm + Old piles ──
