@@ -4019,21 +4019,48 @@ async function syncSalSheetLive() {
   }
 }
 
-// Match a kanban card against the SAL sheet. Returns the matched row
-// or null. Match rule: account name is a case-insensitive substring of
-// the card name. Skips Closed Lost / Closed Won rows because those
-// shouldn't drive any visual state on a live card.
+// Normalize a name down to lowercase alphanumeric so spaces, hyphens,
+// apostrophes, and case don't break substring matches. "JELD-WEN",
+// "jeld wen", "Jeld-Wen Inc." all become "jeldwen".
+function _normForSal(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+// Significant words from an account name (>=4 chars, skipping
+// connectors). Used as a fallback so a card with a short company
+// reference ("Marathon Vision AI") still matches a long account
+// ("Marathon Petroleum Corporation").
+const _SAL_STOP = new Set(['inc','llc','ltd','corp','corporation','co','company','group','holdings','holding','the','and','of']);
+function _salKeywords(account) {
+  const words = String(account || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  return words.filter(w => w.length >= 4 && !_SAL_STOP.has(w));
+}
+// Match a kanban card against the SAL sheet. Returns the best-matching
+// row for this user (current-month rows preferred so the green tint
+// wins over the grey when an account has both). Skips Closed Lost /
+// Closed Won so closed deals don't drive live-card visuals.
 function findSalForCard(c) {
   if (!c || !c.name) return null;
-  const nm = c.name.toLowerCase();
+  const nmNorm = _normForSal(c.name);
+  if (!nmNorm) return null;
+  let bestPrior = null;
   for (const r of SAL_OPPS) {
     if (!r.u || r.u !== currentUser) continue;
     if (/closed/i.test(r.s)) continue;
-    const account = (r.a || '').toLowerCase().trim();
-    if (account.length < 3) continue;
-    if (nm.includes(account)) return r;
+    const accountNorm = _normForSal(r.a);
+    let hit = false;
+    // 1) exact normalized substring (handles hyphens, apostrophes, case)
+    if (accountNorm.length >= 3 && nmNorm.includes(accountNorm)) hit = true;
+    // 2) keyword fallback — any significant word from account name
+    if (!hit) {
+      for (const kw of _salKeywords(r.a)) {
+        if (nmNorm.includes(kw)) { hit = true; break; }
+      }
+    }
+    if (!hit) continue;
+    if (isSalThisMonth(r)) return r;   // current-month always wins
+    if (!bestPrior) bestPrior = r;     // remember first prior match
   }
-  return null;
+  return bestPrior;
 }
 
 // Is this SAL row's Stage 1 start date in the current calendar month?
@@ -6531,10 +6558,11 @@ function renderKanban() {
       const isS1Stage = stage.id === s1StageId();
       const nextTask = showCardTasks ? firstDueTask(c, stage) : null;
       const src = sourceOf(c);
-      // SAL match from the Salesforce sheet — only meaningful on S1+
-      // stage cards. Current-month SALs glow green; prior-month SALs
-      // fade to grey so they're visually separated.
-      const salRow = isS1Stage ? findSalForCard(c) : null;
+      // SAL match from the Salesforce sheet — applies to cards in ANY
+      // kanban stage, not just S1. Salesforce is the source of truth
+      // for SAL status; if it says this is a SAL we tint regardless of
+      // which kanban column the user happens to have it in.
+      const salRow = findSalForCard(c);
       const salTone = salRow
         ? (isSalThisMonth(salRow) ? 'sal-current' : 'sal-prior')
         : '';
