@@ -2019,11 +2019,11 @@
     gap: 16px; margin-bottom: 22px; flex-wrap: wrap;
   }
   .metric-cards {
-    display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr));
+    display: grid; grid-template-columns: repeat(2, minmax(200px, 1fr));
     gap: 12px; flex: 1; min-width: 320px;
   }
-  @media (max-width: 900px) {
-    .metric-cards { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 700px) {
+    .metric-cards { grid-template-columns: 1fr; }
   }
   .metric-card {
     background: #fff; border: 1px solid var(--border); border-radius: 12px;
@@ -2397,15 +2397,6 @@
         <div class="metric-split">
           <div class="metric-split-chip in"><span class="metric-split-lbl">📥 Inbound</span><span class="metric-split-val" id="metric-meetings-in">0</span></div>
           <div class="metric-split-chip out"><span class="metric-split-lbl">Outbound</span><span class="metric-split-val" id="metric-meetings-out">0</span></div>
-        </div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Opportunities</div>
-        <div class="metric-value" id="metric-opps">0</div>
-        <div class="metric-sub" id="metric-opps-sub">with activity this month</div>
-        <div class="metric-split">
-          <div class="metric-split-chip in"><span class="metric-split-lbl">📥 Inbound</span><span class="metric-split-val" id="metric-opps-in">0</span></div>
-          <div class="metric-split-chip out"><span class="metric-split-lbl">Outbound</span><span class="metric-split-val" id="metric-opps-out">0</span></div>
         </div>
       </div>
     </div>
