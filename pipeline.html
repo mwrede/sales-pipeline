@@ -3973,7 +3973,10 @@ function parseSalSheetCsv(csv) {
       a: (f[idxAccount] || '').trim(),
       o: (f[idxOpp]     || '').trim(),
       s: (f[idxStage]   || '').trim(),
-      d: parseDate(f[idxS1]) || parseDate(f[idxCreated]),
+      // d MUST be Stage 1 Discover Start Date — no fallback to
+      // Created Date. Rows without a Stage 1 date never qualify as
+      // a "SAL this month" (isSalThisMonth returns false on empty d).
+      d: parseDate(f[idxS1]),
       u: uid
     });
   }
