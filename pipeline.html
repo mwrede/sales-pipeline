@@ -7807,27 +7807,71 @@ function dateInSelectedMonth(d) {
   if (!d) return false;
   return d.substring(0, 7) === selectedMonth;
 }
+// Final SAL tone for a card (respects c.salToneOverride, then auto).
+// Returns 'sal-current' | 'sal-prior' | ''.
+function cardSalTone(c) {
+  if (c.salToneOverride === 'current') return 'sal-current';
+  if (c.salToneOverride === 'prior')   return 'sal-prior';
+  const r = findSalForCard(c);
+  if (!r) return '';
+  return isSalThisMonth(r) ? 'sal-current' : 'sal-prior';
+}
+// Was this yellow (AE-discovery, colorId=5) meeting a follow-up from
+// an earlier orange (SDR-discovery, colorId=6) on the same opp that
+// shared at least one attendee email? "Follow up from an orange (same
+// email)" per the metric spec. Orange has to predate the yellow.
+function _isFollowUpFromOrange(c, date) {
+  const ca = c.meetingAttendees || {}; const cc = c.meetingColors || {};
+  const myAtts = new Set((ca[date] || []).map(e => String(e).toLowerCase().trim()).filter(Boolean));
+  if (!myAtts.size) return false;
+  for (const otherDate of Object.keys(ca)) {
+    if (otherDate >= date) continue;        // orange must come first
+    if (cc[otherDate] !== '6') continue;    // not orange
+    for (const e of (ca[otherDate] || [])) {
+      const en = String(e).toLowerCase().trim();
+      if (en && myAtts.has(en)) return true;
+    }
+  }
+  return false;
+}
+
 function renderMetrics() {
   const active = c => !c.dead && !c.hmmm && !c.old;
   const liveActive = companies.filter(active);
-  // SALs = anything in AE / S1 / S2 with a meeting in the selected month
-  const salList = liveActive
-    .filter(c => /AE Discovery|S1|S2/i.test((findStage(c.stageId) || {}).label || ''))
-    .filter(c => (c.meetings || []).some(d => dateInSelectedMonth(d)));
-  const sals = salList.length;
-  const salsIn  = salList.filter(c => sourceOf(c) === 'inbound').length;
+
+  // ──────────────────────────────────────────────────────────────
+  // 📊 SALs this month = number of cards visually GREEN on the
+  // kanban right now. Respects manual cycleSalTone overrides.
+  // ──────────────────────────────────────────────────────────────
+  const greenCards = liveActive.filter(c => cardSalTone(c) === 'sal-current');
+  const sals = greenCards.length;
+  const salsIn  = greenCards.filter(c => sourceOf(c) === 'inbound').length;
   const salsOut = sals - salsIn;
-  // Meetings in selected month — counted once per meeting date, split by
-  // the opp's source.
+
+  // ──────────────────────────────────────────────────────────────
+  // Meetings this month =
+  //   every ORANGE (SDR-discovery, colorId=6) meeting in the
+  //   selected month
+  // + every YELLOW (AE-discovery, colorId=5) meeting in the
+  //   selected month that is NOT a follow-up from a prior orange
+  //   on the same opp with a shared attendee email.
+  // ──────────────────────────────────────────────────────────────
   let meetings = 0, meetingsIn = 0, meetingsOut = 0;
   liveActive.forEach(c => {
     const src = sourceOf(c);
+    const cc = c.meetingColors || {};
     (c.meetings || []).forEach(d => {
       if (!dateInSelectedMonth(d)) return;
+      const col = cc[d];
+      let counts = false;
+      if (col === '6') counts = true;
+      else if (col === '5' && !_isFollowUpFromOrange(c, d)) counts = true;
+      if (!counts) return;
       meetings++;
       if (src === 'inbound') meetingsIn++; else meetingsOut++;
     });
   });
+
   // Opps = unique live opps with at least one meeting in selected month
   const oppsList = liveActive.filter(c => (c.meetings || []).some(d => dateInSelectedMonth(d)));
   const opps = oppsList.length;
@@ -7838,14 +7882,10 @@ function renderMetrics() {
   set('metric-sals', sals);     set('metric-sals-in', salsIn);     set('metric-sals-out', salsOut);
   set('metric-meetings', meetings); set('metric-meetings-in', meetingsIn); set('metric-meetings-out', meetingsOut);
   set('metric-opps', opps);     set('metric-opps-in', oppsIn);     set('metric-opps-out', oppsOut);
-  // 📊 SALs this month — from the Salesforce sheet, owned by current user
-  if (typeof SAL_OPPS !== 'undefined' && currentUser) {
-    const mine = SAL_OPPS.filter(r => r.u === currentUser && !/closed/i.test(r.s));
-    const thisMonth = mine.filter(isSalThisMonth);
-    set('metric-sals-month', thisMonth.length);
-    const sub = document.getElementById('metric-sals-month-sub');
-    if (sub) sub.textContent = `${mine.length} total · from Salesforce`;
-  }
+  // 📊 SALs this month (top green tile) — same count as the SAL strip.
+  set('metric-sals-month', sals);
+  const sub = document.getElementById('metric-sals-month-sub');
+  if (sub) sub.textContent = `${sals} green on kanban${typeof SAL_OPPS !== 'undefined' && currentUser ? ` · ${SAL_OPPS.filter(r => r.u === currentUser && !/closed/i.test(r.s)).length} total in Salesforce` : ''}`;
 }
 
 // ── Per-column Dead + Hmmm + Old piles ──
