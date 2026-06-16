@@ -6662,7 +6662,7 @@ function renderKanban() {
             ${isS1Stage ? `<button class="k-card-btn old-btn"
                     onclick="event.stopPropagation();markOld('${safeN}')"
                     title="Mark as old — hides like Dead"><span class="k-btn-ico">⏳</span><span class="k-btn-txt">Old</span></button>` : ''}
-            <button class="k-card-btn sal-toggle-btn ${salTone || ''}"
+            ${isS1Stage ? `<button class="k-card-btn sal-toggle-btn ${salTone || ''}"
                     onclick="event.stopPropagation();cycleSalTone('${safeN}')"
                     title="SAL tone: ${
                       c.salToneOverride === 'current' ? 'forced this-month (green)' :
@@ -6674,7 +6674,7 @@ function renderKanban() {
                       salTone === 'sal-current' ? '🟢' :
                       salTone === 'sal-prior'   ? '⚪' :
                                                   '◌'
-                    }</span><span class="k-btn-txt">SAL</span></button>
+                    }</span><span class="k-btn-txt">SAL</span></button>` : ''}
           </div>
         </div>`;
     };
