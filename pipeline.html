@@ -3831,7 +3831,7 @@ function sourceOf(c) {
 //   s = Stage (e.g. "1. Discover")
 //   d = Stage 1 Discover Start Date (YYYY-MM-DD, falls back to Created Date)
 //   u = Sourcer's user id (michael / sylvie / davis / grace / sabrina / charlie)
-const SAL_OPPS = [
+let SAL_OPPS = [
   {a:'Johnson Controls',o:'Johnson Controls - Assembly Verification',s:'0. Research',d:'2026-06-01',u:'charlie'},
   {a:'Freeport-McMoRan',o:'Freeport McMoRan P80 Binning',s:'1. Discover',d:'2026-05-27',u:'charlie'},
   {a:'Freeport-McMoRan',o:'Freeport McMoRan Safety',s:'1. Discover',d:'2026-06-04',u:'charlie'},
@@ -3924,6 +3924,99 @@ const SAL_OPPS = [
   {a:'Kimball Electronics',o:'Kimball Electronics - Repeatable Detections',s:'1. Discover',d:'2026-05-29',u:'sylvie'},
   {a:'Binaivo',o:'Binaivo - Chicken Counting',s:'Closed Won',d:'2026-04-01',u:'sylvie'},
 ];
+
+// Live fetch the SAL sheet. The sheet is public (Anyone with the link
+// can view) so it returns proper CORS headers and we can read it
+// straight from the browser, no OAuth. Falls back silently to the
+// embedded snapshot if the request fails (offline, sheet permissions
+// changed, etc.).
+const SAL_SHEET_ID = '1hHB7br3do-wHdP_UcLUlRPr9NnYHtvkZUSKTo5Kfy0Q';
+const SAL_GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SAL_SHEET_ID}/gviz/tq?tqx=out:csv`;
+const SOURCER_TO_UID = {
+  'Michael Wrede': 'michael',
+  'Sylvie Goldner': 'sylvie',
+  'Davis Tuzinkiewicz': 'davis',
+  'Grace Freund': 'grace',
+  'Sabrina Mesawich': 'sabrina',
+  'Charlie Falkenholm': 'charlie'
+};
+function _parseCsvLine(line) {
+  const out = []; let buf = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i+1] === '"') { buf += '"'; i++; } else inQ = false;
+      } else buf += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ',') { out.push(buf); buf = ''; }
+      else buf += ch;
+    }
+  }
+  out.push(buf);
+  return out;
+}
+function parseSalSheetCsv(csv) {
+  const lines = csv.split(/\r?\n/);
+  const headerIdx = lines.findIndex(l => /Opportunity Owner/i.test(l));
+  if (headerIdx < 0) return [];
+  const header = _parseCsvLine(lines[headerIdx]);
+  const col = (re) => header.findIndex(h => re.test(h));
+  const idxAccount = col(/Account Name/i);
+  const idxOpp     = col(/Opportunity Name/i);
+  const idxStage   = col(/^Stage$/i);
+  const idxS1      = col(/Stage 1 Discover Start Date/i);
+  const idxCreated = col(/Created Date/i);
+  const idxSourcer = col(/Sourcer/i);
+  const parseDate = (s) => {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec((s || '').trim());
+    if (!m) return '';
+    return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  };
+  const out = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const f = _parseCsvLine(lines[i]);
+    const uid = SOURCER_TO_UID[(f[idxSourcer] || '').trim()];
+    if (!uid) continue;
+    out.push({
+      a: (f[idxAccount] || '').trim(),
+      o: (f[idxOpp]     || '').trim(),
+      s: (f[idxStage]   || '').trim(),
+      d: parseDate(f[idxS1]) || parseDate(f[idxCreated]),
+      u: uid
+    });
+  }
+  return out;
+}
+async function syncSalSheetLive() {
+  try {
+    const resp = await fetch(SAL_GVIZ_URL, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const csv = await resp.text();
+    const rows = parseSalSheetCsv(csv);
+    if (!rows.length) throw new Error('parsed 0 rows');
+    SAL_OPPS = rows;
+    try { localStorage.setItem('sal_opps_cache', JSON.stringify({ t: Date.now(), rows })); } catch(_) {}
+    console.info(`[SAL sync] live-loaded ${rows.length} rows from sheet`);
+    if (typeof renderKanban === 'function') renderKanban();
+    if (typeof renderMetrics === 'function') renderMetrics();
+    return rows;
+  } catch (e) {
+    console.warn('[SAL sync] live fetch failed, trying cache then embedded snapshot', e);
+    try {
+      const cached = JSON.parse(localStorage.getItem('sal_opps_cache') || 'null');
+      if (cached && Array.isArray(cached.rows) && cached.rows.length) {
+        SAL_OPPS = cached.rows;
+        if (typeof renderKanban === 'function') renderKanban();
+        if (typeof renderMetrics === 'function') renderMetrics();
+        console.info(`[SAL sync] using cached ${cached.rows.length} rows (${new Date(cached.t).toLocaleString()})`);
+      }
+    } catch(_) {}
+    return null;
+  }
+}
 
 // Match a kanban card against the SAL sheet. Returns the matched row
 // or null. Match rule: account name is a case-insensitive substring of
@@ -6183,6 +6276,12 @@ function selectUser(name) {
   // every login so newly-added sheet contacts pick up without the
   // user having to hit the 📥 Sync inbound button.
   setTimeout(runInboundSync, 80);
+  // Live-fetch the public Salesforce SAL sheet so the green/grey
+  // tinting and the "SALs this month" tile reflect the current data
+  // on every login. Async — runs in the background, re-renders kanban
+  // + metrics once it lands. Falls back to cached / embedded snapshot
+  // if the request fails.
+  setTimeout(syncSalSheetLive, 120);
 }
 
 function switchUser() {
