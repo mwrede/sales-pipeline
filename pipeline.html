@@ -6604,11 +6604,16 @@ function renderKanban() {
       // SAL match from the Salesforce sheet — applies to cards in ANY
       // kanban stage, not just S1. Salesforce is the source of truth
       // for SAL status; if it says this is a SAL we tint regardless of
-      // which kanban column the user happens to have it in.
+      // which kanban column the user happens to have it in. The user
+      // can also manually override the tone per card via the SAL
+      // button (c.salToneOverride: 'current' | 'prior' | null).
       const salRow = findSalForCard(c);
-      const salTone = salRow
+      const autoTone = salRow
         ? (isSalThisMonth(salRow) ? 'sal-current' : 'sal-prior')
         : '';
+      const salTone = (c.salToneOverride === 'current') ? 'sal-current'
+                    : (c.salToneOverride === 'prior')   ? 'sal-prior'
+                    : autoTone;
       const cardCls = ['k-card',
                        c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
                        c.likelySQO && stage.sortByLikelySQO ? 'likely-sqo' : '',
@@ -6657,6 +6662,19 @@ function renderKanban() {
             ${isS1Stage ? `<button class="k-card-btn old-btn"
                     onclick="event.stopPropagation();markOld('${safeN}')"
                     title="Mark as old — hides like Dead"><span class="k-btn-ico">⏳</span><span class="k-btn-txt">Old</span></button>` : ''}
+            <button class="k-card-btn sal-toggle-btn ${salTone || ''}"
+                    onclick="event.stopPropagation();cycleSalTone('${safeN}')"
+                    title="SAL tone: ${
+                      c.salToneOverride === 'current' ? 'forced this-month (green)' :
+                      c.salToneOverride === 'prior'   ? 'forced prior-month (grey)' :
+                      salTone === 'sal-current'      ? 'auto: this-month SAL (green) — click to override' :
+                      salTone === 'sal-prior'        ? 'auto: prior-month SAL (grey) — click to override' :
+                                                       'no SAL match — click to force a tone'
+                    }"><span class="k-btn-ico">${
+                      salTone === 'sal-current' ? '🟢' :
+                      salTone === 'sal-prior'   ? '⚪' :
+                                                  '◌'
+                    }</span><span class="k-btn-txt">SAL</span></button>
           </div>
         </div>`;
     };
@@ -8125,6 +8143,19 @@ function restoreAEFilter() {
 }
 
 // ── Per-card actions: Likely S1, Likely SQO + Flip to S1 ──
+// Cycle the SAL tone override on a card: auto → green (current
+// month) → grey (prior month) → auto. Persists in the JSONB blob as
+// c.salToneOverride.
+function cycleSalTone(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  const cur = c.salToneOverride;
+  if (!cur)                       c.salToneOverride = 'current';
+  else if (cur === 'current')     c.salToneOverride = 'prior';
+  else                             delete c.salToneOverride;
+  saveData(); renderKanban();
+}
 function toggleLikelyS1(name) {
   const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
   const c = companies.find(x => x.name === unescaped);
