@@ -3979,6 +3979,7 @@ function parseSalSheetCsv(csv) {
   }
   return out;
 }
+let _lastSalSyncAt = 0;
 async function syncSalSheetLive() {
   try {
     const resp = await fetch(SAL_GVIZ_URL, { cache: 'no-store' });
@@ -3987,7 +3988,8 @@ async function syncSalSheetLive() {
     const rows = parseSalSheetCsv(csv);
     if (!rows.length) throw new Error('parsed 0 rows');
     SAL_OPPS = rows;
-    try { localStorage.setItem('sal_opps_cache', JSON.stringify({ t: Date.now(), rows })); } catch(_) {}
+    _lastSalSyncAt = Date.now();
+    try { localStorage.setItem('sal_opps_cache', JSON.stringify({ t: _lastSalSyncAt, rows })); } catch(_) {}
     console.info(`[SAL sync] live-loaded ${rows.length} rows from sheet`);
     if (typeof renderKanban === 'function') renderKanban();
     if (typeof renderMetrics === 'function') renderMetrics();
@@ -6341,13 +6343,42 @@ function selectUser(name) {
   // + metrics once it lands. Falls back to cached / embedded snapshot
   // if the request fails.
   setTimeout(syncSalSheetLive, 120);
+  // Hourly auto-refresh of the SAL sheet while the app is open. Also
+  // refreshes when the tab comes back into focus if it's been >1hr
+  // since the last successful sync (handles laptop-asleep case).
+  startSalAutoSync();
 }
+
+const SAL_SYNC_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+let _salSyncTimer = null;
+function startSalAutoSync() {
+  if (_salSyncTimer) clearInterval(_salSyncTimer);
+  _salSyncTimer = setInterval(() => {
+    if (!currentUser) return;
+    console.info('[SAL sync] hourly refresh tick');
+    syncSalSheetLive();
+  }, SAL_SYNC_INTERVAL_MS);
+}
+function stopSalAutoSync() {
+  if (_salSyncTimer) { clearInterval(_salSyncTimer); _salSyncTimer = null; }
+}
+// Tab-visibility resume: if the page sat in the background for >1hr,
+// pull fresh data the moment it comes back to the foreground.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (!currentUser) return;
+  if (!_lastSalSyncAt || (Date.now() - _lastSalSyncAt) > SAL_SYNC_INTERVAL_MS) {
+    console.info('[SAL sync] tab visible + stale (>1hr) — refreshing');
+    syncSalSheetLive();
+  }
+});
 
 function switchUser() {
   currentUser = null;
   accessToken = null;
   calendarEmail = '';
   closeCalPanel();
+  stopSalAutoSync();
   document.getElementById('app').style.display = 'none';
   document.getElementById('user-select-screen').style.display = '';
 }
