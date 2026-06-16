@@ -4034,6 +4034,41 @@ function _salKeywords(account) {
   const words = String(account || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
   return words.filter(w => w.length >= 4 && !_SAL_STOP.has(w));
 }
+// Pull the "core" of an email's domain — everything before the TLD,
+// stripped to alphanum so 'gpickens@jeldwen.com' → 'jeldwen' and
+// 'rjbebee@marathonpetroleum.com' → 'marathonpetroleum'. Personal
+// domains (gmail / yahoo / etc.) are excluded because they don't
+// identify a company.
+function _emailDomainCore(email) {
+  if (!email || !email.includes('@')) return '';
+  const dom = email.split('@')[1].toLowerCase().trim();
+  if (PERSONAL_DOMAINS && PERSONAL_DOMAINS.has(dom)) return '';
+  if (dom.endsWith('.roboflow.com') || dom === 'roboflow.com') return '';
+  if (dom.endsWith('@resource.calendar.google.com') ||
+      dom.endsWith('@group.calendar.google.com')) return '';
+  // Strip TLD (last dot-segment). Don't try to be smart about ccTLDs.
+  const parts = dom.split('.');
+  if (parts.length < 2) return '';
+  parts.pop();
+  return parts.join('').replace(/[^a-z0-9]+/g, '');
+}
+// All non-personal email-domain "cores" present on a kanban card.
+function _cardDomainCores(c) {
+  const out = new Set();
+  if (c.primaryEmail) {
+    const d = _emailDomainCore(c.primaryEmail);
+    if (d) out.add(d);
+  }
+  if (c.meetingAttendees) {
+    for (const arr of Object.values(c.meetingAttendees)) {
+      for (const e of (arr || [])) {
+        const d = _emailDomainCore(e);
+        if (d) out.add(d);
+      }
+    }
+  }
+  return out;
+}
 // Match a kanban card against the SAL sheet. Returns the best-matching
 // row for this user (current-month rows preferred so the green tint
 // wins over the grey when an account has both). Skips Closed Lost /
@@ -4042,15 +4077,23 @@ function findSalForCard(c) {
   if (!c || !c.name) return null;
   const nmNorm = _normForSal(c.name);
   if (!nmNorm) return null;
+  const domains = _cardDomainCores(c); // e.g. 'jeldwen', 'marathonpetroleum'
   let bestPrior = null;
   for (const r of SAL_OPPS) {
     if (!r.u || r.u !== currentUser) continue;
     if (/closed/i.test(r.s)) continue;
     const accountNorm = _normForSal(r.a);
     let hit = false;
-    // 1) exact normalized substring (handles hyphens, apostrophes, case)
-    if (accountNorm.length >= 3 && nmNorm.includes(accountNorm)) hit = true;
-    // 2) keyword fallback — any significant word from account name
+    // 1) Email-domain match — most reliable. 'jeldwen.com' on the card
+    // matches Salesforce account 'JELD-WEN' once normalized.
+    if (accountNorm) {
+      for (const d of domains) {
+        if (d.includes(accountNorm) || accountNorm.includes(d)) { hit = true; break; }
+      }
+    }
+    // 2) Normalized substring of the account in the card name
+    if (!hit && accountNorm.length >= 3 && nmNorm.includes(accountNorm)) hit = true;
+    // 3) Keyword fallback — any significant word from account name
     if (!hit) {
       for (const kw of _salKeywords(r.a)) {
         if (nmNorm.includes(kw)) { hit = true; break; }
