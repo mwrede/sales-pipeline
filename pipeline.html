@@ -8003,14 +8003,21 @@ function renderMetrics() {
   set('metric-opps', opps);     set('metric-opps-in', oppsIn);     set('metric-opps-out', oppsOut);
   // 📊 SALs this month (top green tile) — comes straight from
   // Salesforce, not from the kanban tinting. Sub-text shows the total
-  // active SAL count for the user as context.
+  // active SAL count for the user + how fresh the data is.
   set('metric-sals-month', sals);
   const sub = document.getElementById('metric-sals-month-sub');
   if (sub) {
     const totalActive = Array.isArray(SAL_OPPS)
       ? SAL_OPPS.filter(r => r.u === currentUser && !/closed/i.test(r.s)).length
       : 0;
-    sub.textContent = `from Salesforce · ${totalActive} total active · click to see list`;
+    let freshness = '';
+    if (_lastSalSyncAt) {
+      const mins = Math.max(0, Math.round((Date.now() - _lastSalSyncAt) / 60000));
+      freshness = mins < 1 ? ' · synced just now'
+                : mins < 60 ? ` · synced ${mins}m ago`
+                : ` · synced ${Math.round(mins/60)}h ago`;
+    }
+    sub.textContent = `live from Salesforce · ${totalActive} total active${freshness}`;
   }
 }
 
