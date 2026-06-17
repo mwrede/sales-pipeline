@@ -3930,53 +3930,73 @@ const SOURCER_TO_UID = {
   'Sabrina Mesawich': 'sabrina',
   'Charlie Falkenholm': 'charlie'
 };
-function _parseCsvLine(line) {
-  const out = []; let buf = ''; let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
+// Proper CSV parser that walks the entire string as a single stream
+// so newlines INSIDE quoted cells stay part of the cell. The Google
+// Sheets gviz CSV export wraps a "Salesforce Import / Last updated …"
+// preamble inside the first cell of row 0 with embedded newlines —
+// the previous line-by-line splitter broke completely on that, parsed
+// 0 rows, and the failure path overwrote SAL_OPPS via cache.
+function _parseFullCsv(csv) {
+  const rows = [];
+  let row = []; let buf = ''; let inQ = false;
+  for (let i = 0; i < csv.length; i++) {
+    const ch = csv[i];
     if (inQ) {
       if (ch === '"') {
-        if (line[i+1] === '"') { buf += '"'; i++; } else inQ = false;
+        if (csv[i+1] === '"') { buf += '"'; i++; }
+        else inQ = false;
       } else buf += ch;
     } else {
       if (ch === '"') inQ = true;
-      else if (ch === ',') { out.push(buf); buf = ''; }
-      else buf += ch;
+      else if (ch === ',') { row.push(buf); buf = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && csv[i+1] === '\n') i++;
+        row.push(buf); rows.push(row); row = []; buf = '';
+      } else buf += ch;
     }
   }
-  out.push(buf);
-  return out;
+  if (buf || row.length) { row.push(buf); rows.push(row); }
+  return rows;
 }
 function parseSalSheetCsv(csv) {
-  const lines = csv.split(/\r?\n/);
-  const headerIdx = lines.findIndex(l => /Opportunity Owner/i.test(l));
+  const rows = _parseFullCsv(csv);
+  // Header is the first row that contains both "Account Name" and
+  // "Sourcer" cells. Don't rely on "Opportunity Owner" exact match
+  // because gviz mashes the Salesforce Import preamble into the same
+  // cell as the first column header.
+  const headerIdx = rows.findIndex(r =>
+    r.some(c => /Account Name/i.test(c)) && r.some(c => /Sourcer/i.test(c))
+  );
   if (headerIdx < 0) return [];
-  const header = _parseCsvLine(lines[headerIdx]);
-  const col = (re) => header.findIndex(h => re.test(h));
-  const idxAccount = col(/Account Name/i);
-  const idxOpp     = col(/Opportunity Name/i);
+  const header = rows[headerIdx];
+  const col = (re) => header.findIndex(h => re.test((h || '').trim()));
+  const idxAccount = col(/^Account Name$/i);
+  const idxOpp     = col(/^Opportunity Name$/i);
   const idxStage   = col(/^Stage$/i);
   const idxS1      = col(/Stage 1 Discover Start Date/i);
-  const idxCreated = col(/Created Date/i);
-  const idxSourcer = col(/Sourcer/i);
+  const idxSourcer = col(/^Sourcer$/i);
+  if (idxStage < 0 || idxS1 < 0 || idxSourcer < 0) {
+    console.warn('[SAL parser] could not find required columns', { idxStage, idxS1, idxSourcer, header });
+    return [];
+  }
   const parseDate = (s) => {
     const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec((s || '').trim());
     if (!m) return '';
     return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
   };
   const out = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const f = _parseCsvLine(lines[i]);
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const f = rows[i];
+    if (!f || !f.length) continue;
+    if (f.every(c => !c || !c.trim())) continue;
     const uid = SOURCER_TO_UID[(f[idxSourcer] || '').trim()];
     if (!uid) continue;
     out.push({
       a: (f[idxAccount] || '').trim(),
       o: (f[idxOpp]     || '').trim(),
       s: (f[idxStage]   || '').trim(),
-      // d MUST be Stage 1 Discover Start Date — no fallback to
-      // Created Date. Rows without a Stage 1 date never qualify as
-      // a "SAL this month" (isSalThisMonth returns false on empty d).
+      // d is STRICTLY Stage 1 Discover Start Date — empty means the
+      // row never reached SAL and won't count toward this-month.
       d: parseDate(f[idxS1]),
       u: uid
     });
