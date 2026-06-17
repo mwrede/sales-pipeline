@@ -2384,7 +2384,7 @@
       <div class="metric-card metric-card-clickable" id="metric-sals-tile"
            style="border-color:#86efac;background:linear-gradient(180deg,#f0fdf4,#fff);cursor:pointer;"
            onclick="showSalsMonthList()" title="Click to see this month's SALs from Salesforce">
-        <div class="metric-label" style="color:#15803d;">📊 SALs · this month <span style="font-weight:400;color:#86efac;font-size:9px;">▸</span></div>
+        <div class="metric-label" style="color:#15803d;">📊 Active SALs <span style="font-weight:400;color:#86efac;font-size:9px;">▸</span></div>
         <div class="metric-value" id="metric-sals-month"
              style="color:#15803d;font-size:48px;font-weight:900;line-height:1;margin-top:6px;letter-spacing:-0.03em;">0</div>
         <div class="metric-sub" id="metric-sals-month-sub">from Salesforce</div>
@@ -4126,6 +4126,14 @@ function isSalThisMonth(r) {
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   return r.d.startsWith(ym);
+}
+// Is this SAL row currently sitting at an active SAL stage —
+// 1. Discover or 2. Validate? Independent of when Stage 1 started.
+// Used by the tile + drill-down so SALs from prior months that are
+// still working (e.g. P&G Lima Plant in Validate) still get counted.
+function isSalActive(r) {
+  if (!r || !r.s) return false;
+  return /^(1\. Discover|2\. Validate)$/i.test(r.s.trim());
 }
 
 function autoSourceOf(c) {
@@ -7877,12 +7885,14 @@ function _kanbanCardForSalRow(r) {
   return null;
 }
 
-// Open a centered drill-down panel listing this month's SALs from the
-// Salesforce sheet (SAL_OPPS) for the current user.
+// Open a centered drill-down panel listing the current user's active
+// SALs (Stage = 1. Discover or 2. Validate) from the Salesforce sheet.
 function showSalsMonthList() {
   const rows = (Array.isArray(SAL_OPPS) ? SAL_OPPS : [])
-    .filter(r => r.u === currentUser && !/closed/i.test(r.s) && isSalThisMonth(r))
-    .sort((a, b) => (a.d || '').localeCompare(b.d || ''));
+    .filter(r => r.u === currentUser && isSalActive(r))
+    // Sort most recent Stage 1 start first so this-month SALs are at
+    // the top; rows with no Stage 1 date drop to the bottom.
+    .sort((a, b) => (b.d || '').localeCompare(a.d || ''));
 
   let host = document.getElementById('sals-month-drill');
   if (!host) {
@@ -7908,9 +7918,9 @@ function showSalsMonthList() {
                      background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;
                      border-radius:8px;font-size:18px;font-weight:700;cursor:pointer;
                      font-family:inherit;padding:0;display:flex;align-items:center;justify-content:center;">×</button>
-      <div style="font-size:11px;font-weight:700;color:#10b981;letter-spacing:0.06em;text-transform:uppercase;">SALs this month · Salesforce</div>
+      <div style="font-size:11px;font-weight:700;color:#10b981;letter-spacing:0.06em;text-transform:uppercase;">Active SALs · Salesforce</div>
       <div style="font-size:17px;font-weight:800;color:#0f172a;margin:4px 0 14px;padding-right:34px;">
-        ${escapeHTML(userLabel)} — ${rows.length} SAL${rows.length === 1 ? '' : 's'} this month
+        ${escapeHTML(userLabel)} — ${rows.length} active SAL${rows.length === 1 ? '' : 's'}
       </div>
       ${rows.length ? `<div style="display:flex;flex-direction:column;gap:6px;">${rows.map(r => {
         const card = _kanbanCardForSalRow(r);
@@ -7971,15 +7981,17 @@ function renderMetrics() {
   const liveActive = companies.filter(active);
 
   // ──────────────────────────────────────────────────────────────
-  // 📊 SALs this month — fed STRICTLY from the Salesforce sheet
-  // (SAL_OPPS), filtered to the current user, this-month Stage 1
-  // Discover Start Date, and not closed. Inbound/outbound split is
-  // computed by matching each SAL row back to a kanban card and
-  // reading the card's sourceOf; if no kanban match, the row is
-  // counted as outbound by default.
+  // 📊 SALs tile — every row currently sitting at an active SAL
+  // stage (1. Discover or 2. Validate) on the Salesforce sheet for
+  // the current user. Independent of when Stage 1 actually started,
+  // so a deal from March that's now in Validate still counts. The
+  // closed filter is implicit in isSalActive (only those two stages
+  // match). Inbound/outbound split is computed by matching each SAL
+  // row back to a kanban card and reading the card's sourceOf;
+  // unmatched rows count as outbound.
   // ──────────────────────────────────────────────────────────────
   const monthSalRows = (Array.isArray(SAL_OPPS) ? SAL_OPPS : [])
-    .filter(r => r.u === currentUser && !/closed/i.test(r.s) && isSalThisMonth(r));
+    .filter(r => r.u === currentUser && isSalActive(r));
   const sals = monthSalRows.length;
   let salsIn = 0, salsOut = 0;
   for (const r of monthSalRows) {
@@ -8021,14 +8033,15 @@ function renderMetrics() {
   set('metric-sals', sals);     set('metric-sals-in', salsIn);     set('metric-sals-out', salsOut);
   set('metric-meetings', meetings); set('metric-meetings-in', meetingsIn); set('metric-meetings-out', meetingsOut);
   set('metric-opps', opps);     set('metric-opps-in', oppsIn);     set('metric-opps-out', oppsOut);
-  // 📊 SALs this month (top green tile) — comes straight from
-  // Salesforce, not from the kanban tinting. Sub-text shows the total
-  // active SAL count for the user + how fresh the data is.
+  // 📊 SALs tile — comes straight from Salesforce, counts the
+  // currently active SAL-stage rows (1. Discover + 2. Validate).
+  // Sub-text shows the started-this-month count for context + sync
+  // freshness.
   set('metric-sals-month', sals);
   const sub = document.getElementById('metric-sals-month-sub');
   if (sub) {
-    const totalActive = Array.isArray(SAL_OPPS)
-      ? SAL_OPPS.filter(r => r.u === currentUser && !/closed/i.test(r.s)).length
+    const startedThisMonth = Array.isArray(SAL_OPPS)
+      ? SAL_OPPS.filter(r => r.u === currentUser && isSalActive(r) && isSalThisMonth(r)).length
       : 0;
     let freshness = '';
     if (_lastSalSyncAt) {
@@ -8037,7 +8050,7 @@ function renderMetrics() {
                 : mins < 60 ? ` · synced ${mins}m ago`
                 : ` · synced ${Math.round(mins/60)}h ago`;
     }
-    sub.textContent = `live from Salesforce · ${totalActive} total active${freshness}`;
+    sub.textContent = `live from Salesforce · ${startedThisMonth} started this month${freshness}`;
   }
 }
 
