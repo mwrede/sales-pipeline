@@ -6332,7 +6332,15 @@ function selectUser(name) {
   try { localStorage.removeItem(`pipeline_v2_${name}_meetings_month`); } catch(_) {}
   renderMetrics();
   setCloudStatus('idle');
-  refreshFromCloud();
+  // Kick off the DB load — capture the promise so post-login syncs
+  // that fire cloudSave (runInboundSync, calendar auto-connect) can
+  // wait for it. Without this gate, buildCloudBlob() would read a
+  // still-empty weeklyS1Tracker and cloudSave would clobber any
+  // Expected-vs-Actual values the user just saved from the login
+  // screen. Same race for c.source / c.sourceOverride writes.
+  const _cloudLoaded = refreshFromCloud().catch(err => {
+    console.warn('refreshFromCloud failed', err); return null;
+  });
 
   // Check for previously-connected calendar email
   let savedEmail = localStorage.getItem(`pipeline_v2_${name}_cal_email`);
@@ -6359,22 +6367,23 @@ function selectUser(name) {
   document.getElementById('user-select-screen').style.display = 'none';
   document.getElementById('app').style.display = '';
 
-  // Auto-reconnect Google Calendar + auto-classify inbound on login.
-  // Silent token request (prompt: 'none') — if the user is already
-  // signed into the matching Google account in this browser and has
-  // previously granted scope, it just works. Otherwise the existing
-  // "Connect Google Calendar" button still does the manual flow.
-  setTimeout(attemptAutoConnect, 50);
-  // Re-classify inbound vs outbound against the embedded roster on
-  // every login so newly-added sheet contacts pick up without the
-  // user having to hit the 📥 Sync inbound button.
-  setTimeout(runInboundSync, 80);
-  // Live-fetch the public Salesforce SAL sheet so the green/grey
-  // tinting and the "SALs this month" tile reflect the current data
-  // on every login. Async — runs in the background, re-renders kanban
-  // + metrics once it lands. Falls back to cached / embedded snapshot
-  // if the request fails.
-  setTimeout(syncSalSheetLive, 120);
+  // Wait for the cloud blob to land BEFORE any of these post-login
+  // syncs run — each one can fire saveData/cloudSave, which reads
+  // buildCloudBlob() from in-memory state. If they ran ahead of
+  // refreshFromCloud finishing, cloudSave would write back an empty
+  // weeklyS1Tracker (and stale c.source / sourceOverride) and clobber
+  // whatever the user had saved from the login screen.
+  _cloudLoaded.finally(() => {
+    // Auto-reconnect Google Calendar — silent token request; falls
+    // back to the manual Connect button if the browser isn't signed
+    // into the matching Google account.
+    attemptAutoConnect();
+    // Re-classify inbound vs outbound against the embedded roster.
+    runInboundSync();
+    // Live-fetch the public Salesforce SAL sheet so the green/grey
+    // tinting and the "SALs this month" tile reflect current data.
+    syncSalSheetLive();
+  });
   // Hourly auto-refresh of the SAL sheet while the app is open. Also
   // refreshes when the tab comes back into focus if it's been >1hr
   // since the last successful sync (handles laptop-asleep case).
