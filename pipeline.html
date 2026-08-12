@@ -1210,6 +1210,61 @@
     color: #cbd5e1; font-size: 11px; padding: 8px;
     text-align: center; font-style: italic;
   }
+  /* Status groups (Hot / NDA / Reach out / Slow / Cold) inside each column.
+     One generic rule set — every colour comes from the --z* custom props
+     the renderer writes inline from PIPE_GROUPS. */
+  .kc-zone-g { background: linear-gradient(180deg, var(--z-soft), transparent); }
+  .kc-zone.drop-target.kc-zone-g { background: var(--z-soft-strong); border-color: var(--z-border); }
+  .kc-zone-g .kc-zone-label { color: var(--z); }
+  .kc-zone-g .kc-zone-count { background: var(--z-chip); color: var(--z); }
+  .kc-zone-g .kc-zone-dot { background: var(--z); }
+  .kc-zone-head-btn {
+    background: none; border: none; padding: 1px 4px 3px; margin: 0;
+    width: 100%; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 6px; border-bottom: 1px solid rgba(15,23,42,0.06);
+    border-radius: 5px 5px 0 0;
+  }
+  .kc-zone-head-btn:hover { background: rgba(15,23,42,0.035); }
+  .kc-zone-head-right { display: inline-flex; align-items: center; gap: 5px; }
+  .kc-zone-caret { font-size: 9px; color: var(--muted); }
+  /* Group accent on the card itself — thin stripe on the right edge so it
+     never fights the stage colour on the left. */
+  .k-card.has-group::before {
+    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--g); border-radius: 0 8px 8px 0;
+  }
+  .k-card-group-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+    line-height: 1.5; cursor: pointer; font-family: inherit;
+    background: var(--g-chip, #f1f5f9); color: var(--g, #64748b);
+    border: 1px solid var(--g-border, #e2e8f0);
+  }
+  .k-card-group-pill:hover { filter: brightness(0.96); }
+  .k-card-group-pill.empty { background: #fff; color: #94a3b8; border-style: dashed; }
+  .kg-menu {
+    position: absolute; z-index: 300; background: #fff;
+    border: 1px solid var(--border); border-radius: 9px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+    padding: 4px; display: flex; flex-direction: column; gap: 2px; min-width: 150px;
+  }
+  .kg-menu button {
+    display: flex; align-items: center; gap: 7px; text-align: left;
+    background: none; border: none; padding: 7px 9px; border-radius: 6px;
+    font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+    color: var(--text);
+  }
+  .kg-menu button:hover { background: #f1f5f9; }
+  .kg-menu button.on { background: #f8fafc; }
+  .kg-menu button .kg-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .kg-menu .kg-sep { height: 1px; background: var(--border); margin: 3px 2px; }
+  .group-mode-select {
+    border: 1px solid var(--border); background: #fff; color: var(--text);
+    border-radius: 7px; padding: 6px 8px; font-size: 12px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+  }
+  .cm-source-btn.active.group { background: var(--g-chip); color: var(--g); border-color: var(--g-border); }
   .kc-add {
     margin-top: 3px; background: none; border: none; cursor: pointer;
     padding: 4px 8px; font-size: 11px; font-weight: 600; color: var(--muted);
@@ -2442,6 +2497,12 @@
         <span class="cwc-val" id="title-size-val">14</span>
         <button class="tile-size-btn" onclick="changeTitleSize(1)">+</button>
       </div>
+      <select id="group-mode-select" class="group-mode-select" onchange="setGroupMode(this.value)"
+              title="How each column splits its cards into zones">
+        <option value="group">Zones: Hot / NDA / Reach out / Slow / Cold</option>
+        <option value="source">Zones: Inbound / Outbound</option>
+        <option value="none">Zones: off</option>
+      </select>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
       <button id="task-toggle-btn" onclick="toggleCardTasksDisplay()" title="Show or hide the next-due task at the top of every card"></button>
@@ -2590,6 +2651,9 @@
     <div class="card-modal-body">
       <div class="card-modal-section-label">AE on the account</div>
       <select id="cm-ae" class="cm-ae-select" onchange="commitCardAE(this.value)"></select>
+
+      <div class="card-modal-section-label" style="margin-top:16px;">Group</div>
+      <div id="cm-group" class="cm-source-row"></div>
 
       <div class="card-modal-section-label" style="margin-top:16px;">Source</div>
       <div id="cm-source" class="cm-source-row"></div>
@@ -4358,6 +4422,37 @@ let meetingsWeeklyMode = false; // when true, Meetings view shows only this-week
 let kanbanS1TrackerVisible = false; // when true, the S1 tracker panel shows on the Kanban view
 let kanbanWeeklyPipelineMode = false; // when true, kanban shows only S1-stage opps
 let weeklyS1Tracker = {}; // { 'YYYY-MM-DD' (Monday of week): { expected: number, actual: number } }
+
+// ─────────────────────────────────────────────
+//  Status groups — sub-zones inside every kanban column
+// ─────────────────────────────────────────────
+// Each card carries c.group (one of these ids, or '' for ungrouped). The
+// column renders one drop zone per group so a stage can be triaged by how
+// the deal actually feels, independent of which stage it's in.
+const PIPE_GROUPS = [
+  { id: 'hot',   label: 'Hot',       icon: '🔥', color: '#dc2626', chip: '#fef2f2', border: '#fecaca' },
+  { id: 'nda',   label: 'NDA',       icon: '📄', color: '#7c3aed', chip: '#f5f3ff', border: '#ddd6fe' },
+  { id: 'reach', label: 'Reach out', icon: '📣', color: '#0e7490', chip: '#ecfeff', border: '#a5f3fc' },
+  { id: 'slow',  label: 'Slow',      icon: '🐢', color: '#b45309', chip: '#fffbeb', border: '#fde68a' },
+  { id: 'cold',  label: 'Cold',      icon: '🧊', color: '#2563eb', chip: '#eff6ff', border: '#bfdbfe' },
+];
+const UNGROUPED = { id: '', label: 'Ungrouped', icon: '◻️', color: '#64748b', chip: '#f1f5f9', border: '#e2e8f0' };
+function findGroup(id) { return PIPE_GROUPS.find(g => g.id === id) || null; }
+// Returns the group id for a card ('' when it hasn't been sorted yet).
+function groupOf(c) {
+  return (c && c.group && findGroup(c.group)) ? c.group : '';
+}
+function groupDef(c) { return findGroup(groupOf(c)) || UNGROUPED; }
+// hex → rgba, used for the soft zone backgrounds.
+function hexA(hex, a) {
+  const h = String(hex).replace('#','');
+  const n = parseInt(h.length === 3 ? h.split('').map(x=>x+x).join('') : h, 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+// How each column splits its cards: 'group' (Hot / NDA / …), 'source'
+// (the older inbound / outbound split), or 'none' (one flat list).
+let kanbanGroupMode = 'group';
+let zoneCollapsed = {}; // `${stageId}|${groupId}` -> true when collapsed
 
 function defaultStagesClone() {
   return JSON.parse(JSON.stringify(DEFAULT_STAGES));
@@ -6314,6 +6409,10 @@ function selectUser(name) {
   populateMonthPicker();
   renderStats();
   renderTimeline();
+  // Zone prefs must be restored before the first kanban render so columns
+  // come up in the mode this user left them in.
+  restoreGroupMode();
+  restoreZoneCollapsed();
   // Kanban only (timeline view removed)
   setView('kanban');
   restoreColumnWidth();
@@ -6672,15 +6771,24 @@ function renderKanban() {
                     : (c.salToneOverride === 'current') ? 'sal-current'
                     : (c.salToneOverride === 'prior')   ? 'sal-prior'
                     : autoTone;
+      const grp = groupDef(c);
+      const hasGroup = !!groupOf(c);
       const cardCls = ['k-card',
                        c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
                        c.likelySQO && stage.sortByLikelySQO ? 'likely-sqo' : '',
                        isS1Stage ? 'is-s1' : '',
                        `source-${src}`,
+                       hasGroup ? 'has-group' : '',
                        salTone]
         .filter(Boolean).join(' ');
+      const cardStyle = `--g:${grp.color};--g-chip:${grp.chip};--g-border:${grp.border};`;
+      const groupPill = `
+        <span class="k-card-group-pill ${hasGroup ? '' : 'empty'}"
+              onclick="toggleGroupMenu(event,'${safeN}')"
+              title="${hasGroup ? `Group: ${grp.label} — click to change` : 'Set a group (Hot / NDA / Reach out / Slow / Cold)'}"
+        >${hasGroup ? `${grp.icon} ${grp.label}` : '+ Group'}</span>`;
       return `
-        <div class="${cardCls}" draggable="true"
+        <div class="${cardCls}" style="${cardStyle}" draggable="true"
              ondragstart="kCardDragStart(event,'${safeN}')"
              ondragend="kCardDragEnd(event)"
              ondragover="kCardDragOverCard(event,'${safeN}')"
@@ -6697,6 +6805,7 @@ function renderKanban() {
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
+            ${groupPill}
             ${total ? `<span style="margin-left:auto">${done}/${total}</span>` : ''}
           </div>
           ${total ? `<div class="k-card-progress"><div class="k-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
@@ -6736,12 +6845,10 @@ function renderKanban() {
           </div>
         </div>`;
     };
-    // Split this column's cards into inbound / outbound zones so the user
-    // can see (and reorganize) how each stage breaks down by source.
-    const inboundCards  = stageCompanies.filter(c => sourceOf(c) === 'inbound');
-    const outboundCards = stageCompanies.filter(c => sourceOf(c) === 'outbound');
-    const inboundHTML  = inboundCards.map(renderCard).join('');
-    const outboundHTML = outboundCards.map(renderCard).join('');
+    // Split this column's cards into zones. Default is by status group
+    // (Hot / NDA / Reach out / Slow / Cold); the toolbar can switch back to
+    // the inbound / outbound split or turn zones off entirely.
+    const zonesHTML = renderStageZones(stage, safeId, stageCompanies, renderCard);
     return `
       <div class="kanban-col" data-stage-id="${stage.id}" style="${colStyle}"
            ondragover="kColDragOver(event,'${safeId}')"
@@ -6765,26 +6872,7 @@ function renderKanban() {
              ondragover="kColDragOver(event,'${safeId}')"
              ondragleave="kColDragLeave(event)"
              ondrop="kColDrop(event,'${safeId}')">
-          <div class="kc-zone kc-zone-inbound"
-               ondragover="kZoneDragOver(event)"
-               ondragleave="kZoneDragLeave(event)"
-               ondrop="kZoneDrop(event,'${safeId}','inbound')">
-            <div class="kc-zone-head">
-              <span class="kc-zone-label"><span class="kc-zone-dot inbound"></span>📥 Inbound</span>
-              <span class="kc-zone-count">${inboundCards.length}</span>
-            </div>
-            <div class="kc-zone-body">${inboundHTML || '<div class="kc-zone-empty">Drop here for inbound</div>'}</div>
-          </div>
-          <div class="kc-zone kc-zone-outbound"
-               ondragover="kZoneDragOver(event)"
-               ondragleave="kZoneDragLeave(event)"
-               ondrop="kZoneDrop(event,'${safeId}','outbound')">
-            <div class="kc-zone-head">
-              <span class="kc-zone-label"><span class="kc-zone-dot outbound"></span>📤 Outbound</span>
-              <span class="kc-zone-count">${outboundCards.length}</span>
-            </div>
-            <div class="kc-zone-body">${outboundHTML || '<div class="kc-zone-empty">Drop here for outbound</div>'}</div>
-          </div>
+          ${zonesHTML}
         </div>
         <button class="kc-add" onclick="openNewOppModalForStage('${safeId}')">+ Add opportunity</button>
       ${renderColumnHmmmSection(stage)}
@@ -6794,6 +6882,157 @@ function renderKanban() {
   }).join('');
   board.innerHTML = html;
   renderMetrics();
+}
+
+// ── Column zones ──
+// Builds the inner drop zones for one column. Which zones exist depends on
+// kanbanGroupMode: status groups (default), inbound / outbound, or none.
+function renderStageZones(stage, safeId, stageCompanies, renderCard) {
+  if (kanbanGroupMode === 'none') {
+    return `<div class="kc-zone-body">${
+      stageCompanies.map(renderCard).join('') ||
+      '<div class="kc-zone-empty">No opportunities in this stage</div>'
+    }</div>`;
+  }
+  if (kanbanGroupMode === 'source') {
+    const zone = (key, icon, label) => {
+      const cards = stageCompanies.filter(c => sourceOf(c) === key);
+      return `
+        <div class="kc-zone kc-zone-${key}"
+             ondragover="kZoneDragOver(event)"
+             ondragleave="kZoneDragLeave(event)"
+             ondrop="kZoneDrop(event,'${safeId}','${key}')">
+          <div class="kc-zone-head">
+            <span class="kc-zone-label"><span class="kc-zone-dot ${key}"></span>${icon} ${label}</span>
+            <span class="kc-zone-count">${cards.length}</span>
+          </div>
+          <div class="kc-zone-body">${
+            cards.map(renderCard).join('') ||
+            `<div class="kc-zone-empty">Drop here for ${label.toLowerCase()}</div>`
+          }</div>
+        </div>`;
+    };
+    return zone('inbound', '📥', 'Inbound') + zone('outbound', '📤', 'Outbound');
+  }
+  // Status groups. Ungrouped sits first so untriaged cards are the first
+  // thing you see — and the group zones are right below them to drop into.
+  const buckets = new Map([['', []]]);
+  PIPE_GROUPS.forEach(g => buckets.set(g.id, []));
+  stageCompanies.forEach(c => buckets.get(groupOf(c)).push(c));
+  const order = [UNGROUPED, ...PIPE_GROUPS];
+  return order.map(g => {
+    const cards = buckets.get(g.id) || [];
+    // An empty Ungrouped zone is just noise — every other group keeps its
+    // strip so there's always somewhere to drop.
+    if (!g.id && !cards.length) return '';
+    const collapsed = !!zoneCollapsed[`${stage.id}|${g.id}`];
+    const zStyle = `--z:${g.color};--z-chip:${g.chip};--z-border:${g.border};` +
+                   `--z-soft:${hexA(g.color, 0.05)};--z-soft-strong:${hexA(g.color, 0.13)};`;
+    return `
+      <div class="kc-zone kc-zone-g" style="${zStyle}"
+           ondragover="kZoneDragOver(event)"
+           ondragleave="kZoneDragLeave(event)"
+           ondrop="kGroupZoneDrop(event,'${safeId}','${g.id}')">
+        <button class="kc-zone-head-btn" onclick="toggleZone('${safeId}','${g.id}')"
+                title="${collapsed ? 'Expand' : 'Collapse'} ${g.label}">
+          <span class="kc-zone-label"><span class="kc-zone-dot"></span>${g.icon} ${g.label}</span>
+          <span class="kc-zone-head-right">
+            <span class="kc-zone-count">${cards.length}</span>
+            <span class="kc-zone-caret">${collapsed ? '▸' : '▾'}</span>
+          </span>
+        </button>
+        ${collapsed ? '' : `<div class="kc-zone-body">${
+          cards.map(renderCard).join('') ||
+          `<div class="kc-zone-empty">Drop here for ${g.label.toLowerCase()}</div>`
+        }</div>`}
+      </div>`;
+  }).join('');
+}
+
+function toggleZone(stageId, groupId) {
+  const key = `${stageId}|${groupId}`;
+  if (zoneCollapsed[key]) delete zoneCollapsed[key];
+  else zoneCollapsed[key] = true;
+  if (currentUser) {
+    try {
+      localStorage.setItem(`pipeline_v2_${currentUser}_zone_collapsed`, JSON.stringify(zoneCollapsed));
+    } catch(_) {}
+  }
+  renderKanban();
+}
+function restoreZoneCollapsed() {
+  zoneCollapsed = {};
+  if (!currentUser) return;
+  try {
+    const saved = localStorage.getItem(`pipeline_v2_${currentUser}_zone_collapsed`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') zoneCollapsed = parsed;
+    }
+  } catch(_) {}
+}
+
+// ── Group-by mode (toolbar) ──
+function setGroupMode(mode) {
+  kanbanGroupMode = (mode === 'source' || mode === 'none') ? mode : 'group';
+  const sel = document.getElementById('group-mode-select');
+  if (sel && sel.value !== kanbanGroupMode) sel.value = kanbanGroupMode;
+  if (currentUser) {
+    try { localStorage.setItem(`pipeline_v2_${currentUser}_group_mode`, kanbanGroupMode); } catch(_) {}
+  }
+  renderKanban();
+}
+function restoreGroupMode() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_group_mode`) : null;
+  kanbanGroupMode = (saved === 'source' || saved === 'none') ? saved : 'group';
+  const sel = document.getElementById('group-mode-select');
+  if (sel) sel.value = kanbanGroupMode;
+}
+
+// ── Setting a card's group ──
+function setCardGroup(name, groupId) {
+  closeGroupMenu();
+  const unescaped = String(name).replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  if (groupId && findGroup(groupId)) c.group = groupId;
+  else delete c.group;
+  saveData();
+  renderKanban();
+  if (openCardName === c.name) renderModalGroup();
+}
+
+// Small popup on the card's group pill — pick a group without opening the
+// card. Mirrors the column ⋯ menu pattern.
+let openGroupMenuName = null;
+function toggleGroupMenu(e, name) {
+  e.stopPropagation();
+  const wasOpen = openGroupMenuName === name;
+  closeGroupMenu();
+  if (wasOpen) return;
+  openGroupMenuName = name;
+  const unescaped = String(name).replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  const current = c ? groupOf(c) : '';
+  const rect = e.currentTarget.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'kg-menu';
+  menu.id = 'active-group-menu';
+  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  menu.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 170) + 'px';
+  menu.innerHTML = PIPE_GROUPS.map(g => `
+    <button class="${current === g.id ? 'on' : ''}" onclick="event.stopPropagation();setCardGroup('${name}','${g.id}')">
+      <span class="kg-dot" style="background:${g.color}"></span>${g.icon} ${g.label}${current === g.id ? ' ✓' : ''}
+    </button>`).join('') +
+    `<div class="kg-sep"></div>
+     <button onclick="event.stopPropagation();setCardGroup('${name}','')">◻️ Ungrouped</button>`;
+  document.body.appendChild(menu);
+  setTimeout(() => document.addEventListener('click', closeGroupMenu, { once: true }), 0);
+}
+function closeGroupMenu() {
+  const m = document.getElementById('active-group-menu');
+  if (m) m.remove();
+  openGroupMenuName = null;
 }
 
 function renderColumnOldSection(stage) {
@@ -8707,6 +8946,42 @@ function kZoneDrop(e, stageId, source) {
   }
 }
 
+// Dropping a card into one of a column's status-group zones sets c.group
+// (and moves it to that column's stage if it came from another column).
+function kGroupZoneDrop(e, stageId, groupId) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('drop-target');
+  const gid = findGroup(groupId) ? groupId : '';
+  // Unassigned calendar event dropped here → new opp, pinned to this group
+  if (draggingUnassignedIdx != null) {
+    createOppFromUnassigned(draggingUnassignedIdx, stageId);
+    const fresh = companies[companies.length - 1];
+    if (fresh) {
+      if (gid) fresh.group = gid; else delete fresh.group;
+      saveData(); renderKanban();
+    }
+    draggingUnassignedIdx = null;
+    return;
+  }
+  if (!draggingCardName) return;
+  const c = companies.find(x => x.name === draggingCardName);
+  if (!c) return;
+  let changed = false;
+  if (c.stageId !== stageId) { c.stageId = stageId; changed = true; }
+  if (groupOf(c) !== gid) {
+    if (gid) c.group = gid; else delete c.group;
+    changed = true;
+  }
+  if (changed) {
+    saveData(); renderKanban();
+    if (openCardName === c.name) {
+      renderCardModalStageSelect();
+      renderModalGroup();
+    }
+  }
+}
+
 function kColDrop(e, stageId) {
   e.preventDefault();
   const col = e.currentTarget.closest('.kanban-col');
@@ -8778,8 +9053,24 @@ function openCardModal(name) {
   renderChecklist();
   renderModalNotes();
   renderModalMeetings();
+  renderModalGroup();
   renderModalSource();
   document.getElementById('card-modal-overlay').classList.add('show');
+}
+
+function renderModalGroup() {
+  const c = companies.find(x => x.name === openCardName);
+  const el = document.getElementById('cm-group');
+  if (!c || !el) return;
+  const current = groupOf(c);
+  const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  el.innerHTML = PIPE_GROUPS.map(g => `
+    <button type="button" class="cm-source-btn ${current === g.id ? 'active group' : ''}"
+            style="--g:${g.color};--g-chip:${g.chip};--g-border:${g.border};"
+            onclick="setCardGroup('${safeN}','${g.id}')">${g.icon} ${g.label}</button>`).join('') +
+    (current
+      ? `<button type="button" class="cm-source-btn" onclick="setCardGroup('${safeN}','')">↺ Clear</button>`
+      : `<span class="cm-source-hint">Not grouped yet</span>`);
 }
 
 function renderModalSource() {
