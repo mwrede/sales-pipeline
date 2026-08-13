@@ -1212,7 +1212,7 @@
   }
   /* Status groups (Hot / NDA / Reach out / Slow / Cold) inside each column.
      One generic rule set — every colour comes from the --z* custom props
-     the renderer writes inline from PIPE_GROUPS. */
+     the renderer writes inline from each group's colour. */
   .kc-zone-g { background: linear-gradient(180deg, var(--z-soft), transparent); }
   .kc-zone.drop-target.kc-zone-g { background: var(--z-soft-strong); border-color: var(--z-border); }
   .kc-zone-g .kc-zone-label { color: var(--z); }
@@ -1228,6 +1228,116 @@
   .kc-zone-head-btn:hover { background: rgba(15,23,42,0.035); }
   .kc-zone-head-right { display: inline-flex; align-items: center; gap: 5px; }
   .kc-zone-caret { font-size: 9px; color: var(--muted); }
+  /* Editable group header: caret · emoji · name (contenteditable) · count · ⋯ */
+  .kc-zone-head-row {
+    display: flex; align-items: center; gap: 5px;
+    padding: 1px 4px 3px;
+    border-bottom: 1px solid rgba(15,23,42,0.06);
+  }
+  .kc-zone-caret-btn {
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    font-size: 9px; color: var(--muted); padding: 2px 3px; border-radius: 4px;
+  }
+  .kc-zone-caret-btn:hover { background: rgba(15,23,42,0.06); color: var(--text); }
+  .kc-zone-emoji { font-size: 11px; cursor: pointer; line-height: 1; }
+  .kc-zone-emoji:hover { filter: brightness(1.1); transform: scale(1.15); }
+  .kc-zone-label-edit {
+    flex: 1; min-width: 0; outline: none; cursor: text;
+    border-radius: 4px; padding: 1px 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .kc-zone-label-edit:hover  { background: rgba(15,23,42,0.05); }
+  .kc-zone-label-edit:focus {
+    background: #fff; box-shadow: 0 0 0 2px var(--z-border, #cbd5e1);
+    white-space: normal;
+  }
+  .kc-zone-menu-btn {
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    color: var(--muted); font-size: 12px; line-height: 1;
+    padding: 2px 4px; border-radius: 4px;
+  }
+  .kc-zone-menu-btn:hover { background: rgba(15,23,42,0.08); color: var(--text); }
+  .kc-add-group {
+    background: none; border: 1px dashed var(--border); cursor: pointer;
+    padding: 5px 8px; font-size: 10px; font-weight: 700; color: #94a3b8;
+    border-radius: 7px; font-family: inherit; text-align: center;
+    letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .kc-add-group:hover { border-color: #94a3b8; color: var(--text); background: #f8fafc; }
+  /* Colour swatch strip inside the group ⋯ menu */
+  .kg-swatches {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+    padding: 6px 9px 4px;
+  }
+  .kg-swatch {
+    /* Fills its grid cell so the whole square is clickable, not just a dot */
+    width: 100%; height: 18px; border-radius: 5px; cursor: pointer;
+    border: 2px solid transparent; padding: 0;
+  }
+  .kg-swatch:hover { outline: 2px solid rgba(15,23,42,0.25); outline-offset: 1px; }
+  .kg-swatch.on { border-color: #0f172a; }
+  .kg-menu button.danger { color: var(--red); }
+  .kg-menu button.danger:hover { background: #fef2f2; }
+  /* Groups manager modal */
+  #groups-modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 400;
+    background: rgba(15,23,42,0.45); align-items: flex-start; justify-content: center;
+    padding: 60px 20px; overflow-y: auto;
+  }
+  #groups-modal-overlay.show { display: flex; }
+  .groups-modal {
+    background: #fff; border-radius: 14px; width: 100%; max-width: 620px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25); overflow: hidden;
+  }
+  .groups-modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  .groups-modal-head h3 { font-size: 16px; font-weight: 700; }
+  .groups-modal-head p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .groups-modal-body { padding: 14px 20px 20px; }
+  .gm-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px; border: 1px solid var(--border); border-radius: 9px;
+    margin-bottom: 7px; background: var(--g-chip);
+  }
+  .gm-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--g); flex: none; }
+  .gm-icon {
+    width: 42px; text-align: center; font-family: inherit; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 7px; padding: 6px 4px; background: #fff;
+  }
+  .gm-name {
+    flex: 1; min-width: 0; font-family: inherit; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 7px; padding: 6px 9px; background: #fff;
+    color: var(--text);
+  }
+  .gm-icon:focus, .gm-name:focus {
+    outline: none; border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  }
+  .gm-color {
+    width: 34px; height: 30px; padding: 0; border: 1px solid var(--border);
+    border-radius: 7px; background: #fff; cursor: pointer; flex: none;
+  }
+  .gm-count { font-size: 11px; color: var(--muted); white-space: nowrap; min-width: 52px; text-align: right; }
+  .gm-btn {
+    background: #fff; border: 1px solid var(--border); border-radius: 7px;
+    width: 28px; height: 28px; cursor: pointer; font-family: inherit; font-size: 12px;
+    color: var(--muted); flex: none;
+  }
+  .gm-btn:hover:not(:disabled) { background: #f1f5f9; color: var(--text); }
+  .gm-btn:disabled { opacity: 0.35; cursor: default; }
+  .gm-btn.danger:hover { background: #fef2f2; border-color: #fecaca; color: var(--red); }
+  .gm-empty { font-size: 12px; color: var(--muted); padding: 14px; text-align: center; font-style: italic; }
+  .gm-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .gm-actions button {
+    border: 1px solid var(--border); background: #fff; border-radius: 8px;
+    padding: 8px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+    font-family: inherit; color: var(--text);
+  }
+  .gm-actions button:hover { background: #f8fafc; border-color: #c7d2e0; }
+  .gm-actions button.primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+  .gm-actions button.primary:hover { background: #1e293b; }
+  .gm-hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
   /* Group accent on the card itself — thin stripe on the right edge so it
      never fights the stage colour on the left. */
   .k-card.has-group::before {
@@ -2503,6 +2613,7 @@
         <option value="source">Zones: Inbound / Outbound</option>
         <option value="none">Zones: off</option>
       </select>
+      <button onclick="openGroupsManager()" title="Rename, recolour, reorder, add or delete groups">🏷 Groups</button>
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
       <button id="task-toggle-btn" onclick="toggleCardTasksDisplay()" title="Show or hide the next-due task at the top of every card"></button>
@@ -2627,6 +2738,29 @@
       <div style="display:flex;gap:8px;">
         <button onclick="closeSyncSettings()" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;">Done</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Groups Manager Modal -->
+<div id="groups-modal-overlay" onclick="if(event.target===this)closeGroupsManager()">
+  <div class="groups-modal">
+    <div class="groups-modal-head">
+      <div>
+        <h3>Groups</h3>
+        <p>The zones inside every column. Rename, recolour, reorder, add or delete.</p>
+      </div>
+      <button class="card-modal-close" onclick="closeGroupsManager()">×</button>
+    </div>
+    <div class="groups-modal-body">
+      <div id="groups-manager-list"></div>
+      <div class="gm-actions">
+        <button class="primary" onclick="addPipeGroup()">+ Add group</button>
+        <button onclick="resetPipeGroups()">Reset to defaults</button>
+        <button onclick="closeGroupsManager()" style="margin-left:auto;">Done</button>
+      </div>
+      <div class="gm-hint">Deleting a group never deletes cards — they drop back into Ungrouped.
+        You can also rename a group straight from its header on the board, or hit ⋯ on any zone.</div>
     </div>
   </div>
 </div>
@@ -4429,15 +4563,37 @@ let weeklyS1Tracker = {}; // { 'YYYY-MM-DD' (Monday of week): { expected: number
 // Each card carries c.group (one of these ids, or '' for ungrouped). The
 // column renders one drop zone per group so a stage can be triaged by how
 // the deal actually feels, independent of which stage it's in.
-const PIPE_GROUPS = [
-  { id: 'hot',   label: 'Hot',       icon: '🔥', color: '#dc2626', chip: '#fef2f2', border: '#fecaca' },
-  { id: 'nda',   label: 'NDA',       icon: '📄', color: '#7c3aed', chip: '#f5f3ff', border: '#ddd6fe' },
-  { id: 'reach', label: 'Reach out', icon: '📣', color: '#0e7490', chip: '#ecfeff', border: '#a5f3fc' },
-  { id: 'slow',  label: 'Slow',      icon: '🐢', color: '#b45309', chip: '#fffbeb', border: '#fde68a' },
-  { id: 'cold',  label: 'Cold',      icon: '🧊', color: '#2563eb', chip: '#eff6ff', border: '#bfdbfe' },
+// Groups are editable per user — rename / recolor / reorder / add / delete
+// from the ⋯ menu on any zone header or the "Groups" manager in the
+// toolbar. These are only the starting set.
+const DEFAULT_PIPE_GROUPS = [
+  { id: 'hot',   label: 'Hot',       icon: '🔥', color: '#dc2626' },
+  { id: 'nda',   label: 'NDA',       icon: '📄', color: '#7c3aed' },
+  { id: 'reach', label: 'Reach out', icon: '📣', color: '#0e7490' },
+  { id: 'slow',  label: 'Slow',      icon: '🐢', color: '#b45309' },
+  { id: 'cold',  label: 'Cold',      icon: '🧊', color: '#2563eb' },
 ];
-const UNGROUPED = { id: '', label: 'Ungrouped', icon: '◻️', color: '#64748b', chip: '#f1f5f9', border: '#e2e8f0' };
-function findGroup(id) { return PIPE_GROUPS.find(g => g.id === id) || null; }
+let pipeGroups = []; // live, user-edited copy of DEFAULT_PIPE_GROUPS
+function defaultPipeGroupsClone() {
+  return JSON.parse(JSON.stringify(DEFAULT_PIPE_GROUPS));
+}
+// Accepts whatever came back from storage and keeps only well-formed
+// groups, so one bad row can't take the board down.
+function sanitizePipeGroups(arr) {
+  if (!Array.isArray(arr)) return defaultPipeGroupsClone();
+  const seen = new Set();
+  return arr
+    .filter(g => g && typeof g === 'object' && g.id && typeof g.id === 'string')
+    .filter(g => !seen.has(g.id) && seen.add(g.id))
+    .map(g => ({
+      id: g.id,
+      label: String(g.label || 'Group').slice(0, 40),
+      icon: String(g.icon || '•').slice(0, 4),
+      color: /^#[0-9a-f]{3,8}$/i.test(String(g.color || '')) ? g.color : '#64748b',
+    }));
+}
+const UNGROUPED = { id: '', label: 'Ungrouped', icon: '◻️', color: '#64748b' };
+function findGroup(id) { return pipeGroups.find(g => g.id === id) || null; }
 // Returns the group id for a card ('' when it hasn't been sorted yet).
 function groupOf(c) {
   return (c && c.group && findGroup(c.group)) ? c.group : '';
@@ -4445,9 +4601,18 @@ function groupOf(c) {
 function groupDef(c) { return findGroup(groupOf(c)) || UNGROUPED; }
 // hex → rgba, used for the soft zone backgrounds.
 function hexA(hex, a) {
-  const h = String(hex).replace('#','');
+  const h = String(hex || '#64748b').replace('#','');
   const n = parseInt(h.length === 3 ? h.split('').map(x=>x+x).join('') : h, 16);
+  if (!isFinite(n)) return `rgba(100,116,139,${a})`;
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+// Chip / border tints are derived from a group's one colour so a custom
+// colour picked in the manager styles everything consistently.
+function groupChip(g)   { return hexA(g.color, 0.10); }
+function groupBorder(g) { return hexA(g.color, 0.35); }
+// Inline custom props every group-coloured element reads.
+function groupVars(g, prefix) {
+  return `--${prefix}:${g.color};--${prefix}-chip:${groupChip(g)};--${prefix}-border:${groupBorder(g)};`;
 }
 // How each column splits its cards: 'group' (Hot / NDA / …), 'source'
 // (the older inbound / outbound split), or 'none' (one flat list).
@@ -6781,7 +6946,7 @@ function renderKanban() {
                        hasGroup ? 'has-group' : '',
                        salTone]
         .filter(Boolean).join(' ');
-      const cardStyle = `--g:${grp.color};--g-chip:${grp.chip};--g-border:${grp.border};`;
+      const cardStyle = groupVars(grp, 'g');
       const groupPill = `
         <span class="k-card-group-pill ${hasGroup ? '' : 'empty'}"
               onclick="toggleGroupMenu(event,'${safeN}')"
@@ -6917,48 +7082,72 @@ function renderStageZones(stage, safeId, stageCompanies, renderCard) {
   // Status groups. Ungrouped sits first so untriaged cards are the first
   // thing you see — and the group zones are right below them to drop into.
   const buckets = new Map([['', []]]);
-  PIPE_GROUPS.forEach(g => buckets.set(g.id, []));
+  pipeGroups.forEach(g => buckets.set(g.id, []));
   stageCompanies.forEach(c => buckets.get(groupOf(c)).push(c));
-  const order = [UNGROUPED, ...PIPE_GROUPS];
-  return order.map(g => {
+  const order = [UNGROUPED, ...pipeGroups];
+  const zones = order.map(g => {
     const cards = buckets.get(g.id) || [];
     // An empty Ungrouped zone is just noise — every other group keeps its
     // strip so there's always somewhere to drop.
     if (!g.id && !cards.length) return '';
     const collapsed = !!zoneCollapsed[`${stage.id}|${g.id}`];
-    const zStyle = `--z:${g.color};--z-chip:${g.chip};--z-border:${g.border};` +
+    const zStyle = groupVars(g, 'z') +
                    `--z-soft:${hexA(g.color, 0.05)};--z-soft-strong:${hexA(g.color, 0.13)};`;
+    const safeG = g.id.replace(/'/g,"\\'");
+    // The Ungrouped strip is a fixed holding pen — no rename, no delete.
+    const head = g.id
+      ? `<div class="kc-zone-head-row">
+           <button class="kc-zone-caret-btn" onclick="toggleZone('${safeId}','${safeG}')"
+                   title="${collapsed ? 'Expand' : 'Collapse'} ${escapeHTML(g.label)}">${collapsed ? '▸' : '▾'}</button>
+           <span class="kc-zone-dot"></span>
+           <span class="kc-zone-emoji" onclick="event.stopPropagation();editGroupIcon('${safeG}')"
+                 title="Click to change the emoji">${g.icon || '•'}</span>
+           <span class="kc-zone-label kc-zone-label-edit" contenteditable="true" spellcheck="false"
+                 data-group="${escapeHTML(g.id)}"
+                 onclick="event.stopPropagation()"
+                 onblur="commitGroupLabel(this,'${safeG}')"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+                 title="Click to rename this group">${escapeHTML(g.label)}</span>
+           <span class="kc-zone-count">${cards.length}</span>
+           <button class="kc-zone-menu-btn" onclick="event.stopPropagation();toggleZoneMenu(event,'${safeG}')"
+                   title="Group options">⋯</button>
+         </div>`
+      : `<button class="kc-zone-head-btn" onclick="toggleZone('${safeId}','')"
+                 title="${collapsed ? 'Expand' : 'Collapse'} Ungrouped">
+           <span class="kc-zone-label"><span class="kc-zone-dot"></span>${UNGROUPED.icon} ${UNGROUPED.label}</span>
+           <span class="kc-zone-head-right">
+             <span class="kc-zone-count">${cards.length}</span>
+             <span class="kc-zone-caret">${collapsed ? '▸' : '▾'}</span>
+           </span>
+         </button>`;
     return `
       <div class="kc-zone kc-zone-g" style="${zStyle}"
            ondragover="kZoneDragOver(event)"
            ondragleave="kZoneDragLeave(event)"
-           ondrop="kGroupZoneDrop(event,'${safeId}','${g.id}')">
-        <button class="kc-zone-head-btn" onclick="toggleZone('${safeId}','${g.id}')"
-                title="${collapsed ? 'Expand' : 'Collapse'} ${g.label}">
-          <span class="kc-zone-label"><span class="kc-zone-dot"></span>${g.icon} ${g.label}</span>
-          <span class="kc-zone-head-right">
-            <span class="kc-zone-count">${cards.length}</span>
-            <span class="kc-zone-caret">${collapsed ? '▸' : '▾'}</span>
-          </span>
-        </button>
+           ondrop="kGroupZoneDrop(event,'${safeId}','${safeG}')">
+        ${head}
         ${collapsed ? '' : `<div class="kc-zone-body">${
           cards.map(renderCard).join('') ||
-          `<div class="kc-zone-empty">Drop here for ${g.label.toLowerCase()}</div>`
+          `<div class="kc-zone-empty">Drop here for ${escapeHTML(g.label.toLowerCase())}</div>`
         }</div>`}
       </div>`;
   }).join('');
+  return zones + `<button class="kc-add-group" onclick="addPipeGroup()"
+                          title="Add a group — it appears in every column">+ Add group</button>`;
 }
 
 function toggleZone(stageId, groupId) {
   const key = `${stageId}|${groupId}`;
   if (zoneCollapsed[key]) delete zoneCollapsed[key];
   else zoneCollapsed[key] = true;
-  if (currentUser) {
-    try {
-      localStorage.setItem(`pipeline_v2_${currentUser}_zone_collapsed`, JSON.stringify(zoneCollapsed));
-    } catch(_) {}
-  }
+  persistZoneCollapsed();
   renderKanban();
+}
+function persistZoneCollapsed() {
+  if (!currentUser) return;
+  try {
+    localStorage.setItem(`pipeline_v2_${currentUser}_zone_collapsed`, JSON.stringify(zoneCollapsed));
+  } catch(_) {}
 }
 function restoreZoneCollapsed() {
   zoneCollapsed = {};
@@ -6970,6 +7159,203 @@ function restoreZoneCollapsed() {
       if (parsed && typeof parsed === 'object') zoneCollapsed = parsed;
     }
   } catch(_) {}
+}
+
+// ── Group CRUD ──
+// Groups are global to the board (every column shows the same set) and
+// persist per user alongside stages.
+const GROUP_COLOR_CHOICES = [
+  '#dc2626', '#ea580c', '#b45309', '#ca8a04', '#16a34a', '#0d9488',
+  '#0e7490', '#2563eb', '#4f46e5', '#7c3aed', '#c026d3', '#db2777', '#64748b',
+];
+
+// New groups land with a placeholder name and immediately put the cursor
+// in it — no modal dialog, just type over it.
+function addPipeGroup(afterId) {
+  const used = new Set(pipeGroups.map(g => g.color));
+  const color = GROUP_COLOR_CHOICES.find(c => !used.has(c)) || GROUP_COLOR_CHOICES[0];
+  const g = { id: genId('g_'), label: 'New group', icon: '•', color };
+  const idx = afterId ? pipeGroups.findIndex(x => x.id === afterId) : -1;
+  if (idx >= 0) pipeGroups.splice(idx + 1, 0, g);
+  else pipeGroups.push(g);
+  saveData(); renderKanban(); renderGroupsManager();
+  focusGroupName(g.id);
+}
+
+// Puts the caret on a group's name — in the manager if it's open,
+// otherwise on the group's header in the first column of the board.
+function focusGroupName(groupId) {
+  setTimeout(() => {
+    const inManager = document.querySelector(`.gm-row[data-group="${groupId}"] .gm-name`);
+    if (inManager) { inManager.focus(); inManager.select(); return; }
+    const onBoard = document.querySelector(`.kc-zone-label-edit[data-group="${groupId}"]`);
+    if (!onBoard) return;
+    onBoard.scrollIntoView({ block: 'nearest' });
+    onBoard.focus();
+    const r = document.createRange();
+    r.selectNodeContents(onBoard);
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(r);
+  }, 0);
+}
+
+function commitGroupLabel(el, groupId) {
+  const g = findGroup(groupId);
+  if (!g) return;
+  const next = el.textContent.replace(/\s+/g, ' ').trim();
+  if (next && next !== g.label) {
+    g.label = next;
+    saveData();
+    renderKanban();
+    renderGroupsManager();
+    if (openCardName) renderModalGroup();
+    return;
+  }
+  el.textContent = g.label; // empty / unchanged → snap back
+}
+
+function renameGroup(groupId) {
+  closeZoneMenu();
+  if (!findGroup(groupId)) return;
+  focusGroupName(groupId);
+}
+
+// The emoji lives in the manager (a real text field beats a prompt for
+// pasting an emoji), so clicking one on the board opens it focused there.
+function editGroupIcon(groupId) {
+  closeZoneMenu();
+  if (!findGroup(groupId)) return;
+  openGroupsManager();
+  setTimeout(() => {
+    const el = document.querySelector(`.gm-row[data-group="${groupId}"] .gm-icon`);
+    if (el) { el.focus(); el.select(); }
+  }, 0);
+}
+
+function setGroupColor(groupId, color) {
+  const g = findGroup(groupId);
+  if (!g) return;
+  g.color = color;
+  saveData(); renderKanban(); renderGroupsManager();
+  if (openCardName) renderModalGroup();
+}
+
+function moveGroup(groupId, dir) {
+  closeZoneMenu();
+  const i = pipeGroups.findIndex(g => g.id === groupId);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= pipeGroups.length) return;
+  [pipeGroups[i], pipeGroups[j]] = [pipeGroups[j], pipeGroups[i]];
+  saveData(); renderKanban(); renderGroupsManager();
+}
+
+function deletePipeGroup(groupId) {
+  closeZoneMenu();
+  const g = findGroup(groupId);
+  if (!g) return;
+  const held = companies.filter(c => c.group === groupId);
+  const msg = held.length
+    ? `Delete the "${g.label}" group?\n\n${held.length} card${held.length===1?'':'s'} will move back to Ungrouped. The cards themselves are not touched.`
+    : `Delete the "${g.label}" group?`;
+  if (!confirm(msg)) return;
+  held.forEach(c => { delete c.group; });
+  pipeGroups = pipeGroups.filter(x => x.id !== groupId);
+  Object.keys(zoneCollapsed).forEach(k => { if (k.endsWith(`|${groupId}`)) delete zoneCollapsed[k]; });
+  persistZoneCollapsed();
+  saveData(); renderKanban(); renderGroupsManager();
+  if (openCardName) renderModalGroup();
+}
+
+function resetPipeGroups() {
+  if (!confirm('Reset groups back to Hot / NDA / Reach out / Slow / Cold?\n\nCards in groups that no longer exist go back to Ungrouped.')) return;
+  pipeGroups = defaultPipeGroupsClone();
+  const valid = new Set(pipeGroups.map(g => g.id));
+  companies.forEach(c => { if (c.group && !valid.has(c.group)) delete c.group; });
+  saveData(); renderKanban(); renderGroupsManager();
+  if (openCardName) renderModalGroup();
+}
+
+// ── Zone header ⋯ menu ──
+let openZoneMenuGroupId = null;
+function toggleZoneMenu(e, groupId) {
+  const wasOpen = openZoneMenuGroupId === groupId;
+  closeZoneMenu();
+  if (wasOpen) return;
+  openZoneMenuGroupId = groupId;
+  const g = findGroup(groupId);
+  if (!g) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'kg-menu';
+  menu.id = 'active-zone-menu';
+  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  menu.style.left = Math.min(rect.left + window.scrollX - 100, window.innerWidth - 210) + 'px';
+  menu.innerHTML = `
+    <button onclick="event.stopPropagation();renameGroup('${groupId}')">✏️ Rename…</button>
+    <button onclick="event.stopPropagation();closeZoneMenu();editGroupIcon('${groupId}')">😀 Change emoji…</button>
+    <div class="kg-swatches">${GROUP_COLOR_CHOICES.map(c => `
+      <button class="kg-swatch ${c === g.color ? 'on' : ''}" style="background:${c}"
+              title="${c}" onclick="event.stopPropagation();closeZoneMenu();setGroupColor('${groupId}','${c}')"></button>`).join('')}</div>
+    <div class="kg-sep"></div>
+    <button onclick="event.stopPropagation();moveGroup('${groupId}',-1)">↑ Move up</button>
+    <button onclick="event.stopPropagation();moveGroup('${groupId}',1)">↓ Move down</button>
+    <button onclick="event.stopPropagation();closeZoneMenu();addPipeGroup('${groupId}')">+ Add group below</button>
+    <div class="kg-sep"></div>
+    <button class="danger" onclick="event.stopPropagation();deletePipeGroup('${groupId}')">🗑 Delete group</button>`;
+  document.body.appendChild(menu);
+  setTimeout(() => document.addEventListener('click', closeZoneMenu, { once: true }), 0);
+}
+function closeZoneMenu() {
+  const m = document.getElementById('active-zone-menu');
+  if (m) m.remove();
+  openZoneMenuGroupId = null;
+}
+
+// ── Groups manager (toolbar) ──
+function openGroupsManager() {
+  document.getElementById('groups-modal-overlay').classList.add('show');
+  renderGroupsManager();
+}
+function closeGroupsManager() {
+  document.getElementById('groups-modal-overlay').classList.remove('show');
+}
+function renderGroupsManager() {
+  const el = document.getElementById('groups-manager-list');
+  if (!el || !document.getElementById('groups-modal-overlay').classList.contains('show')) return;
+  const counts = {};
+  companies.forEach(c => { const g = groupOf(c); if (g) counts[g] = (counts[g] || 0) + 1; });
+  el.innerHTML = pipeGroups.map((g, i) => `
+    <div class="gm-row" data-group="${escapeHTML(g.id)}" style="${groupVars(g, 'g')}">
+      <span class="gm-dot"></span>
+      <input class="gm-icon" value="${escapeHTML(g.icon || '')}" maxlength="4"
+             title="Emoji" onchange="commitGroupField('${g.id}','icon',this)" />
+      <input class="gm-name" value="${escapeHTML(g.label)}" maxlength="40"
+             title="Group name" onchange="commitGroupField('${g.id}','label',this)"
+             onkeydown="if(event.key==='Enter'){this.blur();}" />
+      <input class="gm-color" type="color" value="${g.color}"
+             title="Colour" onchange="setGroupColor('${g.id}',this.value)" />
+      <span class="gm-count">${counts[g.id] || 0} card${(counts[g.id] || 0) === 1 ? '' : 's'}</span>
+      <button class="gm-btn" onclick="moveGroup('${g.id}',-1)" ${i === 0 ? 'disabled' : ''} title="Move up">↑</button>
+      <button class="gm-btn" onclick="moveGroup('${g.id}',1)" ${i === pipeGroups.length - 1 ? 'disabled' : ''} title="Move down">↓</button>
+      <button class="gm-btn danger" onclick="deletePipeGroup('${g.id}')" title="Delete group">🗑</button>
+    </div>`).join('') ||
+    '<div class="gm-empty">No groups yet — every card sits in Ungrouped.</div>';
+}
+// Edits made inside the manager update the board but deliberately do NOT
+// re-render the manager itself — that would yank focus mid-edit.
+function commitGroupField(groupId, field, el) {
+  const g = findGroup(groupId);
+  if (!g) return;
+  const next = String(el.value).trim();
+  if (field === 'label') {
+    if (!next) { el.value = g.label; return; } // blank name → snap back
+    g.label = next.slice(0, 40);
+  } else if (field === 'icon') {
+    g.icon = next.slice(0, 4) || '•';
+  }
+  el.value = field === 'label' ? g.label : g.icon;
+  saveData(); renderKanban();
+  if (openCardName) renderModalGroup();
 }
 
 // ── Group-by mode (toolbar) ──
@@ -7020,12 +7406,13 @@ function toggleGroupMenu(e, name) {
   menu.id = 'active-group-menu';
   menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
   menu.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 170) + 'px';
-  menu.innerHTML = PIPE_GROUPS.map(g => `
+  menu.innerHTML = (pipeGroups.map(g => `
     <button class="${current === g.id ? 'on' : ''}" onclick="event.stopPropagation();setCardGroup('${name}','${g.id}')">
-      <span class="kg-dot" style="background:${g.color}"></span>${g.icon} ${g.label}${current === g.id ? ' ✓' : ''}
-    </button>`).join('') +
+      <span class="kg-dot" style="background:${g.color}"></span>${g.icon || '•'} ${escapeHTML(g.label)}${current === g.id ? ' ✓' : ''}
+    </button>`).join('') || '<button disabled style="color:#94a3b8;">No groups yet</button>') +
     `<div class="kg-sep"></div>
-     <button onclick="event.stopPropagation();setCardGroup('${name}','')">◻️ Ungrouped</button>`;
+     <button onclick="event.stopPropagation();setCardGroup('${name}','')">◻️ Ungrouped</button>
+     <button onclick="event.stopPropagation();closeGroupMenu();openGroupsManager()">⚙️ Edit groups…</button>`;
   document.body.appendChild(menu);
   setTimeout(() => document.addEventListener('click', closeGroupMenu, { once: true }), 0);
 }
@@ -9064,13 +9451,15 @@ function renderModalGroup() {
   if (!c || !el) return;
   const current = groupOf(c);
   const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  el.innerHTML = PIPE_GROUPS.map(g => `
+  el.innerHTML = pipeGroups.map(g => `
     <button type="button" class="cm-source-btn ${current === g.id ? 'active group' : ''}"
-            style="--g:${g.color};--g-chip:${g.chip};--g-border:${g.border};"
-            onclick="setCardGroup('${safeN}','${g.id}')">${g.icon} ${g.label}</button>`).join('') +
+            style="${groupVars(g, 'g')}"
+            onclick="setCardGroup('${safeN}','${g.id}')">${g.icon || '•'} ${escapeHTML(g.label)}</button>`).join('') +
     (current
       ? `<button type="button" class="cm-source-btn" onclick="setCardGroup('${safeN}','')">↺ Clear</button>`
-      : `<span class="cm-source-hint">Not grouped yet</span>`);
+      : '') +
+    `<button type="button" class="cm-source-btn" onclick="openGroupsManager()">⚙️ Edit groups…</button>` +
+    (current ? '' : `<span class="cm-source-hint">Not grouped yet</span>`);
 }
 
 function renderModalSource() {
@@ -9546,6 +9935,7 @@ function buildCloudBlob() {
     groupNames,
     dismissedEvents: [...dismissedCalEvents],
     stages,
+    pipeGroups,
     weeklyS1Tracker
   };
 }
@@ -9558,6 +9948,9 @@ function applyCloudBlob(b) {
   if (b.groupNames) Object.assign(groupNames, b.groupNames);
   if (Array.isArray(b.dismissedEvents)) dismissedCalEvents = new Set(b.dismissedEvents);
   if (Array.isArray(b.stages) && b.stages.length) stages = b.stages;
+  // Blobs saved before groups existed have no pipeGroups — start those
+  // users on the defaults rather than wiping the zones out.
+  pipeGroups = Array.isArray(b.pipeGroups) ? sanitizePipeGroups(b.pipeGroups) : defaultPipeGroupsClone();
   weeklyS1Tracker = (b.weeklyS1Tracker && typeof b.weeklyS1Tracker === 'object') ? b.weeklyS1Tracker : {};
   const migrated = migrateLegacyStages();
   const stripped = stripResourceEmailsFromCompanies();
@@ -9622,6 +10015,7 @@ function saveDataLocal() {
     localStorage.setItem(`pipeline_v2_${currentUser}_group_names`, JSON.stringify(groupNames));
     localStorage.setItem(`pipeline_v2_${currentUser}_dismissed_events`, JSON.stringify([...dismissedCalEvents]));
     localStorage.setItem(`pipeline_v2_${currentUser}_stages`, JSON.stringify(stages));
+    localStorage.setItem(`pipeline_v2_${currentUser}_pipe_groups`, JSON.stringify(pipeGroups));
     localStorage.setItem(`pipeline_v2_${currentUser}_sync_colors`, JSON.stringify(syncColors));
   } catch(e) {}
 }
@@ -9675,6 +10069,7 @@ function loadData() {
   for (const k in groupNames) delete groupNames[k];
   dismissedCalEvents = new Set();
   stages = defaultStagesClone();
+  pipeGroups = defaultPipeGroupsClone();
   syncColors = USERS[currentUser]?.calColorId ? [USERS[currentUser].calColorId] : ['10'];
   if (!currentUser) return;
   try {
@@ -9688,6 +10083,11 @@ function loadData() {
     if (savedS) {
       const parsed = JSON.parse(savedS);
       if (Array.isArray(parsed) && parsed.length) stages = parsed;
+    }
+    const savedGroups = localStorage.getItem(`pipeline_v2_${currentUser}_pipe_groups`);
+    if (savedGroups) {
+      const parsed = JSON.parse(savedGroups);
+      if (Array.isArray(parsed)) pipeGroups = sanitizePipeGroups(parsed);
     }
     if (savedC) {
       companies = JSON.parse(savedC);
