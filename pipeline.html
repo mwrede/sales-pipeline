@@ -2476,6 +2476,14 @@
         <div class="user-avatar" style="background:#fffbeb;color:#b45309">C</div>
         <div class="user-card-name">Charlie</div>
       </div>
+      <div class="user-card" onclick="selectUser('george')">
+        <div class="user-avatar" style="background:#eef2ff;color:#4338ca">G</div>
+        <div class="user-card-name">George</div>
+      </div>
+      <div class="user-card" onclick="selectUser('michael_cae')">
+        <div class="user-avatar" style="background:#dbeafe;color:#1e40af">MC</div>
+        <div class="user-card-name">Michael CAE</div>
+      </div>
     </div>
     </div>
   </div>
@@ -4126,7 +4134,8 @@ const SOURCER_TO_UID = {
   'Davis Tuzinkiewicz': 'davis',
   'Grace Freund': 'grace',
   'Sabrina Mesawich': 'sabrina',
-  'Charlie Falkenholm': 'charlie'
+  'Charlie Falkenholm': 'charlie',
+  'George Yardley': 'george'
 };
 // Proper CSV parser that walks the entire string as a single stream
 // so newlines INSIDE quoted cells stay part of the cell. The Google
@@ -4459,6 +4468,13 @@ const USERS = {
               emails: ['sabrina@roboflow.com'] },
   charlie:  { label: 'Charlie',  init: 'C', avatarBg: '#fffbeb', avatarColor: '#b45309', calColorId: '10',
               emails: ['charlie.falkenholm@roboflow.com'] },
+  george:   { label: 'George',   init: 'G', avatarBg: '#eef2ff', avatarColor: '#4338ca', calColorId: '10',
+              emails: ['george.yardley@roboflow.com'] },
+  // Michael's Corporate AE book, kept as its own board so the SDR pipeline he
+  // still owns doesn't mix with the deals he now closes himself. Same calendar
+  // allowlist as `michael` — one person, two boards — and its own columns.
+  michael_cae: { label: 'Michael CAE', init: 'MC', avatarBg: '#dbeafe', avatarColor: '#1e40af', calColorId: '6',
+              emails: ['mwrede8@gmail.com', 'michael@roboflow.com'] },
 };
 
 // Returns true if `email` is in the currently logged-in user's allowlist.
@@ -4527,7 +4543,51 @@ const DEFAULT_STAGES = [
     { id: 'i4', text: 'Triangulate upward with champion' },
   ]},
 ];
-let stages = []; // deep-clone of DEFAULT_STAGES per user, can be edited
+/**
+ * Michael's CAE board. Same four columns he already works, plus a Closed column
+ * on the far right — a CAE carries a deal all the way, so the board needs
+ * somewhere for one to land. The first column stays Tangerine: a first meeting
+ * is still an orange on the calendar whichever seat books it.
+ *
+ * Stage ids match DEFAULT_STAGES so the legacy-layout migration and every
+ * `stageId` on a card carried over from another board keep working.
+ */
+const CAE_STAGES = [
+  { id: 's_sdr', label: 'Early Stages', color: '6', checklist: [
+    { id: 'i1', text: 'Send meeting confirmation email (day before)' },
+    { id: 'i2', text: 'Create VSB' },
+    { id: 'i3', text: 'Run discovery call' },
+    { id: 'i4', text: 'Send next steps email same day' },
+    { id: 'i5', text: 'If relevant: initiate NDA' },
+  ]},
+  { id: 's_ae', label: 'Discovery', color: '5', sortByLikelyS1: true, checklist: [
+    { id: 'i1', text: 'Confirm meeting with prospect (day before)' },
+    { id: 'i2', text: 'Run discovery' },
+    { id: 'i3', text: 'Send follow-up & book next meeting' },
+    { id: 'i4', text: 'Collect footage / sample data' },
+    { id: 'i5', text: 'Triangulate upward into account' },
+  ]},
+  { id: 's_s1', label: 'S1', color: '2', sortByLikelySQO: true, checklist: [
+    { id: 'i1', text: 'Execute NDA' },
+    { id: 'i2', text: 'Build demo if it will progress the deal' },
+    { id: 'i3', text: 'Confirm use case and success criteria' },
+  ]},
+  { id: 's_s2', label: 'S2', color: '10', checklist: [
+    { id: 'i1', text: 'Scope pricing' },
+    { id: 'i2', text: 'Confirm buying process and timeline' },
+    { id: 'i3', text: 'Triangulate upward with champion' },
+  ]},
+  { id: 's_closed', label: 'Closed', color: '8', checklist: [
+    { id: 'i1', text: 'Contract signed' },
+    { id: 'i2', text: 'Handoff to onboarding' },
+  ]},
+];
+
+/* Boards whose columns aren't the shared default, by user id. Lives here rather
+   than on the USERS entry because USERS is declared above the stage constants. */
+const USER_STAGES = { michael_cae: CAE_STAGES };
+
+let stages = []; // deep-clone of the user's column set, can be edited
 let currentView = 'kanban'; // 'kanban' | 'timeline'
 let openCardName = null; // name of company currently shown in modal
 let openColMenuStageId = null;
@@ -4620,7 +4680,10 @@ let kanbanGroupMode = 'group';
 let zoneCollapsed = {}; // `${stageId}|${groupId}` -> true when collapsed
 
 function defaultStagesClone() {
-  return JSON.parse(JSON.stringify(DEFAULT_STAGES));
+  // A user can ship its own column set (Michael's CAE board carries a Closed
+  // column the SDR boards don't). Columns stay editable either way — this is
+  // only what a board starts from, and what `reset` puts back.
+  return JSON.parse(JSON.stringify(USER_STAGES[currentUser] || DEFAULT_STAGES));
 }
 function genId(prefix) {
   return prefix + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
