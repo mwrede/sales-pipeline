@@ -1418,6 +1418,141 @@
   }
   .k-card-source-pill.inbound  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
   .k-card-source-pill.outbound { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+  /* ─────────────────────────────────────────────
+     CAE board extras — deal size, AI1 flag, next steps.
+     Only Michael's CAE board renders these (see isCAEBoard()); every other
+     board is untouched, so the markup below simply never gets emitted there.
+     ───────────────────────────────────────────── */
+  /* Deal value pill. Click to type a number — "150k", "$150,000" and
+     "1.2m" all parse. Big deals get the gold treatment so they read as
+     different from a routine one at a glance. */
+  .k-card-value {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; font-weight: 800; padding: 1px 7px; border-radius: 999px;
+    line-height: 1.5; cursor: pointer; font-family: inherit;
+    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    letter-spacing: 0.2px;
+  }
+  .k-card-value:hover { filter: brightness(0.97); }
+  .k-card-value.empty { background: #fff; color: #94a3b8; border-style: dashed; font-weight: 700; }
+  .k-card-value.big { background: #fffbeb; color: #92400e; border-color: #fcd34d; }
+  .k-card-value.whale { background: #fef3c7; color: #7c2d12; border-color: #f59e0b; }
+  /* Gold top edge on a big deal so it stands out inside a dense column. */
+  .k-card.big-deal { box-shadow: inset 0 2px 0 #f59e0b; }
+  .k-card.big-deal .k-card-name { font-weight: 800; }
+
+  /* AI1 hardware badge. The mark is the device itself — nameplate, lens,
+     stand — drawn inline so it stays crisp at 12px and adds no weight. */
+  .k-card-ai1 {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; font-weight: 800; padding: 1px 6px 1px 4px; border-radius: 999px;
+    line-height: 1.5; letter-spacing: 0.3px;
+    background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe;
+    flex: none;
+  }
+  .k-card-ai1 svg { width: 11px; height: 11px; display: block; }
+  .k-card-head .k-card-ai1 { margin-left: auto; }
+
+  /* Next steps — the per-customer to-do block. Only open items show on the
+     card; ticking one hides it. Done items stay recoverable in the modal. */
+  .k-card-next {
+    margin-top: 7px; padding: 6px 7px; border-radius: 7px;
+    background: #f8fafc; border: 1px solid #eef2f7;
+  }
+  .k-card-next-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 8px; font-weight: 800; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px;
+  }
+  .k-card-next-done-link {
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    font-size: 8px; font-weight: 800; color: #94a3b8; padding: 0;
+    text-transform: none; letter-spacing: 0;
+  }
+  .k-card-next-done-link:hover { color: #475569; text-decoration: underline; }
+  .k-card-next-item {
+    display: flex; align-items: flex-start; gap: 5px; padding: 2px 0;
+  }
+  .k-card-next-check {
+    flex: none; width: 13px; height: 13px; margin-top: 1px; border-radius: 4px;
+    border: 1.5px solid #cbd5e1; background: #fff; cursor: pointer;
+    font-size: 9px; line-height: 1; color: transparent; padding: 0;
+    font-family: inherit; display: flex; align-items: center; justify-content: center;
+  }
+  .k-card-next-check:hover { border-color: #16a34a; color: #16a34a; background: #f0fdf4; }
+  .k-card-next-text {
+    flex: 1; min-width: 0; font-size: 10px; line-height: 1.4; color: #334155;
+    outline: none; cursor: text; border-radius: 4px; padding: 0 2px;
+    word-break: break-word;
+  }
+  .k-card-next-text:hover { background: #fff; }
+  .k-card-next-text:focus { background: #fff; outline: 2px solid #3b82f6; }
+  .k-card-next-add {
+    width: 100%; margin-top: 3px; border: none; border-top: 1px dashed #e2e8f0;
+    background: none; font-family: inherit; font-size: 10px; color: #334155;
+    padding: 4px 2px 1px; outline: none;
+  }
+  .k-card-next-add::placeholder { color: #a8b4c4; font-weight: 600; }
+  .k-card-next-add:focus { border-top-color: #93c5fd; }
+  .k-card-next-empty { font-size: 9px; color: #a8b4c4; font-style: italic; padding: 1px 2px; }
+
+  /* Column header total — sum of the deal values visible in that column. */
+  .kc-value-total {
+    font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 999px;
+    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    letter-spacing: 0.2px; white-space: nowrap;
+  }
+
+  /* Modal: deal size / AI1 / next steps. */
+  .cm-value-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cm-value-input {
+    width: 150px; border: 1px solid var(--border); border-radius: 7px;
+    padding: 7px 10px; font-size: 13px; font-weight: 700; font-family: inherit;
+    color: var(--text); background: #fff; outline: none;
+  }
+  .cm-value-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+  .cm-value-band { font-size: 11px; font-weight: 700; color: var(--muted); }
+  .cm-ai1-btn.active {
+    background: #ede9fe; color: #5b21b6; border-color: #ddd6fe;
+  }
+  .cm-ai1-btn svg { width: 13px; height: 13px; }
+  .cm-next-list { display: flex; flex-direction: column; gap: 2px; }
+  .cm-next-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 2px; }
+  .cm-next-item.done .cm-next-text { text-decoration: line-through; color: #94a3b8; }
+  .cm-next-check {
+    flex: none; width: 16px; height: 16px; margin-top: 1px; border-radius: 5px;
+    border: 1.5px solid #cbd5e1; background: #fff; cursor: pointer;
+    font-size: 10px; line-height: 1; color: transparent; padding: 0;
+    font-family: inherit; display: flex; align-items: center; justify-content: center;
+  }
+  .cm-next-check:hover { border-color: #16a34a; color: #16a34a; background: #f0fdf4; }
+  .cm-next-item.done .cm-next-check { background: #16a34a; border-color: #16a34a; color: #fff; }
+  .cm-next-text {
+    flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; color: var(--text);
+    outline: none; cursor: text; border-radius: 5px; padding: 1px 4px;
+    word-break: break-word;
+  }
+  .cm-next-text:hover { background: #f8fafc; }
+  .cm-next-text:focus { background: #fff; outline: 2px solid #3b82f6; }
+  .cm-next-del {
+    flex: none; background: none; border: none; cursor: pointer; font-family: inherit;
+    color: #cbd5e1; font-size: 14px; line-height: 1; padding: 2px 4px; border-radius: 4px;
+  }
+  .cm-next-del:hover { color: #dc2626; background: #fef2f2; }
+  .cm-next-add {
+    width: 100%; margin-top: 6px; border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px 10px; font-size: 13px; font-family: inherit; color: var(--text);
+    background: #fff; outline: none;
+  }
+  .cm-next-add:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+  .cm-next-done-head {
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    font-size: 11px; font-weight: 700; color: var(--muted); padding: 6px 2px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .cm-next-done-head:hover { color: var(--text); }
+  .cm-next-empty { font-size: 12px; color: #94a3b8; font-style: italic; padding: 4px 2px; }
+
   .k-card.is-s1 {
     background: var(--green-bg);
   }
@@ -2619,6 +2754,7 @@
               title="How each column splits its cards into zones">
         <option value="group">Zones: Hot / NDA / Reach out / Slow / Cold</option>
         <option value="source">Zones: Inbound / Outbound</option>
+        <option value="value" id="group-mode-opt-value">Zones: Deal size</option>
         <option value="none">Zones: off</option>
       </select>
       <button onclick="openGroupsManager()" title="Rename, recolour, reorder, add or delete groups">🏷 Groups</button>
@@ -2799,6 +2935,29 @@
 
       <div class="card-modal-section-label" style="margin-top:16px;">Source</div>
       <div id="cm-source" class="cm-source-row"></div>
+
+      <!-- CAE board only: deal size, AI1 flag, and the next-steps list.
+           Hidden outright on every other board (see renderModalCAE). -->
+      <div id="cm-cae-block" style="display:none;">
+        <div class="card-modal-section-label" style="margin-top:16px;">Deal size</div>
+        <div class="cm-value-row">
+          <input type="text" id="cm-value" class="cm-value-input"
+                 placeholder="e.g. 150k"
+                 onblur="commitModalDealValue(this)"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" />
+          <span id="cm-value-band" class="cm-value-band"></span>
+        </div>
+
+        <div class="card-modal-section-label" style="margin-top:16px;">Hardware</div>
+        <div id="cm-ai1" class="cm-source-row"></div>
+
+        <div class="card-modal-section-label" style="margin-top:16px;">Next steps</div>
+        <div id="cm-next" class="cm-next-list"></div>
+        <input type="text" id="cm-next-add" class="cm-next-add"
+               placeholder="Add a next step and hit Enter…"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();addModalTodo(this);}" />
+        <div id="cm-next-done"></div>
+      </div>
 
       <div class="card-modal-section-label" style="margin-top:16px;">Notes</div>
       <textarea id="cm-notes" class="cm-notes" rows="3"
@@ -4586,6 +4745,230 @@ const CAE_STAGES = [
 /* Boards whose columns aren't the shared default, by user id. Lives here rather
    than on the USERS entry because USERS is declared above the stage constants. */
 const USER_STAGES = { michael_cae: CAE_STAGES };
+
+// ═════════════════════════════════════════════
+//  CAE board extras — deal size, AI1 flag, next steps
+//
+//  Three things Michael asked for on his CAE board and only there: a place to
+//  put what a deal is worth (and see the big ones grouped at the top), a mark
+//  on the deals that involve AI1 hardware, and a per-customer next-steps list
+//  he can tick down each day. Everything below is gated on isCAEBoard(), so
+//  the SDR boards render exactly what they rendered before.
+// ═════════════════════════════════════════════
+
+/** True only on Michael's Corporate AE board. The gate for everything here. */
+function isCAEBoard() { return currentUser === 'michael_cae'; }
+
+/* Deal size bands, biggest first — that ordering is what puts the large deals
+   at the top of the column in "Zones: Deal size". `min` is the floor for the
+   band; the last entry is the catch-all for deals with no value on them yet. */
+const VALUE_BANDS = [
+  { id: 'v250',  label: '$250k+',        icon: '🐋', min: 250000, color: '#0b8043' },
+  { id: 'v100',  label: '$100k – $250k', icon: '🔥', min: 100000, color: '#b45309' },
+  { id: 'v50',   label: '$50k – $100k',  icon: '💪', min: 50000,  color: '#1d4ed8' },
+  { id: 'v1',    label: 'Under $50k',    icon: '•',  min: 1,      color: '#64748b' },
+  { id: 'vnone', label: 'No value yet',  icon: '○',  min: 0,      color: '#94a3b8' },
+];
+const BIG_DEAL_MIN = 100000; // at or above this a card gets the gold treatment
+
+/** A card's deal value as a positive number, or 0 when it hasn't been set. */
+function dealValue(c) {
+  const n = Number(c && c.dealValue);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+/** The band a card falls in. Unsized cards land in the trailing catch-all. */
+function bandFor(c) {
+  const v = dealValue(c);
+  return VALUE_BANDS.find(b => b.min > 0 && v >= b.min) || VALUE_BANDS[VALUE_BANDS.length - 1];
+}
+/** 150000 → "$150k", 1500000 → "$1.5M", 900 → "$900". */
+function fmtMoney(n) {
+  const v = Number(n) || 0;
+  if (v >= 1000000) {
+    const m = v / 1000000;
+    return '$' + (m >= 10 ? Math.round(m) : String(Math.round(m * 10) / 10)) + 'M';
+  }
+  if (v >= 1000) return '$' + Math.round(v / 1000) + 'k';
+  return '$' + Math.round(v);
+}
+/**
+ * Parses whatever Michael types into a number. "150k", "$150,000", "1.2m",
+ * "150000" and "150 K" all land on the same value. Empty / unparseable
+ * returns 0, which clears the value off the card.
+ */
+function parseMoney(str) {
+  const raw = String(str == null ? '' : str).trim().toLowerCase().replace(/[$,\s]/g, '');
+  if (!raw) return 0;
+  const m = raw.match(/^(\d+(?:\.\d+)?)(k|m|mm|b)?$/);
+  if (!m) return 0;
+  let n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  if (m[2] === 'k') n *= 1000;
+  else if (m[2] === 'm' || m[2] === 'mm') n *= 1000000;
+  else if (m[2] === 'b') n *= 1000000000;
+  return Math.max(0, Math.round(n));
+}
+/** Sum of the deal values on a list of cards. */
+function sumDealValue(arr) {
+  return (arr || []).reduce((t, c) => t + dealValue(c), 0);
+}
+
+/** Prompt for a deal value on a card. Blank clears it. */
+function editDealValue(safeN) {
+  const name = unescapeCardName(safeN);
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const cur = dealValue(c) ? String(dealValue(c)) : '';
+  const v = prompt(`Deal value for ${c.name}\n\nType a number — "150k", "$150,000" and "1.2m" all work.\nLeave blank to clear it.`, cur);
+  if (v === null) return; // cancelled
+  const n = parseMoney(v);
+  if (n > 0) c.dealValue = n; else delete c.dealValue;
+  saveData();
+  renderKanban();
+  if (openCardName === c.name) renderModalCAE();
+}
+/** Commit the deal value typed into the card modal's field. */
+function commitModalDealValue(el) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const n = parseMoney(el.value);
+  if (n > 0) c.dealValue = n; else delete c.dealValue;
+  saveData();
+  renderKanban();
+  renderModalCAE();
+}
+
+/* The AI1 itself — nameplate, body, lens, stand — drawn inline so it stays
+   crisp at badge size and inherits whatever colour it sits on. */
+const AI1_MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<rect x="6.5" y="1.8" width="11" height="3.6" rx="1.2" fill="currentColor" stroke="none" opacity="0.85"/>' +
+  '<rect x="3.2" y="5.4" width="17.6" height="12.8" rx="3"/>' +
+  '<circle cx="12" cy="11.8" r="4"/>' +
+  '<circle cx="12" cy="11.8" r="1.5" fill="currentColor" stroke="none"/>' +
+  '<path d="M8 18.2 5.4 21.8M16 18.2l2.6 3.6M5.4 21.8h13.2"/>' +
+  '</svg>';
+/** Is this an AI1 hardware deal? */
+function isAI1(c) { return !!(c && c.isAI1); }
+/** Flip the AI1 flag on a card. */
+function toggleAI1(safeN) {
+  const name = unescapeCardName(safeN);
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  if (c.isAI1) delete c.isAI1; else c.isAI1 = true;
+  saveData();
+  renderKanban();
+  if (openCardName === c.name) renderModalCAE();
+}
+
+/* ── Next steps ──
+   A plain list of `{ id, text, done }` on the card. Open items show on the
+   tile; ticking one marks it done, which drops it off the tile but keeps it
+   in the card's "Done" drawer so nothing is actually lost. */
+function cardTodos(c) {
+  if (!Array.isArray(c.todos)) c.todos = [];
+  return c.todos;
+}
+function openTodos(c) { return cardTodos(c).filter(t => !t.done); }
+function doneTodos(c) { return cardTodos(c).filter(t => t.done); }
+
+/** The card name escaping used across this file, reversed. */
+function unescapeCardName(safeN) {
+  return String(safeN).replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+}
+/* Set just before a re-render so the "+ add a next step" box can take focus
+   back — otherwise adding two in a row means clicking into it each time. */
+let _refocusTodoAdd = null;
+
+function addCardTodo(safeN, text) {
+  const name = unescapeCardName(safeN);
+  const c = companies.find(x => x.name === name);
+  const t = String(text || '').trim();
+  if (!c || !t) return;
+  cardTodos(c).push({ id: genId('t'), text: t.slice(0, 300), done: false, added: new Date().toISOString() });
+  saveData();
+  _refocusTodoAdd = name;
+  renderKanban();
+  _refocusTodoAdd = null;
+  if (openCardName === c.name) renderModalCAE();
+}
+function toggleCardTodo(safeN, id) {
+  const name = unescapeCardName(safeN);
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const t = cardTodos(c).find(x => x.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  t.doneAt = t.done ? new Date().toISOString() : undefined;
+  saveData();
+  renderKanban();
+  if (openCardName === c.name) renderModalCAE();
+}
+function deleteCardTodo(safeN, id) {
+  const name = unescapeCardName(safeN);
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  c.todos = cardTodos(c).filter(x => x.id !== id);
+  saveData();
+  renderKanban();
+  if (openCardName === c.name) renderModalCAE();
+}
+function commitCardTodoText(safeN, id, el) {
+  const name = unescapeCardName(safeN);
+  const c = companies.find(x => x.name === name);
+  if (!c) return;
+  const t = cardTodos(c).find(x => x.id === id);
+  if (!t) return;
+  const val = el.textContent.trim().slice(0, 300);
+  if (!val) { deleteCardTodo(safeN, id); return; }
+  if (val === t.text) return;
+  t.text = val;
+  saveData();
+  renderKanban();
+  if (openCardName === c.name) renderModalCAE();
+}
+
+/** Put focus back in a card's add box after a re-render. */
+function refocusTodoAdd(name) {
+  if (!name) return;
+  const boxes = document.querySelectorAll('.k-card-next-add');
+  for (const b of boxes) {
+    if (b.dataset.card === name) { b.focus(); return; }
+  }
+}
+
+/** The next-steps block that sits on a CAE card. */
+function renderCardNextSteps(c, safeN) {
+  const open = openTodos(c);
+  const doneCount = doneTodos(c).length;
+  const items = open.map(t => `
+    <div class="k-card-next-item">
+      <button type="button" class="k-card-next-check"
+              onclick="event.stopPropagation();toggleCardTodo('${safeN}','${t.id}')"
+              title="Done — this hides it from the card">✓</button>
+      <span class="k-card-next-text" contenteditable="true" spellcheck="false"
+            onclick="event.stopPropagation()"
+            onblur="commitCardTodoText('${safeN}','${t.id}',this)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+      >${escapeHTML(t.text)}</span>
+    </div>`).join('');
+  return `
+    <div class="k-card-next" onclick="event.stopPropagation()">
+      <div class="k-card-next-head">
+        <span>Next steps${open.length ? ` · ${open.length}` : ''}</span>
+        ${doneCount ? `<button type="button" class="k-card-next-done-link"
+              onclick="event.stopPropagation();openCardModal('${safeN}')"
+              title="Open the card to see what you've ticked off">${doneCount} done</button>` : ''}
+      </div>
+      ${items || '<div class="k-card-next-empty">Nothing queued up.</div>'}
+      <input type="text" class="k-card-next-add" draggable="false"
+             data-card="${escapeHTML(c.name)}"
+             placeholder="+ add a next step…"
+             onmousedown="event.stopPropagation()"
+             onclick="event.stopPropagation()"
+             onkeydown="event.stopPropagation();if(event.key==='Enter'){event.preventDefault();addCardTodo('${safeN}',this.value);this.value='';}" />
+    </div>`;
+}
+
 
 let stages = []; // deep-clone of the user's column set, can be edited
 let currentView = 'kanban'; // 'kanban' | 'timeline'
@@ -6932,7 +7315,12 @@ function lastMeetingDate(c) {
 }
 function sortStageCompanies(arr, stage) {
   const isS1 = stage && stage.id === s1StageId();
+  const byValue = isCAEBoard(); // big deals first on the CAE board
   return [...arr].sort((a, b) => {
+    if (byValue) {
+      const va = dealValue(a), vb = dealValue(b);
+      if (va !== vb) return vb - va;
+    }
     // Float "likely to progress" cards to the top of their column.
     // S1-stage cards use likelySQO; every other column uses likelyS1.
     const flagA = isS1 ? a.likelySQO : a.likelyS1;
@@ -7001,7 +7389,12 @@ function renderKanban() {
                     : autoTone;
       const grp = groupDef(c);
       const hasGroup = !!groupOf(c);
+      // CAE board only: deal size, the AI1 mark, and the next-steps list.
+      const cae = isCAEBoard();
+      const dv = cae ? dealValue(c) : 0;
+      const isBig = cae && dv >= BIG_DEAL_MIN;
       const cardCls = ['k-card',
+                       isBig ? 'big-deal' : '',
                        c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
                        c.likelySQO && stage.sortByLikelySQO ? 'likely-sqo' : '',
                        isS1Stage ? 'is-s1' : '',
@@ -7027,16 +7420,22 @@ function renderKanban() {
           <div class="k-card-head">
             <div class="k-card-logo">${logo}</div>
             <div class="k-card-name">${escapeHTML(c.name)}</div>
+            ${cae && isAI1(c) ? `<span class="k-card-ai1" title="AI1 hardware deal">${AI1_MARK}AI1</span>` : ''}
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
           ${showAEOnCards && c.ae && aeLabel(c.ae) ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span></div>` : ''}
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
+            ${cae ? `<span class="k-card-value ${dv ? (dv >= 250000 ? 'whale' : isBig ? 'big' : '') : 'empty'}"
+                  onclick="event.stopPropagation();editDealValue('${safeN}')"
+                  title="${dv ? `Deal value: $${dv.toLocaleString()} — click to change` : 'Set the size of this deal'}"
+            >${dv ? fmtMoney(dv) : '+ Value'}</span>` : ''}
             ${groupPill}
             ${total ? `<span style="margin-left:auto">${done}/${total}</span>` : ''}
           </div>
           ${total ? `<div class="k-card-progress"><div class="k-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
+          ${cae ? renderCardNextSteps(c, safeN) : ''}
           <div class="k-card-actions">
             ${isS1Stage
               ? `<button class="k-card-btn ${c.likelySQO ? 'likely-active' : ''}"
@@ -7093,6 +7492,8 @@ function renderKanban() {
                   onblur="commitStageLabel(this,'${safeId}')"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHTML(stage.label)}</span>
             <span class="kc-count">${stageCompanies.length}</span>
+            ${isCAEBoard() && sumDealValue(stageCompanies) ? `<span class="kc-value-total"
+                  title="Total value of the sized deals in this column">${fmtMoney(sumDealValue(stageCompanies))}</span>` : ''}
           </div>
           <button class="kc-menu-btn" onclick="event.stopPropagation();toggleColMenu(event,'${safeId}')">⋯</button>
         </div>
@@ -7110,6 +7511,9 @@ function renderKanban() {
   }).join('');
   board.innerHTML = html;
   renderMetrics();
+  // Adding a next step re-renders the board, which blows away focus. Put it
+  // back so a run of them can be typed without reaching for the mouse.
+  if (_refocusTodoAdd) refocusTodoAdd(_refocusTodoAdd);
 }
 
 // ── Column zones ──
@@ -7121,6 +7525,36 @@ function renderStageZones(stage, safeId, stageCompanies, renderCard) {
       stageCompanies.map(renderCard).join('') ||
       '<div class="kc-zone-empty">No opportunities in this stage</div>'
     }</div>`;
+  }
+  // Deal size. Bands run biggest-first, so the large deals sit at the top of
+  // every column. CAE board only — the mode isn't offered anywhere else.
+  if (kanbanGroupMode === 'value' && isCAEBoard()) {
+    const buckets = new Map(VALUE_BANDS.map(b => [b.id, []]));
+    stageCompanies.forEach(c => buckets.get(bandFor(c).id).push(c));
+    return VALUE_BANDS.map(b => {
+      const cards = buckets.get(b.id) || [];
+      // A band with nothing in it is pure noise — these strips aren't drop
+      // targets (a value has to be typed, not dragged), so an empty one has
+      // no job. Only the bands that actually hold deals get a header.
+      if (!cards.length) return '';
+      const collapsed = !!zoneCollapsed[`${stage.id}|v:${b.id}`];
+      const zStyle = groupVars(b, 'z') +
+                     `--z-soft:${hexA(b.color, 0.05)};--z-soft-strong:${hexA(b.color, 0.13)};`;
+      const total = sumDealValue(cards);
+      return `
+        <div class="kc-zone kc-zone-g" style="${zStyle}">
+          <div class="kc-zone-head-row">
+            <button class="kc-zone-caret-btn" onclick="toggleZone('${safeId}','v:${b.id}')"
+                    title="${collapsed ? 'Expand' : 'Collapse'} ${escapeHTML(b.label)}">${collapsed ? '▸' : '▾'}</button>
+            <span class="kc-zone-dot"></span>
+            <span class="kc-zone-emoji">${b.icon}</span>
+            <span class="kc-zone-label" style="flex:1;min-width:0;">${escapeHTML(b.label)}</span>
+            ${total ? `<span class="kc-value-total">${fmtMoney(total)}</span>` : ''}
+            <span class="kc-zone-count">${cards.length}</span>
+          </div>
+          ${collapsed ? '' : `<div class="kc-zone-body">${cards.map(renderCard).join('')}</div>`}
+        </div>`;
+    }).join('');
   }
   if (kanbanGroupMode === 'source') {
     const zone = (key, icon, label) => {
@@ -7422,8 +7856,14 @@ function commitGroupField(groupId, field, el) {
 }
 
 // ── Group-by mode (toolbar) ──
+// 'value' is the CAE board's deal-size split; every other board only ever
+// sees the three modes it always had.
+function isValidGroupMode(mode) {
+  if (mode === 'source' || mode === 'none' || mode === 'group') return true;
+  return mode === 'value' && isCAEBoard();
+}
 function setGroupMode(mode) {
-  kanbanGroupMode = (mode === 'source' || mode === 'none') ? mode : 'group';
+  kanbanGroupMode = isValidGroupMode(mode) ? mode : 'group';
   const sel = document.getElementById('group-mode-select');
   if (sel && sel.value !== kanbanGroupMode) sel.value = kanbanGroupMode;
   if (currentUser) {
@@ -7433,7 +7873,10 @@ function setGroupMode(mode) {
 }
 function restoreGroupMode() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_group_mode`) : null;
-  kanbanGroupMode = (saved === 'source' || saved === 'none') ? saved : 'group';
+  kanbanGroupMode = isValidGroupMode(saved) ? saved : 'group';
+  // The Deal size option only exists on the CAE board.
+  const opt = document.getElementById('group-mode-opt-value');
+  if (opt) opt.hidden = !isCAEBoard();
   const sel = document.getElementById('group-mode-select');
   if (sel) sel.value = kanbanGroupMode;
 }
@@ -9505,6 +9948,7 @@ function openCardModal(name) {
   renderModalMeetings();
   renderModalGroup();
   renderModalSource();
+  renderModalCAE();
   document.getElementById('card-modal-overlay').classList.add('show');
 }
 
@@ -9523,6 +9967,92 @@ function renderModalGroup() {
       : '') +
     `<button type="button" class="cm-source-btn" onclick="openGroupsManager()">⚙️ Edit groups…</button>` +
     (current ? '' : `<span class="cm-source-hint">Not grouped yet</span>`);
+}
+
+/**
+ * The CAE block in the card modal: what the deal is worth, whether it's an
+ * AI1 deal, and the full next-steps list — including the ones already ticked
+ * off, which the card itself hides. No-op (and hidden) on every other board.
+ */
+let cmDoneOpen = false; // is the "done" drawer expanded?
+function renderModalCAE() {
+  const wrap = document.getElementById('cm-cae-block');
+  if (!wrap) return;
+  const c = companies.find(x => x.name === openCardName);
+  if (!c || !isCAEBoard()) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  // Deal size
+  const dv = dealValue(c);
+  const input = document.getElementById('cm-value');
+  if (input && document.activeElement !== input) input.value = dv ? String(dv) : '';
+  const bandEl = document.getElementById('cm-value-band');
+  if (bandEl) {
+    const b = bandFor(c);
+    bandEl.innerHTML = dv
+      ? `${fmtMoney(dv)} · ${b.icon} ${escapeHTML(b.label)}`
+      : 'Not sized yet — "150k", "$150,000" and "1.2m" all work.';
+  }
+
+  // AI1
+  const ai1El = document.getElementById('cm-ai1');
+  if (ai1El) {
+    ai1El.innerHTML = `
+      <button type="button" class="cm-source-btn cm-ai1-btn ${isAI1(c) ? 'active' : ''}"
+              onclick="toggleAI1('${safeN}')">${AI1_MARK} AI1 deal${isAI1(c) ? ' ✓' : ''}</button>
+      <span class="cm-source-hint">${isAI1(c)
+        ? 'The AI1 badge shows on this card.'
+        : 'Flag this if the deal includes AI1 hardware.'}</span>`;
+  }
+
+  // Next steps — open items first, done ones behind a drawer.
+  const listEl = document.getElementById('cm-next');
+  const open = openTodos(c);
+  if (listEl) {
+    listEl.innerHTML = open.map(t => `
+      <div class="cm-next-item">
+        <button type="button" class="cm-next-check"
+                onclick="toggleCardTodo('${safeN}','${t.id}')"
+                title="Done — this hides it from the card">✓</button>
+        <span class="cm-next-text" contenteditable="true" spellcheck="false"
+              onblur="commitCardTodoText('${safeN}','${t.id}',this)"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+        >${escapeHTML(t.text)}</span>
+        <button type="button" class="cm-next-del" title="Delete this step"
+                onclick="deleteCardTodo('${safeN}','${t.id}')">×</button>
+      </div>`).join('') ||
+      '<div class="cm-next-empty">Nothing queued up for this account.</div>';
+  }
+  const done = doneTodos(c);
+  const doneEl = document.getElementById('cm-next-done');
+  if (doneEl) {
+    doneEl.innerHTML = !done.length ? '' : `
+      <button type="button" class="cm-next-done-head" onclick="toggleCMDone()">
+        <span>${cmDoneOpen ? '▾' : '▸'}</span>
+        <span>Done · ${done.length}</span>
+      </button>
+      ${cmDoneOpen ? `<div class="cm-next-list">${done.map(t => `
+        <div class="cm-next-item done">
+          <button type="button" class="cm-next-check"
+                  onclick="toggleCardTodo('${safeN}','${t.id}')"
+                  title="Put this back on the card">✓</button>
+          <span class="cm-next-text">${escapeHTML(t.text)}</span>
+          <button type="button" class="cm-next-del" title="Delete this step"
+                  onclick="deleteCardTodo('${safeN}','${t.id}')">×</button>
+        </div>`).join('')}</div>` : ''}`;
+  }
+}
+function toggleCMDone() { cmDoneOpen = !cmDoneOpen; renderModalCAE(); }
+/** Add from the modal's box, then keep the cursor there for the next one. */
+function addModalTodo(el) {
+  const c = companies.find(x => x.name === openCardName);
+  if (!c) return;
+  const safeN = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const v = el.value;
+  el.value = '';
+  addCardTodo(safeN, v);
+  el.focus();
 }
 
 function renderModalSource() {
