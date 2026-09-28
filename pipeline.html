@@ -1047,6 +1047,7 @@
   #kanban.tile-small .k-card-logo { width: 16px; height: 16px; font-size: 8px; }
   #kanban.tile-small .k-card-tasks { padding: 4px 5px; }
   #kanban.tile-small .k-card-task-item-text { font-size: 9px; }
+  #kanban.tile-small .k-card-next { --next-text-size: 11px; padding: 5px 6px; }
   #kanban.tile-small .k-card-tasks-head { font-size: 8px; padding: 2px 3px; }
   #kanban.tile-small .k-card-actions { padding-top: 3px; margin-top: 4px; gap: 3px; row-gap: 3px; }
   /* Small tiles: icon-only action buttons. Text label is replaced by the
@@ -1079,6 +1080,7 @@
   #kanban.tile-large .k-card-value.empty { font-size: 12px; }
   #kanban.tile-large .k-card-tasks { padding: 10px 12px; }
   #kanban.tile-large .k-card-task-item-text { font-size: 13px; }
+  #kanban.tile-large .k-card-next { --next-text-size: 15px; padding: 8px 10px; }
   #kanban.tile-large .k-card-tasks-head { font-size: 12px; padding: 6px 4px; }
   #kanban.tile-large .k-card-actions { padding-top: 10px; gap: 8px; }
   #kanban.tile-large .k-card-btn { padding: 6px 12px; font-size: 13px; }
@@ -1475,12 +1477,12 @@
   }
   .k-card-next-head {
     display: flex; align-items: center; justify-content: space-between;
-    font-size: 8px; font-weight: 800; color: #94a3b8;
-    text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px;
+    font-size: 10px; font-weight: 800; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 5px;
   }
   .k-card-next-done-link {
     background: none; border: none; cursor: pointer; font-family: inherit;
-    font-size: 8px; font-weight: 800; color: #94a3b8; padding: 0;
+    font-size: 10px; font-weight: 800; color: #94a3b8; padding: 0;
     text-transform: none; letter-spacing: 0;
   }
   .k-card-next-done-link:hover { color: #475569; text-decoration: underline; }
@@ -1488,27 +1490,30 @@
     display: flex; align-items: flex-start; gap: 5px; padding: 2px 0;
   }
   .k-card-next-check {
-    flex: none; width: 13px; height: 13px; margin-top: 1px; border-radius: 4px;
+    flex: none; width: 16px; height: 16px; margin-top: 1px; border-radius: 5px;
     border: 1.5px solid #cbd5e1; background: #fff; cursor: pointer;
-    font-size: 9px; line-height: 1; color: transparent; padding: 0;
+    font-size: 11px; line-height: 1; color: transparent; padding: 0;
     font-family: inherit; display: flex; align-items: center; justify-content: center;
   }
   .k-card-next-check:hover { border-color: #16a34a; color: #16a34a; background: #f0fdf4; }
   .k-card-next-text {
-    flex: 1; min-width: 0; font-size: 10px; line-height: 1.4; color: #334155;
-    outline: none; cursor: text; border-radius: 4px; padding: 0 2px;
+    flex: 1; min-width: 0; font-size: var(--next-text-size, 13px); line-height: 1.45;
+    color: #334155; outline: none; cursor: text; border-radius: 4px; padding: 1px 3px;
     word-break: break-word;
   }
   .k-card-next-text:hover { background: #fff; }
   .k-card-next-text:focus { background: #fff; outline: 2px solid #3b82f6; }
   .k-card-next-add {
-    width: 100%; margin-top: 3px; border: none; border-top: 1px dashed #e2e8f0;
-    background: none; font-family: inherit; font-size: 10px; color: #334155;
-    padding: 4px 2px 1px; outline: none;
+    width: 100%; margin-top: 4px; border: none; border-top: 1px dashed #e2e8f0;
+    background: none; font-family: inherit; font-size: var(--next-text-size, 13px);
+    color: #334155; padding: 6px 3px 2px; outline: none;
   }
   .k-card-next-add::placeholder { color: #a8b4c4; font-weight: 600; }
   .k-card-next-add:focus { border-top-color: #93c5fd; }
-  .k-card-next-empty { font-size: 9px; color: #a8b4c4; font-style: italic; padding: 1px 2px; }
+  .k-card-next-empty {
+    font-size: calc(var(--next-text-size, 13px) - 1px);
+    color: #a8b4c4; font-style: italic; padding: 2px 3px;
+  }
 
   /* Column header total — sum of the deal values visible in that column. */
   .kc-value-total {
@@ -7065,6 +7070,7 @@ function selectUser(name) {
   // Kanban only (timeline view removed)
   setView('kanban');
   restoreColumnWidth();
+  applyCAESizeDefaultsOnce();
   restoreTileSize();
   restorePerRow();
   restoreColHeight();
@@ -8924,6 +8930,26 @@ function restoreColumnWidth() {
   setColumnWidth(saved || 520);
 }
 
+/**
+ * The CAE board's bigger tiles, applied once.
+ *
+ * Changing the fallback default alone wouldn't reach a browser that already
+ * has 'small' saved from before the board carried this much per card. So the
+ * first time this board loads after the change, write the new sizes through
+ * and drop a marker — after that the ± controls are his again and whatever he
+ * picks sticks.
+ */
+function applyCAESizeDefaultsOnce() {
+  if (!isCAEBoard()) return;
+  try {
+    const key = `pipeline_v2_${currentUser}_cae_size_defaults`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    localStorage.setItem(`pipeline_v2_${currentUser}_tile_size`, 'large');
+    localStorage.setItem(`pipeline_v2_${currentUser}_per_row`, '1');
+  } catch (_) { /* private mode — the fallback defaults still apply */ }
+}
+
 // Tile size — 3 presets toggled by ± buttons in the kanban toolbar
 const TILE_SIZES = ['small', 'medium', 'large'];
 const TILE_LABELS = { small: 'S', medium: 'M', large: 'L' };
@@ -8942,7 +8968,9 @@ function applyTileSize() {
 function restoreTileSize() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_tile_size`) : null;
   const idx = TILE_SIZES.indexOf(saved);
-  tileSizeIdx = idx >= 0 ? idx : 0;
+  // The CAE board carries more per card — a big value, the AI1 mark, a list of
+  // next steps — so it starts on the large preset. The ± control still wins.
+  tileSizeIdx = idx >= 0 ? idx : (isCAEBoard() ? TILE_SIZES.indexOf('large') : 0);
   applyTileSize();
 }
 
@@ -8964,7 +8992,8 @@ function applyPerRow() {
 function restorePerRow() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_per_row`) : null;
   const n = parseInt(saved, 10);
-  cardsPerRow = (n >= 1 && n <= 4) ? n : 2;
+  // One card per row on the CAE board, so a tile gets the column's full width.
+  cardsPerRow = (n >= 1 && n <= 4) ? n : (isCAEBoard() ? 1 : 2);
   applyPerRow();
 }
 
