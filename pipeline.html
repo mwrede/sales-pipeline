@@ -1060,6 +1060,8 @@
   #kanban.tile-small .k-card-btn .k-btn-ico { font-size: 11px; }
   #kanban.tile-small .k-card-ae-pill { font-size: 8px; padding: 1px 5px; }
   #kanban.tile-small .k-card-head { gap: 5px; }
+  #kanban.tile-small .k-card-value { font-size: 14px; }
+  #kanban.tile-small .k-card-value.empty { font-size: 9px; }
   /* Hide chrome that pushes cards taller on the default small tile so
      a column reliably shows at least 4 rows. The data is still available
      in the card modal when you click in. */
@@ -1073,6 +1075,8 @@
   #kanban.tile-large .k-card-age { font-size: 12px; }
   #kanban.tile-large .k-card-meta { font-size: 13px; }
   #kanban.tile-large .k-card-logo { width: 28px; height: 28px; font-size: 12px; }
+  #kanban.tile-large .k-card-value { font-size: 23px; }
+  #kanban.tile-large .k-card-value.empty { font-size: 12px; }
   #kanban.tile-large .k-card-tasks { padding: 10px 12px; }
   #kanban.tile-large .k-card-task-item-text { font-size: 13px; }
   #kanban.tile-large .k-card-tasks-head { font-size: 12px; padding: 6px 4px; }
@@ -1423,20 +1427,30 @@
      Only Michael's CAE board renders these (see isCAEBoard()); every other
      board is untouched, so the markup below simply never gets emitted there.
      ───────────────────────────────────────────── */
-  /* Deal value pill. Click to type a number — "150k", "$150,000" and
-     "1.2m" all parse. Big deals get the gold treatment so they read as
-     different from a routine one at a glance. */
+  /* Deal value. Sits right of the title and is set big on purpose — what a
+     deal is worth should be the second thing read after whose deal it is.
+     Click to type a number; "150k", "$150,000" and "1.2m" all parse. Big
+     deals go amber so they read as different from a routine one at a glance.
+     An unsized card gets a small dashed prompt instead — nothing to shout. */
   .k-card-value {
-    display: inline-flex; align-items: center; gap: 3px;
-    font-size: 9px; font-weight: 800; padding: 1px 7px; border-radius: 999px;
-    line-height: 1.5; cursor: pointer; font-family: inherit;
-    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
-    letter-spacing: 0.2px;
+    flex: none; cursor: pointer; font-family: inherit;
+    background: none; border: none; padding: 0 0 0 4px;
+    font-size: 18px; font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.1; color: #0f172a; white-space: nowrap;
   }
-  .k-card-value:hover { filter: brightness(0.97); }
-  .k-card-value.empty { background: #fff; color: #94a3b8; border-style: dashed; font-weight: 700; }
-  .k-card-value.big { background: #fffbeb; color: #92400e; border-color: #fcd34d; }
-  .k-card-value.whale { background: #fef3c7; color: #7c2d12; border-color: #f59e0b; }
+  .k-card-value:hover { color: #3b82f6; }
+  .k-card-value.big   { color: #b45309; }
+  .k-card-value.whale { color: #92400e; }
+  .k-card-value.empty {
+    font-size: 10px; font-weight: 700; letter-spacing: 0; line-height: 1.5;
+    color: #b8c2d0; border: 1px dashed #dbe2ea; border-radius: 999px;
+    padding: 1px 7px;
+  }
+  .k-card-value.empty:hover { color: #64748b; border-color: #94a3b8; }
+  /* Both the badge and the value want the right-hand side. Give the space to
+     whichever comes first and let the other sit flush against it. */
+  .k-card-head .k-card-value { margin-left: auto; }
+  .k-card-head .k-card-ai1 + .k-card-value { margin-left: 0; }
   /* Gold top edge on a big deal so it stands out inside a dense column. */
   .k-card.big-deal { box-shadow: inset 0 2px 0 #f59e0b; }
   .k-card.big-deal .k-card-name { font-weight: 800; }
@@ -1572,6 +1586,25 @@
   }
   .k-card.sal-prior .k-card-name { color: #64748b; }
 
+  /* An AI1 deal reads purple across the whole card — a badge alone was too
+     easy to lose in a dense column. Declared after the SAL tints so it still
+     wins on an S1 card that carries one, and it takes the left edge off the
+     stage colour: the column header already says which stage you're in. */
+  .k-card.ai1-deal {
+    background: linear-gradient(180deg, rgba(124,58,237,0.14) 0%, #fbf9ff 65%);
+    border-color: #ddd6fe;
+    border-left-color: #7c3aed;
+  }
+  .k-card.ai1-deal:hover { border-color: #c4b5fd; border-left-color: #7c3aed; }
+  .k-card.ai1-deal .k-card-name { color: #5b21b6; }
+  .k-card.ai1-deal .k-card-value { color: #6d28d9; }
+  .k-card.ai1-deal .k-card-value.big,
+  .k-card.ai1-deal .k-card-value.whale { color: #5b21b6; }
+  .k-card.ai1-deal .k-card-next {
+    background: rgba(124,58,237,0.05); border-color: #e9e3ff;
+  }
+  .k-card.ai1-deal .k-card-pill { background: rgba(124,58,237,0.10); color: #5b21b6; }
+
   /* Compact next-due-task strip on every card */
   .k-card-task {
     display: flex; align-items: center; gap: 7px;
@@ -1687,6 +1720,9 @@
   }
   #ae-toggle-btn[data-on="1"] {
     background: #eff6ff; color: #1e40af; border-color: #bfdbfe;
+  }
+  #next-toggle-btn[data-on="1"] {
+    background: var(--green-bg); color: var(--green); border-color: var(--green-border);
   }
   .ae-filter {
     background: #fff; border: 1px solid var(--border); border-radius: 8px;
@@ -2761,6 +2797,7 @@
       <select id="ae-filter" class="ae-filter" onchange="setAEFilter(this.value)" title="Show only opportunities owned by this AE"></select>
       <button id="ae-toggle-btn" onclick="toggleAEOnCards()" title="Show or hide the AE pill on every card"></button>
       <button id="task-toggle-btn" onclick="toggleCardTasksDisplay()" title="Show or hide the next-due task at the top of every card"></button>
+      <button id="next-toggle-btn" onclick="toggleNextStepsOnCards()" title="Show or hide the Next steps block on every card" style="display:none;"></button>
       <button id="kanban-weekly-pipeline-btn" onclick="toggleKanbanWeeklyPipeline()" title="Show only opps with a meeting this week (all columns)">📊 Weekly Pipeline</button>
       <button id="kanban-weekly-btn" onclick="toggleKanbanS1Tracker()" title="Show or hide the weekly S1 tracker (expected vs actual)">📊 S1 Tracker</button>
       <button onclick="openSnapshotPanel()" title="Save the current state, or load a past snapshot">📸 Snapshots</button>
@@ -4993,6 +5030,7 @@ let syncColors = []; // colorIds to include when syncing — per user
 let selectedMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
 let showCardTasks = false; // global toggle: show next-due task at the top of every card
 let showAEOnCards = true; // global toggle: show "AE: ___" pill on each tile
+let showNextSteps = true; // CAE board: show the Next steps block on each tile
 let selectedAEFilter = ''; // '' = all AEs, 'unassigned', or an AE id from AES
 let selectedMeetingsMonth = 'all'; // 'all' or 'YYYY-MM' — filters the Meetings view
 let meetingsWeeklyMode = false; // when true, Meetings view shows only this-week meetings + S1 tracker
@@ -7032,6 +7070,7 @@ function selectUser(name) {
   restoreColHeight();
   restoreTitleSize();
   restoreCardTasksPref();
+  restoreNextStepsPref();
   restoreAEOnCardsPref();
   restoreAEFilter();
   restoreKanbanS1TrackerPref();
@@ -7395,6 +7434,7 @@ function renderKanban() {
       const isBig = cae && dv >= BIG_DEAL_MIN;
       const cardCls = ['k-card',
                        isBig ? 'big-deal' : '',
+                       cae && isAI1(c) ? 'ai1-deal' : '',
                        c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
                        c.likelySQO && stage.sortByLikelySQO ? 'likely-sqo' : '',
                        isS1Stage ? 'is-s1' : '',
@@ -7421,21 +7461,24 @@ function renderKanban() {
             <div class="k-card-logo">${logo}</div>
             <div class="k-card-name">${escapeHTML(c.name)}</div>
             ${cae && isAI1(c) ? `<span class="k-card-ai1" title="AI1 hardware deal">${AI1_MARK}AI1</span>` : ''}
+            ${cae ? `<span class="k-card-value ${dv ? (dv >= 250000 ? 'whale' : isBig ? 'big' : '') : 'empty'}"
+                  onclick="event.stopPropagation();editDealValue('${safeN}')"
+                  title="${dv ? `Deal value: $${dv.toLocaleString()} — click to change` : 'Set the size of this deal'}"
+            >${dv ? fmtMoney(dv) : '+ Value'}</span>` : ''}
           </div>
           ${email ? `<div class="k-card-email" title="${escapeHTML(email)}">${escapeHTML(email)}</div>` : ''}
           ${showAEOnCards && c.ae && aeLabel(c.ae) ? `<div style="margin-top:3px;"><span class="k-card-ae-pill">AE: ${escapeHTML(aeLabel(c.ae))}</span></div>` : ''}
           ${age !== null ? `<div class="k-card-age">${age === 0 ? 'First meeting today' : `${age} day${age===1?'':'s'} since first meeting`}</div>` : ''}
           <div class="k-card-meta">
             <span class="k-card-pill">${c.meetings ? c.meetings.length : 0} mtg${(c.meetings && c.meetings.length===1)?'':'s'}</span>
-            ${cae ? `<span class="k-card-value ${dv ? (dv >= 250000 ? 'whale' : isBig ? 'big' : '') : 'empty'}"
-                  onclick="event.stopPropagation();editDealValue('${safeN}')"
-                  title="${dv ? `Deal value: $${dv.toLocaleString()} — click to change` : 'Set the size of this deal'}"
-            >${dv ? fmtMoney(dv) : '+ Value'}</span>` : ''}
             ${groupPill}
+            ${cae && !showNextSteps && openTodos(c).length
+              ? `<span class="k-card-pill" title="Open next steps — turn the Next steps toggle back on to work them">📋 ${openTodos(c).length}</span>`
+              : ''}
             ${total ? `<span style="margin-left:auto">${done}/${total}</span>` : ''}
           </div>
           ${total ? `<div class="k-card-progress"><div class="k-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
-          ${cae ? renderCardNextSteps(c, safeN) : ''}
+          ${cae && showNextSteps ? renderCardNextSteps(c, safeN) : ''}
           <div class="k-card-actions">
             ${isS1Stage
               ? `<button class="k-card-btn ${c.likelySQO ? 'likely-active' : ''}"
@@ -9445,6 +9488,27 @@ function restoreCardTasksPref() {
   const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_show_card_tasks`) : null;
   showCardTasks = (saved === null) ? false : (saved === '1');
   updateTaskToggleBtn();
+}
+
+// Next steps on cards. Same shape as the Tasks toggle above, but the button
+// only exists on the CAE board — nowhere else renders the block.
+function toggleNextStepsOnCards() {
+  showNextSteps = !showNextSteps;
+  if (currentUser) localStorage.setItem(`pipeline_v2_${currentUser}_show_next_steps`, showNextSteps ? '1' : '0');
+  updateNextToggleBtn();
+  renderKanban();
+}
+function restoreNextStepsPref() {
+  const saved = currentUser ? localStorage.getItem(`pipeline_v2_${currentUser}_show_next_steps`) : null;
+  showNextSteps = (saved === null) ? true : (saved === '1');
+  updateNextToggleBtn();
+}
+function updateNextToggleBtn() {
+  const btn = document.getElementById('next-toggle-btn');
+  if (!btn) return;
+  btn.style.display = isCAEBoard() ? '' : 'none';
+  btn.dataset.on = showNextSteps ? '1' : '0';
+  btn.textContent = showNextSteps ? '✓ Next steps' : 'Next steps';
 }
 function updateTaskToggleBtn() {
   const btn = document.getElementById('task-toggle-btn');
