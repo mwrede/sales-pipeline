@@ -7070,7 +7070,7 @@ function selectUser(name) {
   // Kanban only (timeline view removed)
   setView('kanban');
   restoreColumnWidth();
-  applyCAESizeDefaultsOnce();
+  applyCAESizeDefaultsOnce(); // must run before the restores below read storage
   restoreTileSize();
   restorePerRow();
   restoreColHeight();
@@ -7501,7 +7501,7 @@ function renderKanban() {
                     title="Mark this opportunity dead"><span class="k-btn-ico">×</span><span class="k-btn-txt">Dead</span></button>
             <button class="k-card-btn hmmm-btn"
                     onclick="event.stopPropagation();markHmmm('${safeN}')"
-                    title="Park as uncertain — moves to Hmmm pile"><span class="k-btn-ico">🤔</span><span class="k-btn-txt">Hmmm</span></button>
+                    title="${cae ? 'Disqualify — moves to the DQ pile' : 'Park as uncertain — moves to Hmmm pile'}"><span class="k-btn-ico">${parkIcon()}</span><span class="k-btn-txt">${parkLabel()}</span></button>
             ${isS1Stage ? `<button class="k-card-btn old-btn"
                     onclick="event.stopPropagation();markOld('${safeN}')"
                     title="Mark as old — hides like Dead"><span class="k-btn-ico">⏳</span><span class="k-btn-txt">Old</span></button>` : ''}
@@ -8020,7 +8020,7 @@ function renderColumnHmmmSection(stage) {
     <div class="kc-dead">
       <button class="kc-dead-toggle" onclick="toggleColumnHmmm('${safeId}')">
         <span class="kc-dead-toggle-left">
-          <span>🤔 Hmmm</span>
+          <span>${parkIcon()} ${parkLabel()}</span>
           <span class="kc-dead-count">${items.length}</span>
         </span>
         <span>${open ? '▾' : '▸'}</span>
@@ -8942,11 +8942,12 @@ function restoreColumnWidth() {
 function applyCAESizeDefaultsOnce() {
   if (!isCAEBoard()) return;
   try {
-    const key = `pipeline_v2_${currentUser}_cae_size_defaults`;
+    const key = `pipeline_v2_${currentUser}_cae_size_defaults_v2`;
     if (localStorage.getItem(key)) return;
     localStorage.setItem(key, '1');
     localStorage.setItem(`pipeline_v2_${currentUser}_tile_size`, 'large');
     localStorage.setItem(`pipeline_v2_${currentUser}_per_row`, '1');
+    localStorage.setItem(`pipeline_v2_${currentUser}_title_size`, '18');
   } catch (_) { /* private mode — the fallback defaults still apply */ }
 }
 
@@ -9029,7 +9030,8 @@ function applyTitleSize() {
 function restoreTitleSize() {
   const saved = currentUser ? parseInt(localStorage.getItem(`pipeline_v2_${currentUser}_title_size`), 10) : NaN;
   const idx = TITLE_SIZES.indexOf(saved);
-  titleSizeIdx = idx >= 0 ? idx : TITLE_SIZES.indexOf(14);
+  // The CAE board's tiles are large enough to carry a bigger name.
+  titleSizeIdx = idx >= 0 ? idx : TITLE_SIZES.indexOf(isCAEBoard() ? 18 : 14);
   applyTitleSize();
 }
 
@@ -9266,6 +9268,13 @@ function renderMetrics() {
     sub.textContent = `live from Salesforce · ${startedThisMonth} started this month${freshness}`;
   }
 }
+
+/* What the "park this one" action is called. Michael's CAE board disqualifies
+   a deal outright, so it reads DQ there; the SDR boards keep the softer Hmmm,
+   which is what parking an uncertain opp means to them. Only the wording
+   changes — both still set the same `c.hmmm` flag and share one pile. */
+function parkLabel() { return isCAEBoard() ? 'DQ' : 'Hmmm'; }
+function parkIcon()  { return isCAEBoard() ? '⊘' : '🤔'; }
 
 // ── Per-column Dead + Hmmm + Old piles ──
 const deadOpenByStage = {}; // stageId -> bool
