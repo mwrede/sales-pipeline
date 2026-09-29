@@ -1610,6 +1610,136 @@
   }
   .k-card.ai1-deal .k-card-pill { background: rgba(124,58,237,0.10); color: #5b21b6; }
 
+  /* ─────────────────────────────────────────────
+     A closed deal — the one card on the board allowed to celebrate.
+     Champagne gold, a scatter of confetti behind the text, a bottle on the
+     head. Declared after every other card tint (the SAL greens, the AI1
+     purple) so it wins outright: once it is signed, that is the only thing
+     about the card worth saying at a glance. CAE board only — the Closed
+     column exists nowhere else (see CAE_STAGES).
+     ───────────────────────────────────────────── */
+  .k-card.closed-deal {
+    background: linear-gradient(180deg, rgba(234,179,8,0.26) 0%, #fffdf3 64%);
+    border-color: #fcd34d;
+    border-left-color: #eab308;
+    box-shadow: inset 0 2px 0 #eab308, 0 2px 8px rgba(161,98,7,0.12);
+  }
+  .k-card.closed-deal:hover {
+    border-color: #fbbf24; border-left-color: #ca8a04;
+    box-shadow: inset 0 2px 0 #eab308, 0 4px 12px rgba(161,98,7,0.18);
+  }
+  /* The confetti that stays on the card. Flecks are painted into a ::before
+     so the card's own gradient stays a single, editable declaration. */
+  .k-card.closed-deal::before {
+    content: ''; position: absolute; inset: 0; border-radius: 0 8px 8px 0;
+    pointer-events: none; opacity: 0.55;
+    background:
+      radial-gradient(circle at 14% 18%, #ec4899 0 2.6px, transparent 2.8px),
+      radial-gradient(circle at 33% 8%,  #38bdf8 0 2px,   transparent 2.2px),
+      radial-gradient(circle at 52% 22%, #a78bfa 0 2.4px, transparent 2.6px),
+      radial-gradient(circle at 71% 11%, #34d399 0 2px,   transparent 2.2px),
+      radial-gradient(circle at 88% 26%, #fb7185 0 2.6px, transparent 2.8px),
+      radial-gradient(circle at 24% 46%, #f59e0b 0 2px,   transparent 2.2px),
+      radial-gradient(circle at 63% 58%, #38bdf8 0 1.8px, transparent 2px),
+      radial-gradient(circle at 92% 62%, #a78bfa 0 2px,   transparent 2.2px),
+      radial-gradient(circle at 8%  74%, #34d399 0 1.8px, transparent 2px),
+      radial-gradient(circle at 44% 86%, #ec4899 0 2.2px, transparent 2.4px),
+      radial-gradient(circle at 78% 90%, #f59e0b 0 2px,   transparent 2.2px);
+  }
+  /* Everything the card draws has to sit above those flecks. */
+  .k-card.closed-deal > * { position: relative; z-index: 1; }
+  .k-card.closed-deal .k-card-name  { color: #713f12; font-weight: 800; }
+  .k-card.closed-deal .k-card-value,
+  .k-card.closed-deal .k-card-value.big,
+  .k-card.closed-deal .k-card-value.whale { color: #a16207; }
+  .k-card.closed-deal .k-card-next { background: rgba(234,179,8,0.07); border-color: #fef0c3; }
+  .k-card.closed-deal .k-card-pill { background: rgba(234,179,8,0.14); color: #854d0e; }
+  .k-card.closed-deal .k-card-task { background: rgba(255,255,255,0.65); border-color: #fde68a; }
+
+  /* The bottle badge. Same shape as the AI1 mark so the head stays even. */
+  .k-card-champ {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; font-weight: 800; padding: 1px 6px 1px 4px; border-radius: 999px;
+    line-height: 1.5; letter-spacing: 0.3px;
+    background: #fef3c7; color: #854d0e; border: 1px solid #fde68a;
+    flex: none;
+  }
+  .k-card-champ svg { width: 11px; height: 11px; display: block; }
+  /* Whichever badge comes first takes the free space; the rest sit flush. */
+  .k-card-head .k-card-champ { margin-left: auto; }
+  .k-card-head .k-card-champ + .k-card-ai1,
+  .k-card-head .k-card-champ + .k-card-value { margin-left: 0; }
+
+  /* A short gold pulse on the card that just landed, so the eye goes to it
+     once the confetti clears. */
+  @keyframes closed-pop {
+    0%   { transform: scale(1);    box-shadow: inset 0 2px 0 #eab308, 0 0 0 0 rgba(234,179,8,0.55); }
+    35%  { transform: scale(1.04); box-shadow: inset 0 2px 0 #eab308, 0 0 0 10px rgba(234,179,8,0); }
+    100% { transform: scale(1);    box-shadow: inset 0 2px 0 #eab308, 0 0 0 0 rgba(234,179,8,0); }
+  }
+  .k-card.just-closed { animation: closed-pop 0.9s ease-out 2; }
+
+  /* ── The confetti burst ──
+     One fixed layer over the whole page, built and torn down by
+     celebrateClose(). Each piece is three nested spans: the outer drifts
+     sideways at a constant rate, the middle arcs up and falls under
+     something like gravity, the inner tumbles. Splitting it that way is what
+     makes the paths read as thrown rather than as a straight line. */
+  #confetti-layer {
+    position: fixed; inset: 0; z-index: 9999;
+    pointer-events: none; overflow: hidden;
+  }
+  .confetti-piece {
+    position: absolute; top: 0; left: 0; will-change: transform, opacity;
+    animation: confetti-drift var(--dur) linear var(--delay) both;
+  }
+  .confetti-arc {
+    display: block; will-change: transform;
+    animation: confetti-arc var(--dur) cubic-bezier(0.2,0.55,0.45,1) var(--delay) both;
+  }
+  .confetti-bit {
+    display: block; will-change: transform;
+    animation: confetti-tumble var(--spin) linear var(--delay) infinite;
+  }
+  @keyframes confetti-drift {
+    0%   { transform: translate3d(0,0,0); opacity: 0; }
+    5%   { opacity: 1; }
+    72%  { opacity: 1; }
+    100% { transform: translate3d(var(--dx), 0, 0); opacity: 0; }
+  }
+  @keyframes confetti-arc {
+    0%   { transform: translateY(0); }
+    30%  { transform: translateY(var(--up)); }
+    100% { transform: translateY(var(--down)); }
+  }
+  @keyframes confetti-tumble {
+    from { transform: rotate3d(var(--rx), var(--ry), 0.35, 0deg); }
+    to   { transform: rotate3d(var(--rx), var(--ry), 0.35, 720deg); }
+  }
+  /* The "Closed" call-out that pops where the card landed. */
+  .confetti-toast {
+    position: absolute; transform: translate(-50%, -50%);
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 16px; border-radius: 999px; white-space: nowrap;
+    background: linear-gradient(135deg, #f59e0b 0%, #eab308 55%, #fbbf24 100%);
+    color: #422006; font-size: 14px; font-weight: 800; letter-spacing: -0.01em;
+    border: 1px solid #fde68a;
+    box-shadow: 0 8px 24px rgba(161,98,7,0.35), 0 0 0 4px rgba(234,179,8,0.18);
+    animation: confetti-toast 2.6s cubic-bezier(0.2,0.8,0.3,1) both;
+  }
+  @keyframes confetti-toast {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+    14%  { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+    24%  { transform: translate(-50%, -50%) scale(1); }
+    72%  { opacity: 1; transform: translate(-50%, -62%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -84%) scale(0.96); }
+  }
+  /* Nobody who has asked the OS for less motion wants a screen of confetti. */
+  @media (prefers-reduced-motion: reduce) {
+    .k-card.just-closed { animation: none; }
+    #confetti-layer { display: none; }
+  }
+
   /* Compact next-due-task strip on every card */
   .k-card-task {
     display: flex; align-items: center; gap: 7px;
@@ -4902,6 +5032,205 @@ function toggleAI1(safeN) {
   if (openCardName === c.name) renderModalCAE();
 }
 
+/* ═════════════════════════════════════════════
+   Closing a deal
+   ─────────────────────────────────────────────
+   The Closed column only exists on the CAE board (CAE_STAGES), because it is
+   the only board where one person carries a deal the whole way. Landing a
+   card in it is the best thing that happens on this page, so it gets the one
+   piece of decoration anywhere in the app: a gold card and, at the moment of
+   the move, confetti and a couple of bottles.
+   ═════════════════════════════════════════════ */
+
+const CLOSED_STAGE_ID = 's_closed';
+
+/** Is this card sitting in Closed? False everywhere but the CAE board. */
+function isClosedDeal(c) {
+  return isCAEBoard() && !!c && c.stageId === CLOSED_STAGE_ID;
+}
+
+/* A champagne bottle — foil cap, neck, body, label line, and the cork's
+   bubbles coming off the top right. Drawn inline like AI1_MARK so it stays
+   crisp at badge size and takes whatever colour it sits on. */
+const CHAMPAGNE_MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<rect x="10.1" y="1.9" width="3.8" height="2.4" rx="0.6" fill="currentColor" stroke="none"/>' +
+  '<path d="M10.5 4.3v3.2c0 .9-.35 1.5-.95 2.2-.8.9-1.25 1.9-1.25 3.1v7a2 2 0 0 0 2 2h3.4a2 2 0 0 0 2-2v-7c0-1.2-.45-2.2-1.25-3.1-.6-.7-.95-1.3-.95-2.2V4.3z"/>' +
+  '<path d="M8.3 14.4h7.4"/>' +
+  '<circle cx="18.7" cy="5.1" r="1.05" fill="currentColor" stroke="none" opacity="0.75"/>' +
+  '<circle cx="21" cy="8.4" r="0.75" fill="currentColor" stroke="none" opacity="0.5"/>' +
+  '<circle cx="18.2" cy="9.9" r="0.55" fill="currentColor" stroke="none" opacity="0.35"/>' +
+  '</svg>';
+
+/**
+ * Record a card's move between columns. Called by every path that reassigns
+ * a stageId, with the stage the card was in beforehand, so the celebration
+ * fires exactly on the transition into Closed and never on a re-render or a
+ * page load. Runs before saveData() so `closedAt` goes up with the same
+ * write; the confetti itself waits a tick for renderKanban() to paint.
+ */
+function noteStageMove(c, prevStageId) {
+  if (!c || !isCAEBoard()) return;
+  if (c.stageId !== CLOSED_STAGE_ID || prevStageId === CLOSED_STAGE_ID) return;
+  if (!c.closedAt) c.closedAt = new Date().toISOString().slice(0, 10);
+  const name = c.name;
+  setTimeout(() => celebrateClose(name), 40);
+}
+
+const CONFETTI_COLORS = ['#eab308','#f59e0b','#fbbf24','#fde68a','#ec4899',
+                         '#38bdf8','#34d399','#a78bfa','#fb7185','#ffffff'];
+const CONFETTI_BOTTLES = ['🍾','🥂','🍾','🎉','🥂'];
+
+/** The one fixed layer everything is thrown into. */
+function confettiLayer() {
+  let el = document.getElementById('confetti-layer');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'confetti-layer';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+/**
+ * One piece of confetti. `drift` is how far it travels sideways, `up` how
+ * high it rises first, `down` where it ends up — all in px, all set as
+ * custom properties so the three keyframe tracks stay pure CSS.
+ */
+function confettiPiece(x, y, opts) {
+  const o = opts || {};
+  // Rounded once here so the inline style stays readable in devtools — these
+  // come off Math.random() and would otherwise run to 16 decimal places.
+  const dur = (o.dur || 2.2).toFixed(2) + 's';
+  const delay = (o.delay || 0).toFixed(2) + 's';
+
+  const outer = document.createElement('span');
+  outer.className = 'confetti-piece';
+  outer.style.left = Math.round(x) + 'px';
+  outer.style.top = Math.round(y) + 'px';
+  outer.style.setProperty('--dx', Math.round(o.drift || 0) + 'px');
+  outer.style.setProperty('--dur', dur);
+  outer.style.setProperty('--delay', delay);
+
+  const arc = document.createElement('span');
+  arc.className = 'confetti-arc';
+  arc.style.setProperty('--up', Math.round(o.up || 0) + 'px');
+  arc.style.setProperty('--down', Math.round(o.down || 400) + 'px');
+  arc.style.setProperty('--dur', dur);
+  arc.style.setProperty('--delay', delay);
+
+  const bit = document.createElement('span');
+  bit.className = 'confetti-bit';
+  bit.style.setProperty('--spin', (0.5 + Math.random() * 0.8).toFixed(2) + 's');
+  bit.style.setProperty('--delay', delay);
+  bit.style.setProperty('--rx', (Math.random() * 1.6 - 0.8).toFixed(2));
+  bit.style.setProperty('--ry', (Math.random() * 1.6 - 0.8).toFixed(2));
+
+  if (o.emoji) {
+    bit.textContent = o.emoji;
+    bit.style.fontSize = Math.round(o.size || 30) + 'px';
+    bit.style.lineHeight = '1';
+  } else {
+    const w = 5 + Math.random() * 5;
+    const tall = Math.random() < 0.3;
+    bit.style.width = w.toFixed(1) + 'px';
+    bit.style.height = (tall ? w * 2.4 : w * 0.65).toFixed(1) + 'px';
+    bit.style.background = CONFETTI_COLORS[(Math.random() * CONFETTI_COLORS.length) | 0];
+    bit.style.borderRadius = Math.random() < 0.25 ? '50%' : '1px';
+  }
+
+  arc.appendChild(bit);
+  outer.appendChild(arc);
+  return outer;
+}
+
+/**
+ * Fire the celebration for a card that has just landed in Closed: a burst
+ * out of the card itself, a light rain across the rest of the screen, a few
+ * bottles arcing up, and a gold call-out over where it landed. The layer
+ * tears itself down once the slowest piece is gone.
+ */
+function celebrateClose(name) {
+  if (typeof document === 'undefined') return;
+  const reduce = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Burst from the card if it is on screen; otherwise from the top middle.
+  const card = document.querySelector('#kanban .k-card[data-card="' + (window.CSS && CSS.escape ? CSS.escape(name) : name.replace(/"/g, '\\"')) + '"]');
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let ox = vw / 2, oy = vh * 0.32;
+  if (card) {
+    // Closed is the far-right column, so the card that just landed there is
+    // very often scrolled out of frame — always when the move came from the
+    // modal's stage picker rather than a drag. Bring it into view first: the
+    // whole point of the thing is watching it land.
+    try { card.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (_) {}
+    const r = card.getBoundingClientRect();
+    // Clamp regardless, so a card that still can't be fully scrolled into
+    // frame throws its confetti somewhere the screen actually shows.
+    ox = Math.min(Math.max(r.left + r.width / 2, 60), vw - 60);
+    oy = Math.min(Math.max(r.top + r.height / 2, 90), vh - 90);
+    card.classList.add('just-closed');
+    setTimeout(() => card.classList.remove('just-closed'), 1900);
+  }
+  if (reduce) return;
+
+  const layer = confettiLayer();
+  const frag = document.createDocumentFragment();
+
+  // The burst — thrown out of the card, mostly upward.
+  for (let i = 0; i < 90; i++) {
+    const dur = 1.7 + Math.random() * 1.3;
+    const up = -(110 + Math.random() * 280);
+    frag.appendChild(confettiPiece(ox, oy, {
+      drift: (Math.random() - 0.5) * 2 * (90 + Math.random() * 300),
+      up: up,
+      down: Math.abs(up) + vh * 0.55 + Math.random() * vh * 0.5,
+      dur: dur,
+      delay: Math.random() * 0.18,
+    }));
+  }
+
+  // A thinner rain over the rest of the page, so the whole board gets some.
+  for (let i = 0; i < 40; i++) {
+    frag.appendChild(confettiPiece(Math.random() * vw, -24, {
+      drift: (Math.random() - 0.5) * 140,
+      up: 0,
+      down: vh + 80,
+      dur: 2.6 + Math.random() * 1.8,
+      delay: Math.random() * 1.4,
+    }));
+  }
+
+  // Bottles: fewer, bigger, slower, thrown wider than the confetti.
+  for (let i = 0; i < CONFETTI_BOTTLES.length; i++) {
+    const up = -(220 + Math.random() * 170);
+    frag.appendChild(confettiPiece(ox, oy, {
+      emoji: CONFETTI_BOTTLES[i],
+      size: 26 + Math.random() * 14,
+      drift: (i - (CONFETTI_BOTTLES.length - 1) / 2) * (110 + Math.random() * 90),
+      up: up,
+      down: Math.abs(up) + vh * 0.6 + Math.random() * 220,
+      dur: 2.4 + Math.random() * 0.9,
+      delay: Math.random() * 0.22,
+    }));
+  }
+
+  // The call-out, pinned just above where the card landed.
+  const toast = document.createElement('div');
+  toast.className = 'confetti-toast';
+  toast.style.left = Math.min(Math.max(ox, 130), vw - 130) + 'px';
+  toast.style.top = Math.max(oy - 54, 70) + 'px';
+  toast.innerHTML = '🍾 Closed — ' + escapeHTML(name);
+  frag.appendChild(toast);
+
+  layer.appendChild(frag);
+  clearTimeout(celebrateClose._t);
+  celebrateClose._t = setTimeout(() => {
+    const el = document.getElementById('confetti-layer');
+    if (el) el.remove();
+  }, 6000);
+}
+
 /* ── Next steps ──
    A plain list of `{ id, text, done }` on the card. Open items show on the
    tile; ticking one marks it done, which drops it off the tile but keeps it
@@ -7441,6 +7770,7 @@ function renderKanban() {
       const cardCls = ['k-card',
                        isBig ? 'big-deal' : '',
                        cae && isAI1(c) ? 'ai1-deal' : '',
+                       isClosedDeal(c) ? 'closed-deal' : '',
                        c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
                        c.likelySQO && stage.sortByLikelySQO ? 'likely-sqo' : '',
                        isS1Stage ? 'is-s1' : '',
@@ -7456,6 +7786,7 @@ function renderKanban() {
         >${hasGroup ? `${grp.icon} ${grp.label}` : '+ Group'}</span>`;
       return `
         <div class="${cardCls}" style="${cardStyle}" draggable="true"
+             data-card="${escapeHTML(c.name)}"
              ondragstart="kCardDragStart(event,'${safeN}')"
              ondragend="kCardDragEnd(event)"
              ondragover="kCardDragOverCard(event,'${safeN}')"
@@ -7466,6 +7797,7 @@ function renderKanban() {
           <div class="k-card-head">
             <div class="k-card-logo">${logo}</div>
             <div class="k-card-name">${escapeHTML(c.name)}</div>
+            ${isClosedDeal(c) ? `<span class="k-card-champ" title="Closed${c.closedAt ? ` on ${c.closedAt}` : ''} 🍾">${CHAMPAGNE_MARK}CLOSED</span>` : ''}
             ${cae && isAI1(c) ? `<span class="k-card-ai1" title="AI1 hardware deal">${AI1_MARK}AI1</span>` : ''}
             ${cae ? `<span class="k-card-value ${dv ? (dv >= 250000 ? 'whale' : isBig ? 'big' : '') : 'empty'}"
                   onclick="event.stopPropagation();editDealValue('${safeN}')"
@@ -9925,7 +10257,9 @@ function kZoneDrop(e, stageId, source) {
   if (!c) return;
   let changed = false;
   if (c.stageId !== stageId) {
+    const prevStage = c.stageId;
     c.stageId = stageId;
+    noteStageMove(c, prevStage);
     changed = true;
   }
   if (sourceOf(c) !== source) {
@@ -9963,7 +10297,12 @@ function kGroupZoneDrop(e, stageId, groupId) {
   const c = companies.find(x => x.name === draggingCardName);
   if (!c) return;
   let changed = false;
-  if (c.stageId !== stageId) { c.stageId = stageId; changed = true; }
+  if (c.stageId !== stageId) {
+    const prevStage = c.stageId;
+    c.stageId = stageId;
+    noteStageMove(c, prevStage);
+    changed = true;
+  }
   if (groupOf(c) !== gid) {
     if (gid) c.group = gid; else delete c.group;
     changed = true;
@@ -10002,7 +10341,9 @@ function kColDrop(e, stageId) {
   const c = companies.find(x => x.name === draggingCardName);
   if (!c) return;
   if (c.stageId !== stageId) {
+    const prevStage = c.stageId;
     c.stageId = stageId;
+    noteStageMove(c, prevStage);
     saveData(); renderKanban();
     if (openCardName === c.name) renderCardModalStageSelect();
   }
@@ -10420,7 +10761,9 @@ function addChecklistItemAt(stageId) {
 function moveCardStage(newStageId) {
   const c = companies.find(x => x.name === openCardName);
   if (!c) return;
+  const prevStage = c.stageId;
   c.stageId = newStageId;
+  noteStageMove(c, prevStage);
   saveData(); renderChecklist(); renderKanban();
 }
 function commitCardTitle(el) {
