@@ -245,12 +245,18 @@
   .status-section-header.hot:hover  { background: #ffedd5; }
   .status-section-header.meh  { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; }
   .status-section-header.meh:hover  { background: #e8edf4; }
+  .status-section-header.nda  { background: #f6efe6; border: 1px solid #e2cfb6; color: #7c4a21; }
+  .status-section-header.nda:hover  { background: #efe4d6; }
+  .status-section-header.reach { background: #fff3e2; border: 1px solid #fcd9a8; color: #b45309; }
+  .status-section-header.reach:hover { background: #ffe9cd; }
   .status-section-header.dead { background: #f8fafc; border: 1px solid #e2e8f0; color: #94a3b8; }
   .status-section-header.dead:hover { background: #f1f5f9; }
   .ss-left  { display: flex; align-items: center; gap: 7px; }
   .ss-count { font-size: 10px; font-weight: 700; border-radius: 99px; padding: 1px 6px; }
   .status-section-header.hot  .ss-count { background: #fed7aa; }
   .status-section-header.meh  .ss-count { background: #dde3ec; }
+  .status-section-header.nda  .ss-count { background: #e7d6bd; }
+  .status-section-header.reach .ss-count { background: #fcdcae; }
   .status-section-header.dead .ss-count { background: #e2e8f0; }
   .ss-arrow { font-size: 10px; }
   .status-section-header.drop-target {
@@ -294,6 +300,8 @@
   .status-cycle-dot:hover { transform: scale(1.5); }
   .status-cycle-dot.hot  { background: #fb923c; box-shadow: 0 0 0 3px rgba(251,146,60,0.2); }
   .status-cycle-dot.meh  { background: #94a3b8; box-shadow: 0 0 0 3px rgba(148,163,184,0.15); }
+  .status-cycle-dot.nda  { background: #8b5e3c; box-shadow: 0 0 0 3px rgba(139,94,60,0.22); }
+  .status-cycle-dot.reach{ background: #fdba74; box-shadow: 0 0 0 3px rgba(253,186,116,0.35); }
   .status-cycle-dot.dead { background: #e2e8f0; box-shadow: 0 0 0 3px rgba(226,232,240,0.5); }
 
   /* ── Track ── */
@@ -1610,6 +1618,38 @@
   }
   .k-card.ai1-deal .k-card-pill { background: rgba(124,58,237,0.10); color: #5b21b6; }
 
+  /* Two states that colour the whole card instead of hiding it. Brown is
+     "stuck in NDA" — real deal, parked in legal. Light orange is "dead, but
+     still reach out" — dead on this cycle, still worth a touch, which is why
+     it stays in the column instead of dropping into the Dead pile. Declared
+     after the AI1 purple so the state you are working today wins the card,
+     and before the closed-deal gold, which always wins. */
+  .k-card.nda-deal {
+    background: linear-gradient(180deg, rgba(139,94,60,0.14) 0%, #fbf7f2 65%);
+    border-color: #e4d3bb;
+    border-left-color: #8b5e3c;
+  }
+  .k-card.nda-deal:hover { border-color: #d6bc9c; border-left-color: #6f4729; }
+  .k-card.nda-deal .k-card-name { color: #6f4729; }
+  .k-card.nda-deal .k-card-value,
+  .k-card.nda-deal .k-card-value.big,
+  .k-card.nda-deal .k-card-value.whale { color: #7c4a21; }
+  .k-card.nda-deal .k-card-next { background: rgba(139,94,60,0.05); border-color: #ead9c3; }
+  .k-card.nda-deal .k-card-pill { background: rgba(139,94,60,0.12); color: #6f4729; }
+
+  .k-card.reach-deal {
+    background: linear-gradient(180deg, rgba(253,186,116,0.30) 0%, #fffaf3 65%);
+    border-color: #fcd9a8;
+    border-left-color: #fdba74;
+  }
+  .k-card.reach-deal:hover { border-color: #fbbf74; border-left-color: #f59e42; }
+  .k-card.reach-deal .k-card-name { color: #9a4e0b; }
+  .k-card.reach-deal .k-card-value,
+  .k-card.reach-deal .k-card-value.big,
+  .k-card.reach-deal .k-card-value.whale { color: #b45309; }
+  .k-card.reach-deal .k-card-next { background: rgba(253,186,116,0.10); border-color: #fde3c0; }
+  .k-card.reach-deal .k-card-pill { background: rgba(253,186,116,0.26); color: #9a4e0b; }
+
   /* ─────────────────────────────────────────────
      A closed deal — the one card on the board allowed to celebrate.
      Champagne gold, a scatter of confetti behind the text, a bottle on the
@@ -1952,6 +1992,18 @@
   }
   .k-card-btn.dead-btn:hover {
     background: #fef2f2; color: var(--red); border-color: #fecaca;
+  }
+  .k-card-btn.nda-btn:hover {
+    background: #f7f1e8; color: #7c4a21; border-color: #e4d3bb;
+  }
+  .k-card-btn.nda-active {
+    background: #f1e5d5; color: #6f4729; border-color: #d6bc9c;
+  }
+  .k-card-btn.reach-btn:hover {
+    background: #fff6ec; color: #b45309; border-color: #fcd9a8;
+  }
+  .k-card-btn.reach-active {
+    background: #ffe8cc; color: #9a4e0b; border-color: #fbbf74;
   }
   .k-card-btn.hmmm-btn:hover {
     background: #fffbeb; color: #b45309; border-color: #fde68a;
@@ -5606,8 +5658,8 @@ function toggleStatusSection(status) {
 function cycleStatus(companyName) {
   const company = companies.find(c => c.name === companyName);
   if (!company) return;
-  const cycle = ['hot', 'meh', 'dead'];
-  const cur = company.status || 'meh';
+  const cycle = TIMELINE_STATUSES.map(s => s.key);
+  const cur = statusOf(company);
   company.status = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
   saveData();
   renderTimeline();
@@ -5724,14 +5776,8 @@ function renderTimeline() {
     </div>`;
 
   const meetingLabels = ['Meeting 1','Meeting 2','Meeting 3','Meeting 4','Meeting 5'];
-  const STATUS_CONFIG = [
-    { key: 'hot',  label: 'Hot'    },
-    { key: 'meh',  label: 'Active' },
-    { key: 'dead', label: 'Dead'   },
-  ];
-
-  STATUS_CONFIG.forEach(({ key: status, label: statusLabel }) => {
-    const sectionComps = periodCompanies.filter(c => (c.status || 'meh') === status);
+  TIMELINE_STATUSES.forEach(({ key: status, label: statusLabel }) => {
+    const sectionComps = periodCompanies.filter(c => statusOf(c) === status);
     const open = statusSectionOpen[status];
     rowsHTML += `
       <div class="status-section-header ${status}"
@@ -5798,7 +5844,7 @@ function renderTimeline() {
       if (isGrouped && isCollapsed) return;
 
       group.forEach(c => {
-        const curStatus = c.status || 'meh';
+        const curStatus = statusOf(c);
         const cls = c.s1 ? 'g' : 'b';
         const sorted = [...c.meetings].sort();
         let connHTML = '';
@@ -5835,7 +5881,7 @@ function renderTimeline() {
                 <div class="cname" onclick="event.stopPropagation();editCompanyName(event,this,'${safeN}')">${c.name}</div>
                 ${c.s1 ? '<span class="s1-tag">S1</span>' : ''}
               </div>
-              <div class="status-cycle-dot ${curStatus}" title="Click to change status"
+              <div class="status-cycle-dot ${curStatus}" title="${statusLabelFor(curStatus)} — click to change status"
                 onclick="event.stopPropagation();cycleStatus('${safeN}')"></div>
               ${isGrouped ? `<button type="button" class="row-ungroup" onclick="event.stopPropagation();removeFromGroup('${safeN}')" title="Remove from group">remove</button>` : ''}
               <button type="button" class="row-del" onclick="event.stopPropagation();deleteOpportunity('${safeN}')" title="Delete opportunity">×</button>
@@ -6285,7 +6331,30 @@ let pendingMatches = [];
 let pendingUnmatched = [];
 // Collapse state persists across re-renders
 const calSectionOpen = { unassigned: true, assigned: false };
-const statusSectionOpen = { hot: true, meh: true, dead: false };
+// Row statuses on the Meetings timeline. This order is both the ladder the
+// status dot cycles through and the order the sections stack in. `nda` is the
+// deal that is real but stuck in legal; `reach` is dead on this cycle but still
+// worth a touch, which is why it keeps a warm colour instead of the grey of
+// `dead`. Colours live in the CSS: .status-section-header.<key> and
+// .status-cycle-dot.<key>.
+const TIMELINE_STATUSES = [
+  { key: 'hot',   label: 'Hot'              },
+  { key: 'meh',   label: 'Active'           },
+  { key: 'nda',   label: 'Stuck in NDA'     },
+  { key: 'reach', label: 'Dead · reach out' },
+  { key: 'dead',  label: 'Dead'             },
+];
+// A status read back from storage that isn't one of the above (an older board,
+// a renamed key) falls back to Active so the row can't vanish from the view.
+function statusOf(c) {
+  const k = c && c.status;
+  return TIMELINE_STATUSES.some(s => s.key === k) ? k : 'meh';
+}
+function statusLabelFor(key) {
+  const s = TIMELINE_STATUSES.find(x => x.key === key);
+  return s ? s.label : 'Active';
+}
+const statusSectionOpen = { hot: true, meh: true, nda: true, reach: true, dead: false };
 let draggedRow = null;
 let draggedGroup = null; // domain being dragged as a whole group
 
@@ -7767,8 +7836,11 @@ function renderKanban() {
       const cae = isCAEBoard();
       const dv = cae ? dealValue(c) : 0;
       const isBig = cae && dv >= BIG_DEAL_MIN;
+      const cardStatus = statusOf(c);
       const cardCls = ['k-card',
                        isBig ? 'big-deal' : '',
+                       cardStatus === 'nda'   ? 'nda-deal'   : '',
+                       cardStatus === 'reach' ? 'reach-deal' : '',
                        cae && isAI1(c) ? 'ai1-deal' : '',
                        isClosedDeal(c) ? 'closed-deal' : '',
                        c.likelyS1 && stage.sortByLikelyS1 ? 'likely-s1' : '',
@@ -7828,6 +7900,12 @@ function renderKanban() {
             <button class="k-card-btn ${isS1Stage ? 's1-active' : ''}"
                     onclick="event.stopPropagation();toggleS1Flip('${safeN}')"
                     title="${isS1Stage ? 'Currently in S1' : 'Flip to S1 column'}"><span class="k-btn-ico">${isS1Stage ? '✓' : '→'}</span><span class="k-btn-txt">S1</span></button>
+            <button class="k-card-btn nda-btn ${cardStatus === 'nda' ? 'nda-active' : ''}"
+                    onclick="event.stopPropagation();toggleNDA('${safeN}')"
+                    title="${cardStatus === 'nda' ? 'Stuck in NDA ✓ — click to clear' : 'Stuck in NDA — turns the card brown'}"><span class="k-btn-ico">📄</span><span class="k-btn-txt">NDA</span></button>
+            <button class="k-card-btn reach-btn ${cardStatus === 'reach' ? 'reach-active' : ''}"
+                    onclick="event.stopPropagation();toggleReachOut('${safeN}')"
+                    title="${cardStatus === 'reach' ? 'Dead, still worth a touch ✓ — click to clear' : 'Dead, but still reach out — turns the card light orange and keeps it on the board'}"><span class="k-btn-ico">📣</span><span class="k-btn-txt">Reach</span></button>
             <button class="k-card-btn dead-btn"
                     onclick="event.stopPropagation();markDead('${safeN}')"
                     title="Mark this opportunity dead"><span class="k-btn-ico">×</span><span class="k-btn-txt">Dead</span></button>
@@ -8043,8 +8121,9 @@ function restoreZoneCollapsed() {
 // Groups are global to the board (every column shows the same set) and
 // persist per user alongside stages.
 const GROUP_COLOR_CHOICES = [
-  '#dc2626', '#ea580c', '#b45309', '#ca8a04', '#16a34a', '#0d9488',
-  '#0e7490', '#2563eb', '#4f46e5', '#7c3aed', '#c026d3', '#db2777', '#64748b',
+  '#dc2626', '#ea580c', '#fdba74', '#b45309', '#8b5e3c', '#ca8a04', '#16a34a',
+  '#0d9488', '#0e7490', '#2563eb', '#4f46e5', '#7c3aed', '#c026d3', '#db2777',
+  '#64748b',
 ];
 
 // New groups land with a placeholder name and immediately put the cursor
@@ -9640,6 +9719,30 @@ function restoreFromDead(name) {
   c.dead = false;
   saveData(); renderKanban(); renderMetrics();
 }
+// Brown "stuck in NDA" and light-orange "dead, but still reach out". Both
+// write the same c.status the Meetings timeline colours its rows by, so a
+// card and its row always say the same thing. Unlike Dead / DQ / Old they
+// leave the opp exactly where it is in its column — being able to still see
+// it is the entire point of either flag.
+function toggleNDA(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  const on = statusOf(c) !== 'nda';
+  c.status = on ? 'nda' : 'meh';
+  if (on) c.dead = false; // it is parked in legal, not gone
+  saveData(); renderKanban(); renderMetrics();
+}
+function toggleReachOut(name) {
+  const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  const c = companies.find(x => x.name === unescaped);
+  if (!c) return;
+  const on = statusOf(c) !== 'reach';
+  c.status = on ? 'reach' : 'meh';
+  if (on) c.dead = false; // stays on the board — that is the difference from Dead
+  saveData(); renderKanban(); renderMetrics();
+}
+
 function markHmmm(name) {
   const unescaped = name.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
   const c = companies.find(x => x.name === unescaped);
